@@ -31,10 +31,10 @@ It is not a tax adviser, payroll office, or filing portal. Estimates must say so
 7. Every screen works at 375px width and on a desktop sidebar. Touch targets are at least 44px. Do not hide the only path to an action behind hover.
 8. Keep the sample company obviously fake. Do not invent a filing, a wage-tax amount, or a social-insurance status as if it were a decision.
 9. Comments explain a legal or accounting constraint that the code itself cannot say. Do not narrate the change.
-10. Before finishing, run `npm test` and `npm run typecheck`. For UI changes, exercise the affected flow on a narrow and a wide viewport.
+10. Before finishing, run `bun run test` and `bun run typecheck`. For UI changes, exercise the affected flow on a narrow and a wide viewport.
 
 ## Checks
 
-- `npm test`
-- `npm run typecheck`
-- `npm run build` when the change touches routing, the database, or server actions
+- `bun run test`
+- `bun run typecheck`
+- `bun run build` when the change touches routing, the database, server actions, or how the app is installed

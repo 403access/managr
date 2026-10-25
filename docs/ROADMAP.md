@@ -45,4 +45,4 @@ These need an external system or a different product decision. They are not stub
 
 ## Done
 
-A version is done when the domain tests pass, `npm run typecheck` and `npm run build` pass, the changed screens work at phone and desktop width, and the doc that owns the behavior was updated with the code.
+A version is done when the domain tests pass, `bun run typecheck` and `bun run build` pass, the changed screens work at phone and desktop width, and the doc that owns the behavior was updated with the code.

@@ -47,4 +47,4 @@ Colors, type, and spacing are in `src/app/globals.css`. The layout is fluid; the
 
 ## Checks
 
-`npm test` runs Vitest. `npm run typecheck` runs the TypeScript compiler. `npm run build` produces the production server. There is no hosted service and no environment secret.
+`bun install` installs dependencies from `bun.lock`. `bun run test` runs Vitest. `bun run typecheck` runs the TypeScript compiler. `bun run build` produces the production server. There is no hosted service and no environment secret.
