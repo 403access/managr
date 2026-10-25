@@ -1,3 +1,5 @@
+"use client";
+
 import { saveEmployee } from "@/server/actions";
 import { ActionForm, SubmitButton } from "./action-form";
 import { euroInput, hoursInput, percentInput } from "./amounts";

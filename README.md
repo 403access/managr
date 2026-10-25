@@ -19,7 +19,7 @@ npm run typecheck
 npm run build
 ```
 
-There is no account system and no environment secret. The app is one user on this computer.
+There is no account system and no environment secret. The app is one user on this computer. Screens cache their data with TanStack Query and refresh it after a save.
 
 ## Where things live
 

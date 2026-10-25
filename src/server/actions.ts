@@ -124,9 +124,9 @@ function pricedLines(lines: InvoicePayload["lines"], klein: boolean) {
   });
 }
 
-export async function dismissSample(): Promise<void> {
+export async function dismissSample(): Promise<ActionState> {
   getDb().update(companies).set({ isSample: false }).run();
-  revalidatePath("/", "layout");
+  return saved("Sample label hidden.");
 }
 
 export async function updateIdentity(_state: ActionState, formData: FormData): Promise<ActionState> {

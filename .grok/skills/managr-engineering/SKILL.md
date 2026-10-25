@@ -18,7 +18,7 @@ It is not a tax adviser, payroll office, or filing portal. Estimates must say so
 
 ## Rules
 
-1. KISS. Prefer a plain function and a server action over a new abstraction. One code path for each business rule.
+1. KISS. Prefer a plain function and a server action over a new abstraction. One code path for each business rule. Client screens cache server view JSON with TanStack Query. A mutation stays a server action and then invalidates that cache. Do not read SQLite from the browser.
 2. DRY. Rates, account codes, and legal thresholds have one home:
    - figures: `src/domain/rates-2026.ts`
    - chart of accounts: `src/domain/accounts.ts`

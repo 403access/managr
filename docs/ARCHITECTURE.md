@@ -5,9 +5,10 @@ managr is a Next.js App Router application. The browser talks to React Server Co
 ```
 src/domain        pure rules, no database, no React
 src/db            Drizzle schema, SQL migration, connection, sample seed
-src/server        queries and server actions
-src/app           routes
-src/components    layout and forms
+src/server        queries, view JSON, and server actions
+src/client        TanStack Query keys shared by the server and the browser
+src/app           routes, including GET /api/views/[name]
+src/components    layout, forms, and screens
 data/managr.db    created on first launch (gitignored)
 data/uploads      document files (gitignored)
 ```
@@ -18,7 +19,7 @@ data/uploads      document files (gitignored)
 - React does not reimplement VAT, reserve, social insurance, or deadlines. It renders what the domain returns.
 - Only `src/db/client.ts` opens the database. Server actions call `getDb()`.
 - Journal lines are inserted by `src/server/posting.ts`, which refuses anything `journalImbalance` rejects.
-- Client components receive plain objects. They do not import `src/db` or `src/server`.
+- Client components receive plain objects. They may import a server action and a view type. They do not import `src/db` or `src/server/queries.ts`.
 
 ## Money and time
 
@@ -32,13 +33,15 @@ The first launch of an empty database loads the sample company Atelier Nordlicht
 
 ## Request flow
 
-Pages read through `src/server/queries.ts`. Mutations are server actions in `src/server/actions.ts`. After a write they call `revalidatePath`. Issued invoices, payments, expenses, payroll, reserve movements, and voids all go through a posting builder in `src/domain/postings.ts`.
+A screen does not open SQLite. `src/server/views.ts` builds the JSON for that screen from `src/server/queries.ts`. The server page puts that JSON into a TanStack Query cache with `Hydrate`. The client screen reads the same key with `useView`, and refetches `GET /api/views/[name]` when the cache is stale. Query keys live in `src/client/query-keys.ts`.
+
+Mutations stay server actions in `src/server/actions.ts`. After a write they call `revalidatePath`, and the form invalidates the `view` query cache so the open screen refetches. Issued invoices, payments, expenses, payroll, reserve movements, and voids all go through a posting builder in `src/domain/postings.ts`. The printable invoice stays a server render and is not a query.
 
 `src/server/payloads.ts` validates the invoice and manual-journal JSON. `src/server/people.ts` maps a person onto the social-insurance estimate. `src/server/files.ts` writes uploads under `data/uploads` and refuses a stored name that leaves that directory. `src/server/invoice-math.ts` is the only place that turns stored invoice lines into net, VAT, and open amounts.
 
 ## UI
 
-`(app)/layout.tsx` renders the shell: sidebar from 768px up, bottom navigation below that. The invoice print route sits outside the shell. Interactive pieces (mobile menu, invoice lines, journal lines) are client components. Everything else is a server component.
+`(app)/layout.tsx` hydrates the shell. The shell is a client component: sidebar from 768px up, bottom navigation below that. The invoice print route sits outside the shell. Screens, the mobile menu, invoice lines, and journal lines are client components. The page files stay server components so they can prefetch the view.
 
 Colors, type, and spacing are in `src/app/globals.css`. The layout is fluid; there is no separate mobile site.
 

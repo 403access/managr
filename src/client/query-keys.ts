@@ -1,0 +1,33 @@
+export const queryKeys = {
+  shell: ["view", "shell"] as const,
+  desk: ["view", "desk"] as const,
+  company: ["view", "company"] as const,
+  invoices: ["view", "invoices"] as const,
+  invoice: (id: number) => ["view", "invoice", id] as const,
+  invoiceNew: ["view", "invoice-new"] as const,
+  invoiceEdit: (id: number) => ["view", "invoice-edit", id] as const,
+  ledger: (all: boolean) => ["view", "ledger", all ? "all" : "open"] as const,
+  people: ["view", "people"] as const,
+  person: (id: number) => ["view", "person", id] as const,
+  time: (week: string) => ["view", "time", week] as const,
+  obligations: (year: number) => ["view", "obligations", year] as const,
+  documents: ["view", "documents"] as const,
+  legal: ["view", "legal"] as const,
+};
+
+export const viewPath = {
+  shell: "/api/views/shell",
+  desk: "/api/views/desk",
+  company: "/api/views/company",
+  invoices: "/api/views/invoices",
+  invoice: (id: number) => `/api/views/invoice?id=${id}`,
+  invoiceNew: "/api/views/invoice-new",
+  invoiceEdit: (id: number) => `/api/views/invoice-edit?id=${id}`,
+  ledger: (all: boolean) => `/api/views/ledger${all ? "?all=1" : ""}`,
+  people: "/api/views/people",
+  person: (id: number) => `/api/views/person?id=${id}`,
+  time: (week: string) => `/api/views/time?week=${week}`,
+  obligations: (year: number) => `/api/views/obligations?year=${year}`,
+  documents: "/api/views/documents",
+  legal: "/api/views/legal",
+};
