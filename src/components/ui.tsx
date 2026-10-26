@@ -119,7 +119,7 @@ const pillTones: Record<string, string> = {
 };
 
 export function Pill({ tone, children }: { tone: string; children: ReactNode }) {
-  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium capitalize ${pillTones[tone] ?? pillTones.open}`}>{children}</span>;
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pillTones[tone] ?? pillTones.open}`}>{children}</span>;
 }
 
 export function Money({ cents }: { cents: number }) {

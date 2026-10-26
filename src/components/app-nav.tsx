@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { LanguageSwitch, useI18n } from "./locale-provider";
 import { moreNav, primaryNav, type NavIcon, type NavItem } from "./nav-items";
 
 function active(pathname: string, href: string): boolean {
@@ -27,7 +28,7 @@ function Icon({ name }: { name: NavIcon }) {
   );
 }
 
-function Item({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate?: () => void }) {
+function Item({ item, pathname, label, onNavigate }: { item: NavItem; pathname: string; label: string; onNavigate?: () => void }) {
   const on = active(pathname, item.href);
   return (
     <Link
@@ -37,27 +38,33 @@ function Item({ item, pathname, onNavigate }: { item: NavItem; pathname: string;
       aria-current={on ? "page" : undefined}
     >
       <Icon name={item.icon} />
-      {item.label}
+      {label}
     </Link>
   );
 }
 
 export function AppNav({ variant }: { variant: "side" | "bottom" }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreOn = moreNav.some((item) => active(pathname, item.href));
 
   if (variant === "side") {
     return (
-      <nav className="mt-8 grid gap-1" aria-label="Sections">
-        {primaryNav.map((item) => (
-          <Item key={item.href} item={item} pathname={pathname} />
-        ))}
-        <p className="mt-4 px-3 text-xs font-medium tracking-wide text-muted uppercase">More</p>
-        {moreNav.map((item) => (
-          <Item key={item.href} item={item} pathname={pathname} />
-        ))}
-      </nav>
+      <div className="mt-6 flex min-h-0 flex-1 flex-col">
+        <nav className="grid gap-1" aria-label={t("nav.sections")}>
+          {primaryNav.map((item) => (
+            <Item key={item.href} item={item} pathname={pathname} label={t(item.labelKey)} />
+          ))}
+          <p className="mt-4 px-3 text-xs font-medium tracking-wide text-muted uppercase">{t("nav.more")}</p>
+          {moreNav.map((item) => (
+            <Item key={item.href} item={item} pathname={pathname} label={t(item.labelKey)} />
+          ))}
+        </nav>
+        <div className="mt-auto pt-4">
+          <LanguageSwitch />
+        </div>
+      </div>
     );
   }
 
@@ -65,20 +72,23 @@ export function AppNav({ variant }: { variant: "side" | "bottom" }) {
     <div className="md:hidden">
       {moreOpen ? (
         <div className="fixed inset-x-3 bottom-20 z-40 rounded-2xl border border-line bg-card p-2 shadow-lg">
-          <nav className="grid gap-1" aria-label="More sections">
+          <nav className="grid gap-1" aria-label={t("nav.moreSections")}>
             {moreNav.map((item) => (
-              <Item key={item.href} item={item} pathname={pathname} onNavigate={() => setMoreOpen(false)} />
+              <Item key={item.href} item={item} pathname={pathname} label={t(item.labelKey)} onNavigate={() => setMoreOpen(false)} />
             ))}
+            <div className="px-2 py-1">
+              <LanguageSwitch />
+            </div>
           </nav>
         </div>
       ) : null}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur" aria-label="Primary">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur" aria-label={t("nav.primary")}>
         {primaryNav.map((item) => {
           const on = active(pathname, item.href);
           return (
-            <Link key={item.href} href={item.href} className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] ${on ? "text-pine" : "text-muted"}`} aria-current={on ? "page" : undefined}>
+            <Link key={item.href} href={item.href} className={`flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-center text-[11px] leading-tight ${on ? "text-pine" : "text-muted"}`} aria-current={on ? "page" : undefined}>
               <Icon name={item.icon} />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}
@@ -86,7 +96,7 @@ export function AppNav({ variant }: { variant: "side" | "bottom" }) {
           <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
             <path d="M5 12h.01M12 12h.01M19 12h.01" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
           </svg>
-          More
+          {t("nav.more")}
         </button>
       </nav>
     </div>

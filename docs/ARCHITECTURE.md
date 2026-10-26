@@ -9,6 +9,7 @@ src/server        queries, view JSON, and server actions
 src/client        TanStack Query keys shared by the server and the browser
 src/app           routes, including GET /api/views/[name]
 src/components    layout, forms, and screens
+src/i18n          German and English catalogs, labels, and phrase translation
 data/managr.db    created on first launch (gitignored)
 data/uploads      document files (gitignored)
 ```
@@ -44,6 +45,12 @@ Mutations stay server actions in `src/server/actions.ts`. After a write they cal
 `(app)/layout.tsx` hydrates the shell. The shell is a client component: sidebar from 768px up, bottom navigation below that. The invoice print route sits outside the shell. Screens, the mobile menu, invoice lines, and journal lines are client components. The page files stay server components so they can prefetch the view.
 
 Colors, type, and spacing are in `src/app/globals.css`. The layout is fluid; there is no separate mobile site.
+
+## Language
+
+The interface is German by default. English is the second language. The cookie `managr-locale` stores `de` or `en`. A missing or unknown value is German. `src/i18n/messages.ts` holds the chrome, and the German catalog is the source of the keys. Domain functions and server actions keep their English sentences, and `tx` translates the known ones when the locale is German. Query keys do not include the locale.
+
+Printed invoices stay German in both languages, including the Kleinunternehmer note. SKR03 account names stay German. Dates and euro amounts stay in `de-DE` format. Stored titles, notes, and checklist rows are not translated when the language changes. The sample company is seeded in German. On startup, known English sample sentences are rewritten only when the company is still marked as the sample and the text still matches.
 
 ## Checks
 

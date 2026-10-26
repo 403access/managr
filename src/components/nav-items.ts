@@ -1,18 +1,18 @@
 export type NavIcon = "desk" | "invoices" | "time" | "dates" | "company" | "ledger" | "people" | "documents" | "legal";
 
-export type NavItem = { href: string; label: string; icon: NavIcon };
+export type NavItem = { href: string; labelKey: "nav.desk" | "nav.invoices" | "nav.time" | "nav.dates" | "nav.company" | "nav.ledger" | "nav.people" | "nav.documents" | "nav.legal"; icon: NavIcon };
 
 export const primaryNav: NavItem[] = [
-  { href: "/", label: "Desk", icon: "desk" },
-  { href: "/invoices", label: "Invoices", icon: "invoices" },
-  { href: "/time", label: "Time", icon: "time" },
-  { href: "/obligations", label: "Dates", icon: "dates" },
+  { href: "/", labelKey: "nav.desk", icon: "desk" },
+  { href: "/invoices", labelKey: "nav.invoices", icon: "invoices" },
+  { href: "/time", labelKey: "nav.time", icon: "time" },
+  { href: "/obligations", labelKey: "nav.dates", icon: "dates" },
 ];
 
 export const moreNav: NavItem[] = [
-  { href: "/company", label: "Company", icon: "company" },
-  { href: "/ledger", label: "Ledger", icon: "ledger" },
-  { href: "/people", label: "People", icon: "people" },
-  { href: "/documents", label: "Documents", icon: "documents" },
-  { href: "/legal", label: "Legal", icon: "legal" },
+  { href: "/company", labelKey: "nav.company", icon: "company" },
+  { href: "/ledger", labelKey: "nav.ledger", icon: "ledger" },
+  { href: "/people", labelKey: "nav.people", icon: "people" },
+  { href: "/documents", labelKey: "nav.documents", icon: "documents" },
+  { href: "/legal", labelKey: "nav.legal", icon: "legal" },
 ];

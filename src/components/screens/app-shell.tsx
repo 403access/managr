@@ -6,12 +6,14 @@ import type { shellView } from "@/server/views";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { AppNav } from "@/components/app-nav";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { useI18n } from "@/components/locale-provider";
 import { useView } from "@/components/use-view";
 
 type Shell = ReturnType<typeof shellView>;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const query = useView<Shell>(queryKeys.shell, viewPath.shell);
+  const { t } = useI18n();
   const company = query.data;
   return (
     <div className="min-h-dvh">
@@ -25,8 +27,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <p className="mb-4 font-display text-2xl text-pine md:hidden">managr</p>
           {company?.isSample ? (
             <ActionForm action={dismissSample} className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm">
-              <p>Sample company. The figures are invented. The books stay until you delete data/managr.db.</p>
-              <SubmitButton tone="quiet">Hide sample label</SubmitButton>
+              <p>{t("shell.sample")}</p>
+              <SubmitButton tone="quiet">{t("shell.hideSample")}</SubmitButton>
             </ActionForm>
           ) : null}
           {children}

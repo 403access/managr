@@ -3,7 +3,11 @@ import { PeopleScreen } from "@/components/screens/people-screen";
 import { Hydrate } from "@/server/hydrate";
 import { peopleView } from "@/server/views";
 
-export const metadata = { title: "People" };
+import { titled } from "@/server/locale";
+
+export function generateMetadata() {
+  return titled("meta.people");
+}
 
 export default function PeoplePage() {
   return (

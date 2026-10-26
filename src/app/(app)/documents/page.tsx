@@ -3,7 +3,11 @@ import { DocumentsScreen } from "@/components/screens/documents-screen";
 import { Hydrate } from "@/server/hydrate";
 import { documentsView } from "@/server/views";
 
-export const metadata = { title: "Documents" };
+import { titled } from "@/server/locale";
+
+export function generateMetadata() {
+  return titled("meta.documents");
+}
 
 export default function DocumentsPage() {
   return (

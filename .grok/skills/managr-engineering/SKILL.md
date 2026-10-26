@@ -32,6 +32,7 @@ It is not a tax adviser, payroll office, or filing portal. Estimates must say so
 8. Keep the sample company obviously fake. Do not invent a filing, a wage-tax amount, or a social-insurance status as if it were a decision.
 9. Comments explain a legal or accounting constraint that the code itself cannot say. Do not narrate the change.
 10. Before finishing, run `bun run test` and `bun run typecheck`. For UI changes, exercise the affected flow on a narrow and a wide viewport.
+11. The interface is German by default, with English as the second language. User-facing copy goes through `src/i18n`. Use the statutory German term. Do not invent a plainer synonym. Printed invoices stay German in both languages.
 
 ## Checks
 

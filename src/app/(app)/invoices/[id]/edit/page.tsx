@@ -4,7 +4,11 @@ import { InvoiceEditScreen } from "@/components/screens/invoice-form-screen";
 import { Hydrate } from "@/server/hydrate";
 import { invoiceEditView } from "@/server/views";
 
-export const metadata = { title: "Edit draft" };
+import { titled } from "@/server/locale";
+
+export function generateMetadata() {
+  return titled("meta.invoiceEdit");
+}
 
 export default async function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

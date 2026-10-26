@@ -3,7 +3,11 @@ import { CompanyScreen } from "@/components/screens/company-screen";
 import { Hydrate } from "@/server/hydrate";
 import { companyView } from "@/server/views";
 
-export const metadata = { title: "Company" };
+import { titled } from "@/server/locale";
+
+export function generateMetadata() {
+  return titled("meta.company");
+}
 
 export default function CompanyPage() {
   return (

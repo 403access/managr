@@ -5,7 +5,7 @@ import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
 import { databasePath } from "./paths";
-import { seedIfEmpty } from "./seed";
+import { localizeSample, seedIfEmpty } from "./seed";
 
 export type DB = BetterSQLite3Database<typeof schema>;
 
@@ -38,6 +38,7 @@ export function getDb(): DB {
   if (!globalForDb.managrDb) {
     const db = openDatabase(databasePath());
     seedIfEmpty(db);
+    localizeSample(db);
     globalForDb.managrDb = db;
   }
   return globalForDb.managrDb;

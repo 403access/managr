@@ -7,6 +7,7 @@ import { KLEINUNTERNEHMER_NOTE, reviewInvoice } from "@/domain/invoice";
 import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
+import { useI18n } from "./locale-provider";
 import { ActionForm, SubmitButton } from "./action-form";
 import { buttonClass, Field, inputClass } from "./ui";
 
@@ -64,6 +65,7 @@ export function InvoiceForm({
   defaultVatBps: number;
   draft?: Draft;
 }) {
+  const { t, tx } = useI18n();
   const [mode, setMode] = useState<"existing" | "new">(draft || customers.length > 0 ? "existing" : "new");
   const [customerId, setCustomerId] = useState<number | null>(draft?.customerId ?? customers[0]?.id ?? null);
   const [customer, setCustomer] = useState(emptyCustomer);
@@ -141,7 +143,7 @@ export function InvoiceForm({
     <ActionForm action={saveInvoice}>
       <input type="hidden" name="payload" value={payload} />
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Customer">
+        <Field label={t("invoices.customer")}>
           <select className={inputClass} value={mode === "new" ? "new" : String(customerId ?? "")} onChange={(event) => {
             if (event.target.value === "new") setMode("new");
             else {
@@ -152,42 +154,42 @@ export function InvoiceForm({
             {customers.map((item) => (
               <option key={item.id} value={item.id}>{item.name}</option>
             ))}
-            <option value="new">New customer</option>
+            <option value="new">{t("invoices.newCustomer")}</option>
           </select>
         </Field>
       </div>
       {mode === "new" ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Name"><input className={inputClass} value={customer.name} onChange={(event) => setCustomer({ ...customer, name: event.target.value })} /></Field>
-          <Field label="Street"><input className={inputClass} value={customer.street} onChange={(event) => setCustomer({ ...customer, street: event.target.value })} /></Field>
-          <Field label="Postal code"><input className={inputClass} value={customer.postalCode} onChange={(event) => setCustomer({ ...customer, postalCode: event.target.value })} /></Field>
-          <Field label="City"><input className={inputClass} value={customer.city} onChange={(event) => setCustomer({ ...customer, city: event.target.value })} /></Field>
-          <Field label="Country"><input className={inputClass} value={customer.country} onChange={(event) => setCustomer({ ...customer, country: event.target.value })} /></Field>
-          <Field label="VAT id"><input className={inputClass} value={customer.vatId} onChange={(event) => setCustomer({ ...customer, vatId: event.target.value })} /></Field>
+          <Field label={t("common.name")}><input className={inputClass} value={customer.name} onChange={(event) => setCustomer({ ...customer, name: event.target.value })} /></Field>
+          <Field label={t("common.street")}><input className={inputClass} value={customer.street} onChange={(event) => setCustomer({ ...customer, street: event.target.value })} /></Field>
+          <Field label={t("common.postal")}><input className={inputClass} value={customer.postalCode} onChange={(event) => setCustomer({ ...customer, postalCode: event.target.value })} /></Field>
+          <Field label={t("common.city")}><input className={inputClass} value={customer.city} onChange={(event) => setCustomer({ ...customer, city: event.target.value })} /></Field>
+          <Field label={t("common.country")}><input className={inputClass} value={customer.country} onChange={(event) => setCustomer({ ...customer, country: event.target.value })} /></Field>
+          <Field label={t("company.vatId")}><input className={inputClass} value={customer.vatId} onChange={(event) => setCustomer({ ...customer, vatId: event.target.value })} /></Field>
         </div>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Issue date"><input className={inputClass} type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} /></Field>
-        <Field label="Date of supply"><input className={inputClass} type="date" value={serviceDate} onChange={(event) => setServiceDate(event.target.value)} /></Field>
-        <Field label="Due date"><input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></Field>
+        <Field label={t("invoices.issueDate")}><input className={inputClass} type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} /></Field>
+        <Field label={t("invoices.serviceDate")}><input className={inputClass} type="date" value={serviceDate} onChange={(event) => setServiceDate(event.target.value)} /></Field>
+        <Field label={t("invoices.dueDate")}><input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></Field>
       </div>
       <div className="grid gap-3">
         {lines.map((line, index) => (
           <div key={index} className="grid gap-3 rounded-2xl border border-line bg-white p-3 sm:grid-cols-12">
             <label className="grid gap-1 text-sm sm:col-span-5">
-              <span className="font-medium">Description</span>
+              <span className="font-medium">{t("invoices.description")}</span>
               <input className={inputClass} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} />
             </label>
             <label className="grid gap-1 text-sm sm:col-span-2">
-              <span className="font-medium">Quantity</span>
+              <span className="font-medium">{t("invoices.quantity")}</span>
               <input className={inputClass} inputMode="decimal" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} />
             </label>
             <label className="grid gap-1 text-sm sm:col-span-3">
-              <span className="font-medium">Unit net</span>
+              <span className="font-medium">{t("invoices.unitNet")}</span>
               <input className={inputClass} inputMode="decimal" value={line.unitNet} onChange={(event) => updateLine(index, { unitNet: event.target.value })} placeholder="0,00" />
             </label>
             <label className="grid gap-1 text-sm sm:col-span-2">
-              <span className="font-medium">VAT</span>
+              <span className="font-medium">{t("common.vat")}</span>
               <select className={inputClass} value={seller.kleinunternehmer ? 0 : line.vatBps} disabled={seller.kleinunternehmer} onChange={(event) => updateLine(index, { vatBps: Number(event.target.value) })}>
                 <option value={0}>0%</option>
                 <option value={REDUCED_VAT_BPS}>7%</option>
@@ -196,39 +198,39 @@ export function InvoiceForm({
             </label>
             {lines.length > 1 ? (
               <button type="button" className={`${buttonClass("quiet")} sm:col-span-12`} onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}>
-                Remove line
+                {t("invoices.removeLine")}
               </button>
             ) : null}
           </div>
         ))}
         <button type="button" className={buttonClass("quiet")} onClick={() => setLines((current) => [...current, { description: "", quantity: "1", unitNet: "", vatBps: seller.kleinunternehmer ? 0 : defaultVatBps }])}>
-          Add line
+          {t("invoices.addLine")}
         </button>
       </div>
-      <Field label="Notes">
+      <Field label={t("common.notes")}>
         <textarea className={`${inputClass} min-h-24 py-3`} value={notes} onChange={(event) => setNotes(event.target.value)} />
       </Field>
       {seller.kleinunternehmer ? <p className="text-sm text-muted">{KLEINUNTERNEHMER_NOTE}</p> : null}
       {preview ? (
         <p className="font-mono text-sm tabular-nums">
-          Net {formatEuro(preview.netCents)} · VAT {formatEuro(preview.vatCents)} · Gross {formatEuro(preview.grossCents)}
+          {t("invoices.preview", { net: formatEuro(preview.netCents), vat: formatEuro(preview.vatCents), gross: formatEuro(preview.grossCents) })}
         </p>
       ) : (
-        <p className="text-sm text-muted">Enter quantities and prices to see the total. VAT is rounded once per rate.</p>
+        <p className="text-sm text-muted">{t("invoices.previewEmpty")}</p>
       )}
       {review.blockers.length > 0 ? (
         <ul className="grid gap-1 text-sm text-clay">
-          {review.blockers.map((item) => <li key={item}>{item}</li>)}
+          {review.blockers.map((item) => <li key={item}>{tx(item)}</li>)}
         </ul>
       ) : null}
       {review.warnings.length > 0 ? (
         <ul className="grid gap-1 text-sm text-amber">
-          {review.warnings.map((item) => <li key={item}>{item}</li>)}
+          {review.warnings.map((item) => <li key={item}>{tx(item)}</li>)}
         </ul>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <SubmitButton name="intent" value="draft" tone="quiet">Save draft</SubmitButton>
-        <SubmitButton name="intent" value="issue">Issue invoice</SubmitButton>
+        <SubmitButton name="intent" value="draft" tone="quiet">{t("invoices.saveDraft")}</SubmitButton>
+        <SubmitButton name="intent" value="issue">{t("invoices.issue")}</SubmitButton>
       </div>
     </ActionForm>
   );

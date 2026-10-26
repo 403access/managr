@@ -8,6 +8,7 @@ import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { euroInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { Card, Disclaimer, Field, LinkButton, Money, PageHeader, Pill, textLinkClass, TextInput } from "@/components/ui";
 
@@ -15,6 +16,7 @@ type Invoice = NonNullable<ReturnType<typeof invoiceView>>;
 
 export function InvoiceScreen({ id }: { id: number }) {
   const query = useView<Invoice>(queryKeys.invoice(id), viewPath.invoice(id));
+  const { t, tx, label } = useI18n();
   return (
     <ViewGate query={query}>
       {(loaded) => {
@@ -22,19 +24,19 @@ export function InvoiceScreen({ id }: { id: number }) {
         return (
           <>
             <PageHeader
-              title={invoice.number ?? "Draft"}
-              lede={`${customer.name} · issued ${formatDate(invoice.issueDate)} · due ${formatDate(invoice.dueDate)}`}
+              title={invoice.number ?? t("common.draft")}
+              lede={`${customer.name} · ${t("invoices.issued", { date: formatDate(invoice.issueDate) })} · ${t("invoices.dueShort", { date: formatDate(invoice.dueDate) })}`}
               action={
                 <span className="flex flex-wrap gap-2">
-                  <Pill tone={status}>{status}</Pill>
-                  <LinkButton href={`/invoices/${invoice.id}/print`} tone="quiet">Print</LinkButton>
+                  <Pill tone={status}>{label(status)}</Pill>
+                  <LinkButton href={`/invoices/${invoice.id}/print`} tone="quiet">{t("common.print")}</LinkButton>
                 </span>
               }
             />
             <div className="grid gap-2">
               {lines.map((line) => (
                 <Card key={line.id} className="grid gap-1 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center">
-                  <p className="text-sm">{line.description || "Untitled line"}</p>
+                  <p className="text-sm">{line.description || t("invoices.untitled")}</p>
                   <p className="text-sm text-muted">
                     {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
                   </p>
@@ -44,40 +46,40 @@ export function InvoiceScreen({ id }: { id: number }) {
               ))}
             </div>
             <p className="mt-4 font-mono text-sm tabular-nums">
-              Net {formatEuro(loaded.netCents)} · VAT {formatEuro(loaded.vatCents)} · Gross {formatEuro(grossCents)} · Open {formatEuro(openCents)}
+              {t("invoices.totals", { net: formatEuro(loaded.netCents), vat: formatEuro(loaded.vatCents), gross: formatEuro(grossCents), open: formatEuro(openCents) })}
             </p>
             {invoice.exemptionNote ? <p className="mt-2 text-sm">{invoice.exemptionNote}</p> : null}
             {invoice.notes ? <p className="mt-2 text-sm text-muted">{invoice.notes}</p> : null}
             {invoice.status === "draft" && loaded.blockers.length > 0 ? (
               <ul className="mt-4 grid gap-1 text-sm text-clay">
                 {loaded.blockers.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item}>{tx(item)}</li>
                 ))}
               </ul>
             ) : null}
             {invoice.status === "draft" ? (
               <div className="mt-4 flex flex-wrap gap-2">
-                <LinkButton href={`/invoices/${invoice.id}/edit`}>Continue draft</LinkButton>
-                <ActionForm action={deleteDraft} compact confirm="Delete this draft?">
+                <LinkButton href={`/invoices/${invoice.id}/edit`}>{t("invoices.continue")}</LinkButton>
+                <ActionForm action={deleteDraft} compact confirm={t("invoices.deleteConfirm")}>
                   <input type="hidden" name="invoiceId" value={invoice.id} />
-                  <SubmitButton tone="danger">Delete draft</SubmitButton>
+                  <SubmitButton tone="danger">{t("invoices.deleteDraft")}</SubmitButton>
                 </ActionForm>
               </div>
             ) : null}
             {invoice.status !== "draft" && invoice.status !== "void" && openCents > 0 ? (
               <Card className="mt-6">
-                <h2 className="mb-3 text-xl">Payment</h2>
+                <h2 className="mb-3 text-xl">{t("invoices.payment")}</h2>
                 <ActionForm action={recordPayment}>
                   <input type="hidden" name="invoiceId" value={invoice.id} />
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Amount" hint={`Open ${formatEuro(openCents)}`}>
+                    <Field label={t("common.amount")} hint={t("invoices.openHint", { amount: formatEuro(openCents) })}>
                       <TextInput name="amount" inputMode="decimal" defaultValue={euroInput(openCents)} />
                     </Field>
-                    <Field label="Date">
+                    <Field label={t("common.date")}>
                       <TextInput name="paidOn" type="date" defaultValue={loaded.today} />
                     </Field>
                   </div>
-                  <SubmitButton>Record payment</SubmitButton>
+                  <SubmitButton>{t("invoices.recordPayment")}</SubmitButton>
                 </ActionForm>
               </Card>
             ) : null}
@@ -92,19 +94,19 @@ export function InvoiceScreen({ id }: { id: number }) {
             ) : null}
             {invoice.status !== "draft" && invoice.status !== "void" ? (
               <div className="mt-6">
-                <ActionForm action={voidInvoice} confirm="Void this invoice? The ledger is reversed. This does not create a credit note.">
+                <ActionForm action={voidInvoice} confirm={t("invoices.voidConfirm")}>
                   <input type="hidden" name="invoiceId" value={invoice.id} />
-                  <SubmitButton tone="danger">Void invoice</SubmitButton>
+                  <SubmitButton tone="danger">{t("invoices.void")}</SubmitButton>
                 </ActionForm>
               </div>
             ) : null}
             <p className="mt-6">
               <Link href="/invoices" className={textLinkClass}>
-                All invoices
+                {t("invoices.all")}
               </Link>
             </p>
             <div className="mt-6">
-              <Disclaimer>A void reverses the journal. It is not a credit-note PDF and it does not reuse the number.</Disclaimer>
+              <Disclaimer>{t("disclaimer.void")}</Disclaimer>
             </div>
           </>
         );

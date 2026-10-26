@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useActionState, useEffect, useRef, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { initialState, type ActionState } from "@/server/form";
+import { useI18n } from "./locale-provider";
 import { buttonClass, type ButtonTone } from "./ui";
 
 export function ActionForm({
@@ -21,6 +22,7 @@ export function ActionForm({
   className?: string;
   resetOnSuccess?: boolean;
 }) {
+  const { tx } = useI18n();
   const [state, formAction] = useActionState(action, initialState);
   const queryClient = useQueryClient();
   const seen = useRef(state);
@@ -44,12 +46,12 @@ export function ActionForm({
       {children}
       {state.error ? (
         <p className="basis-full text-sm text-clay" role="alert">
-          {state.error}
+          {tx(state.error)}
         </p>
       ) : null}
       {state.message ? (
         <p className="basis-full text-sm text-moss" role="status">
-          {state.message}
+          {tx(state.message)}
         </p>
       ) : null}
     </form>
@@ -58,9 +60,10 @@ export function ActionForm({
 
 export function SubmitButton({ children, tone = "primary", name, value }: { children: ReactNode; tone?: ButtonTone; name?: string; value?: string }) {
   const { pending } = useFormStatus();
+  const { t } = useI18n();
   return (
     <button type="submit" name={name} value={value} disabled={pending} className={buttonClass(tone)}>
-      {pending ? "Saving…" : children}
+      {pending ? t("common.saving") : children}
     </button>
   );
 }

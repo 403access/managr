@@ -5,7 +5,11 @@ import { Hydrate } from "@/server/hydrate";
 import { parseViewQuery } from "@/server/view-request";
 import { timeView } from "@/server/views";
 
-export const metadata = { title: "Time" };
+import { titled } from "@/server/locale";
+
+export function generateMetadata() {
+  return titled("meta.time");
+}
 
 export default async function TimePage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   const params = await searchParams;

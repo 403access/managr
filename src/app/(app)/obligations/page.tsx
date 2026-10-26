@@ -5,7 +5,11 @@ import { Hydrate } from "@/server/hydrate";
 import { parseViewQuery } from "@/server/view-request";
 import { obligationsView } from "@/server/views";
 
-export const metadata = { title: "Dates" };
+import { titled } from "@/server/locale";
+
+export function generateMetadata() {
+  return titled("meta.dates");
+}
 
 export default async function ObligationsPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
   const params = await searchParams;

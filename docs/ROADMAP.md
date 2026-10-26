@@ -20,6 +20,7 @@ Shipped in this repo. One user, one company, SQLite on disk, no account system.
 - Sample UG so the desk is usable on first launch.
 - Domain tests for the rules above.
 - Layout that works on a phone and on a desktop.
+- German interface by default, with English as a second language. Printed invoices stay German.
 
 ## Not in version 1
 

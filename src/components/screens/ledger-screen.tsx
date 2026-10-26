@@ -7,6 +7,7 @@ import { formatEuro } from "@/domain/money";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { JournalForm } from "@/components/journal-form";
+import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { Card, Check, Disclaimer, Field, PageHeader, Section, SelectInput, Stat, TextInput, textLinkClass } from "@/components/ui";
 
@@ -14,40 +15,47 @@ type Ledger = ReturnType<typeof ledgerView>;
 
 export function LedgerScreen({ all }: { all: boolean }) {
   const query = useView<Ledger>(queryKeys.ledger(all), viewPath.ledger(all));
+  const { t } = useI18n();
   return (
     <ViewGate query={query}>
       {(data) => (
         <>
           <PageHeader
-            title="Ledger"
-            lede={`SKR03 working chart. Financial year ${data.fy.label} runs ${formatDate(data.fy.start)} to ${formatDate(data.fy.end)}.`}
-            action={data.all ? <a className={textLinkClass} href="/ledger">Hide zero accounts</a> : <a className={textLinkClass} href="/ledger?all=1">Show every account</a>}
+            title={t("ledger.title")}
+            lede={t("ledger.lede", { label: data.fy.label, start: formatDate(data.fy.start), end: formatDate(data.fy.end) })}
+            action={data.all ? <a className={textLinkClass} href="/ledger">{t("ledger.hideZero")}</a> : <a className={textLinkClass} href="/ledger?all=1">{t("ledger.showAll")}</a>}
           />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat label="Revenue" value={formatEuro(data.profit.revenueCents)} />
-            <Stat label="Expenses" value={formatEuro(data.profit.expenseCents)} />
-            <Stat label="Profit before tax" value={formatEuro(data.profit.profitBeforeTaxCents)} />
-            <Stat label={data.vat >= 0 ? "VAT payable" : "VAT refund"} value={formatEuro(Math.abs(data.vat))} hint="Output VAT minus input VAT minus prepayments" />
+            <Stat label={t("ledger.revenue")} value={formatEuro(data.profit.revenueCents)} />
+            <Stat label={t("ledger.expenses")} value={formatEuro(data.profit.expenseCents)} />
+            <Stat label={t("desk.profit")} value={formatEuro(data.profit.profitBeforeTaxCents)} />
+            <Stat label={data.vat >= 0 ? t("ledger.vatPayable") : t("ledger.vatRefund")} value={formatEuro(Math.abs(data.vat))} hint={t("ledger.vatHint")} />
           </div>
           <Card className="mt-4">
-            <h2 className="text-xl">Tax estimate</h2>
+            <h2 className="text-xl">{t("ledger.estimate")}</h2>
             <p className="mt-2 text-sm">
-              Taxable base {formatEuro(data.tax.taxableCents)} · Körperschaftsteuer {formatEuro(data.tax.corporateCents)} · Solidaritätszuschlag {formatEuro(data.tax.soliCents)} · Gewerbesteuer {formatEuro(data.tax.tradeCents)} · together {formatEuro(data.tax.totalCents)}.
+              {t("ledger.estimateBody", {
+                base: formatEuro(data.tax.taxableCents),
+                kst: formatEuro(data.tax.corporateCents),
+                soli: formatEuro(data.tax.soliCents),
+                gewst: formatEuro(data.tax.tradeCents),
+                total: formatEuro(data.tax.totalCents),
+              })}
             </p>
-            <p className="mt-2 text-sm text-muted">Hebesatz {data.hebesatzPercent}%. A UG has no Gewerbesteuer Freibetrag in this estimate, and trade tax is not deducted again inside corporation tax. Booked tax (accounts 2200, 2208, 4320) is outside profit before tax.</p>
+            <p className="mt-2 text-sm text-muted">{t("ledger.estimateNote", { rate: data.hebesatzPercent })}</p>
             <div className="mt-3">
-              <Disclaimer />
+              <Disclaimer>{t("disclaimer.default")}</Disclaimer>
             </div>
           </Card>
-          <p className="mt-4 text-sm">{data.equation === 0 ? "The books balance." : `The books differ by ${formatEuro(data.equation)}.`}</p>
-          <div className="mt-4 overflow-x-auto">
+          <p className="mt-4 text-sm">{data.equation === 0 ? t("ledger.balanced") : t("ledger.imbalance", { amount: formatEuro(data.equation) })}</p>
+          <div className="mt-4 min-w-0 overflow-x-auto">
             <table className="w-full min-w-[40rem] text-sm">
               <thead>
                 <tr className="border-b border-line text-left">
-                  <th className="py-2 font-medium">Account</th>
-                  <th className="py-2 text-right font-medium">Debit</th>
-                  <th className="py-2 text-right font-medium">Credit</th>
-                  <th className="py-2 text-right font-medium">Balance</th>
+                  <th className="py-2 font-medium">{t("common.account")}</th>
+                  <th className="py-2 text-right font-medium">{t("ledger.debit")}</th>
+                  <th className="py-2 text-right font-medium">{t("ledger.credit")}</th>
+                  <th className="py-2 text-right font-medium">{t("ledger.balance")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -64,14 +72,14 @@ export function LedgerScreen({ all }: { all: boolean }) {
               </tbody>
             </table>
           </div>
-          <Section title="Expense">
+          <Section title={t("ledger.expense")}>
             <Card>
-              {data.kleinunternehmer ? <p className="mb-3 text-sm text-muted">Input VAT usually cannot be deducted under §19. Leave the rate at 0 unless an adviser said otherwise.</p> : null}
+              {data.kleinunternehmer ? <p className="mb-3 text-sm text-muted">{t("ledger.kleinVat")}</p> : null}
               <ActionForm action={saveExpense} resetOnSuccess>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Date"><TextInput name="date" type="date" defaultValue={data.today} /></Field>
-                  <Field label="Description"><TextInput name="memo" /></Field>
-                  <Field label="Account">
+                  <Field label={t("common.date")}><TextInput name="date" type="date" defaultValue={data.today} /></Field>
+                  <Field label={t("invoices.description")}><TextInput name="memo" /></Field>
+                  <Field label={t("common.account")}>
                     <SelectInput name="account" defaultValue="4900">
                       {data.expenses.map((account) => (
                         <option key={account.code} value={account.code}>
@@ -80,8 +88,8 @@ export function LedgerScreen({ all }: { all: boolean }) {
                       ))}
                     </SelectInput>
                   </Field>
-                  <Field label="Net"><TextInput name="net" inputMode="decimal" /></Field>
-                  <Field label="VAT">
+                  <Field label={t("ledger.net")}><TextInput name="net" inputMode="decimal" /></Field>
+                  <Field label={t("common.vat")}>
                     <SelectInput name="vatBps" defaultValue={data.kleinunternehmer ? "0" : "1900"}>
                       <option value="0">0%</option>
                       <option value="700">7%</option>
@@ -89,29 +97,29 @@ export function LedgerScreen({ all }: { all: boolean }) {
                     </SelectInput>
                   </Field>
                 </div>
-                <Check name="paidNow" label="Paid from the bank now" defaultChecked />
-                <SubmitButton>Post expense</SubmitButton>
+                <Check name="paidNow" label={t("ledger.paidNow")} defaultChecked />
+                <SubmitButton>{t("ledger.postExpense")}</SubmitButton>
               </ActionForm>
             </Card>
           </Section>
-          <Section title="VAT prepayment">
+          <Section title={t("ledger.prepayment")}>
             <Card>
               <ActionForm action={saveVatPayment} resetOnSuccess>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Date"><TextInput name="date" type="date" defaultValue={data.today} /></Field>
-                  <Field label="Amount"><TextInput name="amount" inputMode="decimal" /></Field>
-                  <Field label="Memo"><TextInput name="memo" placeholder="VAT prepayment" /></Field>
+                  <Field label={t("common.date")}><TextInput name="date" type="date" defaultValue={data.today} /></Field>
+                  <Field label={t("common.amount")}><TextInput name="amount" inputMode="decimal" /></Field>
+                  <Field label={t("common.memo")}><TextInput name="memo" placeholder={t("ledger.prepaymentMemo")} /></Field>
                 </div>
-                <SubmitButton>Post prepayment</SubmitButton>
+                <SubmitButton>{t("ledger.postPrepayment")}</SubmitButton>
               </ActionForm>
             </Card>
           </Section>
-          <Section title="Manual entry">
+          <Section title={t("ledger.manual")}>
             <Card>
               <JournalForm today={data.today} accounts={data.accounts} />
             </Card>
           </Section>
-          <Section title="Recent entries">
+          <Section title={t("ledger.recent")}>
             <div className="grid gap-2">
               {data.journal.map((entry) => (
                 <details key={entry.id} className="rounded-2xl border border-line bg-card px-4 py-3">
@@ -134,7 +142,7 @@ export function LedgerScreen({ all }: { all: boolean }) {
               ))}
             </div>
           </Section>
-          <p className="mt-4 text-xs text-muted">Bank {formatEuro(data.bankCents)}. Corrections are new reversing entries. Nothing here is deleted.</p>
+          <p className="mt-4 text-xs text-muted">{t("ledger.footer", { amount: formatEuro(data.bankCents) })}</p>
         </>
       )}
     </ViewGate>

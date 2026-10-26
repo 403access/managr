@@ -21,6 +21,8 @@ bun run build
 
 There is no account system and no environment secret. The app is one user on this computer. Screens cache their data with TanStack Query and refresh it after a save.
 
+The desk opens in German. Switch to English with DE/EN in the sidebar, or under Mehr on a phone. Dates and amounts stay in German format. A printed invoice stays German.
+
 ## Where things live
 
 - Engineering rules: `.grok/skills/managr-engineering/SKILL.md`

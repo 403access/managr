@@ -3,7 +3,11 @@ import { InvoicesScreen } from "@/components/screens/invoices-screen";
 import { Hydrate } from "@/server/hydrate";
 import { invoicesView } from "@/server/views";
 
-export const metadata = { title: "Invoices" };
+import { titled } from "@/server/locale";
+
+export function generateMetadata() {
+  return titled("meta.invoices");
+}
 
 export default function InvoicesPage() {
   return (

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadCompany, loadInvoice } from "@/server/queries";
 import { formatDate } from "@/domain/calendar";
@@ -18,8 +17,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
   return (
     <main className="mx-auto max-w-3xl px-6 py-8">
       <div className="no-print mb-6 flex gap-2">
-        <PrintButton />
-        <Link href={`/invoices/${invoice.id}`} className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm">Back</Link>
+        <PrintButton invoiceId={invoice.id} />
       </div>
       <header className="flex items-start justify-between gap-6">
         <div>

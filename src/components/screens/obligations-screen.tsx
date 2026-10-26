@@ -6,6 +6,7 @@ import type { obligationsView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { Card, Disclaimer, Empty, Field, PageHeader, Pill, Section, SelectInput, TextInput } from "@/components/ui";
 
@@ -14,13 +15,14 @@ type Obligation = Dates["due"][number];
 
 export function ObligationsScreen({ year }: { year: number }) {
   const query = useView<Dates>(queryKeys.obligations(year), viewPath.obligations(year));
+  const { t, tx, label } = useI18n();
   return (
     <ViewGate query={query}>
       {(data) => (
         <>
           <PageHeader
-            title="Dates"
-            lede="Weekend and nationwide holidays shift under §108 AO. State holidays are not included, and a tax notice beats this calendar."
+            title={t("dates.title")}
+            lede={t("dates.lede")}
             action={
               <span className="flex gap-2">
                 <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={`/obligations?year=${data.year - 1}`}>
@@ -33,46 +35,47 @@ export function ObligationsScreen({ year }: { year: number }) {
             }
           />
           <p className="mb-4 text-sm text-muted">
-            Showing {data.year}. {data.kleinunternehmer ? "VAT dates are hidden while Kleinunternehmer is on." : "VAT dates follow the permanent extension flag."}
-            {data.usesTaxAdvisor ? " Annual returns use the adviser deadline." : " Annual returns use the standard deadline."}
+            {t("dates.showing", { year: data.year })}
+            {data.kleinunternehmer ? t("dates.klein") : t("dates.vatOn")}
+            {data.usesTaxAdvisor ? t("dates.adviser") : t("dates.standard")}
           </p>
           {data.reminders.length > 0 ? (
             <Card className="mb-4">
               {data.reminders.map((reminder) => (
                 <p key={reminder.id} className="text-sm">
-                  {reminder.label} renews {formatDate(reminder.renewalDate)}
-                  {reminder.overdue ? " · overdue" : ""}.
+                  {t("dates.renews", { label: reminder.label, date: formatDate(reminder.renewalDate) })}
+                  {reminder.overdue ? ` · ${t("common.overdue")}` : ""}.
                 </p>
               ))}
             </Card>
           ) : null}
-          <Section title="Needs a look">
-            {data.due.length === 0 ? <Empty>Nothing open and due.</Empty> : <div className="grid gap-2">{data.due.map((item) => <ObligationRow key={item.key} item={item} />)}</div>}
+          <Section title={t("dates.needsLook")}>
+            {data.due.length === 0 ? <Empty>{t("dates.nothingDue")}</Empty> : <div className="grid gap-2">{data.due.map((item) => <ObligationRow key={item.key} item={item} />)}</div>}
           </Section>
-          <Section title="The year">
+          <Section title={t("dates.year")}>
             <div className="grid gap-2">{data.later.map((item) => <ObligationRow key={item.key} item={item} />)}</div>
           </Section>
-          <Section title="Your deadlines">
+          <Section title={t("dates.yours")}>
             <div className="grid gap-2">
               {data.deadlines.map((deadline) => (
                 <Card key={deadline.id} className="flex flex-wrap items-center justify-between gap-2">
                   <span>
                     <span className="text-sm font-medium">{deadline.title}</span>
                     <span className="mt-1 block text-xs text-muted">
-                      {formatDate(deadline.dueDate)} · {deadline.recurrence} · {deadline.category}
+                      {formatDate(deadline.dueDate)} · {label(deadline.recurrence)} · {label(deadline.category)}
                     </span>
                   </span>
                   <span className="flex flex-wrap items-center gap-2">
-                    <Pill tone={deadline.status}>{deadline.status}</Pill>
+                    <Pill tone={deadline.status}>{label(deadline.status)}</Pill>
                     {deadline.status !== "done" ? (
                       <ActionForm action={completeDeadline} compact>
                         <input type="hidden" name="id" value={deadline.id} />
-                        <SubmitButton tone="quiet">Done</SubmitButton>
+                        <SubmitButton tone="quiet">{t("common.done")}</SubmitButton>
                       </ActionForm>
                     ) : null}
-                    <ActionForm action={deleteDeadline} compact confirm="Remove this deadline?">
+                    <ActionForm action={deleteDeadline} compact confirm={t("dates.remove")}>
                       <input type="hidden" name="id" value={deadline.id} />
-                      <SubmitButton tone="danger">Remove</SubmitButton>
+                      <SubmitButton tone="danger">{t("common.remove")}</SubmitButton>
                     </ActionForm>
                   </span>
                 </Card>
@@ -81,25 +84,25 @@ export function ObligationsScreen({ year }: { year: number }) {
             <Card className="mt-3">
               <ActionForm action={saveDeadline} resetOnSuccess>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Title"><TextInput name="title" /></Field>
-                  <Field label="Due"><TextInput name="dueDate" type="date" defaultValue={data.today} /></Field>
-                  <Field label="Category"><TextInput name="category" defaultValue="general" /></Field>
-                  <Field label="Repeat">
+                  <Field label={t("common.title")}><TextInput name="title" /></Field>
+                  <Field label={t("common.due")}><TextInput name="dueDate" type="date" defaultValue={data.today} /></Field>
+                  <Field label={t("common.category")}><TextInput name="category" defaultValue="general" /></Field>
+                  <Field label={t("common.repeat")}>
                     <SelectInput name="recurrence" defaultValue="none">
-                      <option value="none">Once</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="quarterly">Quarterly</option>
-                      <option value="yearly">Yearly</option>
+                      <option value="none">{label("none")}</option>
+                      <option value="monthly">{label("monthly")}</option>
+                      <option value="quarterly">{label("quarterly")}</option>
+                      <option value="yearly">{label("yearly")}</option>
                     </SelectInput>
                   </Field>
                 </div>
-                <Field label="Notes"><TextInput name="notes" /></Field>
-                <SubmitButton>Add deadline</SubmitButton>
+                <Field label={t("common.notes")}><TextInput name="notes" /></Field>
+                <SubmitButton>{t("dates.add")}</SubmitButton>
               </ActionForm>
             </Card>
           </Section>
           <div className="mt-8">
-            <Disclaimer>These dates are a reminder list. They do not file a return.</Disclaimer>
+            <Disclaimer>{t("disclaimer.dates")}</Disclaimer>
           </div>
         </>
       )}
@@ -108,23 +111,24 @@ export function ObligationsScreen({ year }: { year: number }) {
 }
 
 function ObligationRow({ item }: { item: Obligation }) {
+  const { t, tx, label } = useI18n();
   return (
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium">{item.title}</p>
+          <p className="text-sm font-medium">{tx(item.title)}</p>
           <p className="text-xs text-muted">
-            {formatDate(item.dueDate)} · {item.category}
+            {formatDate(item.dueDate)} · {label(item.category)}
           </p>
-          <p className="mt-1 text-sm text-muted">{item.detail}</p>
+          <p className="mt-1 text-sm text-muted">{tx(item.detail)}</p>
         </div>
         <div className="grid gap-2">
-          <Pill tone={item.status}>{item.status}</Pill>
+          <Pill tone={item.status}>{label(item.status)}</Pill>
           <ActionForm action={setObligation} compact>
             <input type="hidden" name="key" value={item.key} />
-            {item.status !== "done" ? <SubmitButton name="status" value="done">Done</SubmitButton> : null}
-            {item.status !== "skipped" ? <SubmitButton name="status" value="skipped" tone="quiet">Skip</SubmitButton> : null}
-            {item.status !== "open" ? <SubmitButton name="status" value="open" tone="quiet">Reopen</SubmitButton> : null}
+            {item.status !== "done" ? <SubmitButton name="status" value="done">{t("common.done")}</SubmitButton> : null}
+            {item.status !== "skipped" ? <SubmitButton name="status" value="skipped" tone="quiet">{t("common.skip")}</SubmitButton> : null}
+            {item.status !== "open" ? <SubmitButton name="status" value="open" tone="quiet">{t("common.reopen")}</SubmitButton> : null}
           </ActionForm>
         </div>
       </div>

@@ -3,7 +3,11 @@ import { InvoiceNewScreen } from "@/components/screens/invoice-form-screen";
 import { Hydrate } from "@/server/hydrate";
 import { invoiceNewView } from "@/server/views";
 
-export const metadata = { title: "New invoice" };
+import { titled } from "@/server/locale";
+
+export function generateMetadata() {
+  return titled("meta.invoiceNew");
+}
 
 export default function NewInvoicePage() {
   return (
