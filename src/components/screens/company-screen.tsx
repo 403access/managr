@@ -12,7 +12,8 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { ReserveHint } from "@/components/reserve-hint";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Check, Disclaimer, Field, PageHeader, Section, SelectInput, TextArea, TextInput } from "@/components/ui";
+import { Tab, Tabs } from "@/components/tabs";
+import { Card, Check, Disclaimer, Field, PageHeader, SelectInput, TextArea, TextInput } from "@/components/ui";
 
 type Company = ReturnType<typeof companyView>;
 
@@ -26,7 +27,8 @@ export function CompanyScreen() {
         return (
           <>
             <PageHeader title={t("company.title")} lede={t("company.lede")} />
-            <Section title={t("company.identity")}>
+            <Tabs label={t("tabs.sections")}>
+            <Tab id="identity" label={t("company.identity")}>
               <Card>
                 <ActionForm action={updateIdentity}>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -58,8 +60,8 @@ export function CompanyScreen() {
                   <SubmitButton>{t("company.saveIdentity")}</SubmitButton>
                 </ActionForm>
               </Card>
-            </Section>
-            <Section title={t("company.tax")}>
+            </Tab>
+            <Tab id="tax" label={t("company.tax")}>
               <Card>
                 <ActionForm action={updateTaxProfile}>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -93,8 +95,8 @@ export function CompanyScreen() {
                   <SubmitButton>{t("company.saveTax")}</SubmitButton>
                 </ActionForm>
               </Card>
-            </Section>
-            <Section title={t("company.bank")}>
+            </Tab>
+            <Tab id="bank" label={t("company.bank")}>
               <Card>
                 <ActionForm action={updateBank}>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -107,8 +109,8 @@ export function CompanyScreen() {
                   <SubmitButton>{t("company.saveBank")}</SubmitButton>
                 </ActionForm>
               </Card>
-            </Section>
-            <Section title={t("company.shareholders")}>
+            </Tab>
+            <Tab id="shareholders" label={t("company.shareholders")}>
               {data.shareBps !== 10_000 ? <p className="mb-3 text-sm text-amber">{t("company.shareSum", { percent: percentInput(data.shareBps) })}</p> : null}
               <div className="grid gap-2">
                 {data.holders.map((holder) => (
@@ -140,8 +142,8 @@ export function CompanyScreen() {
                   <SubmitButton>{t("company.addHolder")}</SubmitButton>
                 </ActionForm>
               </Card>
-            </Section>
-            <Section title={t("company.reserve")}>
+            </Tab>
+            <Tab id="reserve" label={t("company.reserve")}>
               <Card className="grid gap-4">
                 <p className="text-sm leading-relaxed">
                   {t("company.reserveBalance", {
@@ -179,8 +181,8 @@ export function CompanyScreen() {
                   </ul>
                 ) : null}
               </Card>
-            </Section>
-            <Section title={t("company.cover")}>
+            </Tab>
+            <Tab id="cover" label={t("company.cover")}>
               <div className="grid gap-2">
                 {data.policies.map((policy) => (
                   <Card key={policy.id} className="flex flex-wrap items-center justify-between gap-3">
@@ -221,7 +223,8 @@ export function CompanyScreen() {
                   <SubmitButton>{t("company.addPolicy")}</SubmitButton>
                 </ActionForm>
               </Card>
-            </Section>
+            </Tab>
+            </Tabs>
             <div className="mt-8">
               <Disclaimer>{t("disclaimer.default")}</Disclaimer>
             </div>

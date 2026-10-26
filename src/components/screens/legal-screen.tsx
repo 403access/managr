@@ -9,7 +9,8 @@ import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Field, PageHeader, Pill, Section, SelectInput, TextArea, TextInput } from "@/components/ui";
+import { Tab, Tabs } from "@/components/tabs";
+import { Card, Field, PageHeader, Pill, SelectInput, TextArea, TextInput } from "@/components/ui";
 
 type Legal = ReturnType<typeof legalView>;
 
@@ -23,8 +24,9 @@ export function LegalScreen() {
         return (
           <>
             <PageHeader title={t("legal.title")} lede={t("legal.lede", { amount: formatEuro(GMBH_MINIMUM_CAPITAL_CENTS) })} />
+            <Tabs label={t("tabs.sections")}>
             {areas.map((area) => (
-              <Section key={area} title={label(area) === area ? area : label(area)}>
+              <Tab key={area} id={area} label={label(area) === area ? area : label(area)}>
                 <div className="grid gap-2">
                   {data.items
                     .filter((item) => item.area === area)
@@ -42,9 +44,9 @@ export function LegalScreen() {
                       </Card>
                     ))}
                 </div>
-              </Section>
+              </Tab>
             ))}
-            <Section title={t("legal.resolutions")}>
+            <Tab id="resolutions" label={t("legal.resolutions")}>
               <div className="grid gap-2">
                 {data.resolutions.map((resolution) => (
                   <Card key={resolution.id}>
@@ -76,7 +78,8 @@ export function LegalScreen() {
                   <SubmitButton>{t("legal.record")}</SubmitButton>
                 </ActionForm>
               </Card>
-            </Section>
+            </Tab>
+            </Tabs>
           </>
         );
       }}

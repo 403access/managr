@@ -8,7 +8,8 @@ import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Empty, Field, LinkButton, Money, PageHeader, Pill, Section, TextInput } from "@/components/ui";
+import { Tab, Tabs } from "@/components/tabs";
+import { Card, Empty, Field, LinkButton, Money, PageHeader, Pill, TextInput } from "@/components/ui";
 
 type Invoices = ReturnType<typeof invoicesView>;
 
@@ -20,6 +21,8 @@ export function InvoicesScreen() {
       {(data) => (
         <>
           <PageHeader title={t("invoices.title")} lede={t("invoices.lede")} action={<LinkButton href="/invoices/new">{t("invoices.new")}</LinkButton>} />
+          <Tabs label={t("tabs.sections")}>
+          <Tab id="list" label={t("invoices.title")}>
           {data.invoices.length === 0 ? (
             <Empty>{t("invoices.empty")}</Empty>
           ) : (
@@ -37,7 +40,8 @@ export function InvoicesScreen() {
               ))}
             </div>
           )}
-          <Section title={t("invoices.customers")}>
+          </Tab>
+          <Tab id="customers" label={t("invoices.customers")}>
             <div className="grid gap-2">
               {data.customers.map((customer) => (
                 <Card key={customer.id}>
@@ -75,7 +79,8 @@ export function InvoicesScreen() {
                 <SubmitButton>{t("invoices.addCustomer")}</SubmitButton>
               </ActionForm>
             </Card>
-          </Section>
+          </Tab>
+          </Tabs>
         </>
       )}
     </ViewGate>

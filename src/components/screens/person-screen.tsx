@@ -10,7 +10,8 @@ import { EmployeeForm } from "@/components/employee-form";
 import { useI18n } from "@/components/locale-provider";
 import { PayrollForm } from "@/components/payroll-form";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Disclaimer, Field, PageHeader, Pill, Section, SelectInput, TextInput } from "@/components/ui";
+import { Tab, Tabs } from "@/components/tabs";
+import { Card, Disclaimer, Field, PageHeader, Pill, SelectInput, TextInput } from "@/components/ui";
 
 const rows = [
   ["people.health", "healthCents"],
@@ -35,6 +36,8 @@ export function PersonScreen({ id }: { id: number }) {
           <>
             <PageHeader title={`${employee.firstName} ${employee.lastName}`} lede={employee.role || label(employee.kind)} action={estimate ? <Pill tone={estimate.regime}>{label(estimate.regime)}</Pill> : undefined} />
             {loaded.estimateError ? <p className="mb-4 text-sm text-clay">{tx(loaded.estimateError)}</p> : null}
+            <Tabs label={t("tabs.sections")}>
+            <Tab id="overview" label={t("people.overview")}>
             {estimate ? (
               <Card>
                 <div className="overflow-x-auto">
@@ -75,7 +78,7 @@ export function PersonScreen({ id }: { id: number }) {
                 </div>
               </Card>
             ) : null}
-            <Section title={t("people.vacation")}>
+            <h2 className={`${estimate ? "mt-6" : ""} mb-3 text-2xl`}>{t("people.vacation")}</h2>
               <Card>
                 <p className="text-sm">
                   {t("people.vacationBody", {
@@ -88,17 +91,17 @@ export function PersonScreen({ id }: { id: number }) {
                 {loaded.shortfall ? <p className="mt-2 text-sm text-amber">{tx(loaded.shortfall)}</p> : null}
                 <p className="mt-2 text-xs text-muted">{t("people.vacationNote", { days: employee.workdaysPerWeek })}</p>
               </Card>
-            </Section>
-            <Section title={t("people.record")}>
+            </Tab>
+            <Tab id="record" label={t("people.record")}>
               <EmployeeForm person={employee} today={loaded.today} />
-            </Section>
-            <Section title={t("people.payroll")}>
+            </Tab>
+            <Tab id="payroll" label={t("people.payroll")}>
               <Card>
                 <PayrollForm person={employee} company={loaded.company} postedMonths={loaded.postedMonths} today={loaded.today} />
                 {loaded.postedMonths.length > 0 ? <p className="mt-3 text-sm text-muted">{t("people.posted", { months: loaded.postedMonths.join(", ") })}</p> : null}
               </Card>
-            </Section>
-            <Section title={t("people.absences")}>
+            </Tab>
+            <Tab id="absences" label={t("people.absences")}>
               <div className="grid gap-2">
                 {loaded.absences.map((absence) => (
                   <Card key={absence.id} className="flex flex-wrap items-center justify-between gap-2">
@@ -140,7 +143,8 @@ export function PersonScreen({ id }: { id: number }) {
                   <SubmitButton>{t("people.addAbsence")}</SubmitButton>
                 </ActionForm>
               </Card>
-            </Section>
+            </Tab>
+            </Tabs>
           </>
         );
       }}

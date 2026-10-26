@@ -9,7 +9,8 @@ import { formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Check, Empty, Field, PageHeader, Pill, Section, SelectInput, TextInput } from "@/components/ui";
+import { Tab, Tabs } from "@/components/tabs";
+import { Card, Check, Empty, Field, PageHeader, Pill, SelectInput, TextInput } from "@/components/ui";
 
 type Week = ReturnType<typeof timeView>;
 
@@ -37,6 +38,8 @@ export function TimeScreen({ week }: { week: string }) {
               </span>
             }
           />
+          <Tabs label={t("tabs.sections")}>
+          <Tab id="week" label={t("time.week")}>
           {data.entries.length === 0 ? (
             <Empty>{t("time.empty")}</Empty>
           ) : (
@@ -70,7 +73,8 @@ export function TimeScreen({ week }: { week: string }) {
             </div>
           )}
           <p className="mt-3 text-sm">{t("time.total", { duration: formatDuration(data.total) })}</p>
-          <Section title={t("time.add")}>
+          </Tab>
+          <Tab id="entry" label={t("time.add")}>
             <Card>
               <ActionForm action={saveTime} resetOnSuccess>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -104,8 +108,8 @@ export function TimeScreen({ week }: { week: string }) {
                 <SubmitButton>{t("time.save")}</SubmitButton>
               </ActionForm>
             </Card>
-          </Section>
-          <Section title={t("time.tasks")}>
+          </Tab>
+          <Tab id="tasks" label={t("time.tasks")}>
             <div className="grid gap-2">
               {data.tasks.map((task) => (
                 <Card key={task.id} className="flex flex-wrap items-center justify-between gap-2">
@@ -152,7 +156,8 @@ export function TimeScreen({ week }: { week: string }) {
                 <SubmitButton>{t("time.addTask")}</SubmitButton>
               </ActionForm>
             </Card>
-          </Section>
+          </Tab>
+          </Tabs>
         </>
       )}
     </ViewGate>

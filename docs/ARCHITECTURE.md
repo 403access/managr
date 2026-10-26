@@ -46,6 +46,8 @@ Mutations stay server actions in `src/server/actions.ts`. After a write they cal
 
 Colors, type, and spacing are in `src/app/globals.css`. The layout is fluid; there is no separate mobile site.
 
+Screens that stack several independent sections use `Tabs` in `src/components/tabs.tsx`. The open section is stored in the URL hash. Summary figures, page titles, and controls that apply to the whole page stay above the tab bar. Without JavaScript every section stays visible.
+
 ## Language
 
 The interface is German by default. English is the second language. The cookie `managr-locale` stores `de` or `en`. A missing or unknown value is German. `src/i18n/messages.ts` holds the chrome, and the German catalog is the source of the keys. Domain functions and server actions keep their English sentences, and `tx` translates the known ones when the locale is German. Query keys do not include the locale.

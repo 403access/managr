@@ -8,7 +8,8 @@ import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Disclaimer, Empty, Field, PageHeader, Pill, Section, SelectInput, TextInput } from "@/components/ui";
+import { Tab, Tabs } from "@/components/tabs";
+import { Card, Disclaimer, Empty, Field, PageHeader, Pill, SelectInput, TextInput } from "@/components/ui";
 
 type Dates = ReturnType<typeof obligationsView>;
 type Obligation = Dates["due"][number];
@@ -49,13 +50,14 @@ export function ObligationsScreen({ year }: { year: number }) {
               ))}
             </Card>
           ) : null}
-          <Section title={t("dates.needsLook")}>
+          <Tabs label={t("tabs.sections")}>
+          <Tab id="due" label={t("dates.needsLook")}>
             {data.due.length === 0 ? <Empty>{t("dates.nothingDue")}</Empty> : <div className="grid gap-2">{data.due.map((item) => <ObligationRow key={item.key} item={item} />)}</div>}
-          </Section>
-          <Section title={t("dates.year")}>
+          </Tab>
+          <Tab id="year" label={t("dates.year")}>
             <div className="grid gap-2">{data.later.map((item) => <ObligationRow key={item.key} item={item} />)}</div>
-          </Section>
-          <Section title={t("dates.yours")}>
+          </Tab>
+          <Tab id="custom" label={t("dates.yours")}>
             <div className="grid gap-2">
               {data.deadlines.map((deadline) => (
                 <Card key={deadline.id} className="flex flex-wrap items-center justify-between gap-2">
@@ -100,7 +102,8 @@ export function ObligationsScreen({ year }: { year: number }) {
                 <SubmitButton>{t("dates.add")}</SubmitButton>
               </ActionForm>
             </Card>
-          </Section>
+          </Tab>
+          </Tabs>
           <div className="mt-8">
             <Disclaimer>{t("disclaimer.dates")}</Disclaimer>
           </div>

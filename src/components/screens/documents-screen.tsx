@@ -7,7 +7,8 @@ import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Empty, Field, PageHeader, Section, SelectInput, TextInput, textLinkClass } from "@/components/ui";
+import { Tab, Tabs } from "@/components/tabs";
+import { Card, Empty, Field, PageHeader, SelectInput, TextInput, textLinkClass } from "@/components/ui";
 
 type Documents = ReturnType<typeof documentsView>;
 
@@ -21,6 +22,8 @@ export function DocumentsScreen() {
       {(data) => (
         <>
           <PageHeader title={t("docs.title")} lede={t("docs.lede")} />
+          <Tabs label={t("tabs.sections")}>
+          <Tab id="files" label={t("docs.title")}>
           {data.documents.length === 0 ? (
             <Empty>{t("docs.empty")}</Empty>
           ) : (
@@ -44,7 +47,8 @@ export function DocumentsScreen() {
               ))}
             </div>
           )}
-          <Section title={t("docs.upload")}>
+          </Tab>
+          <Tab id="upload" label={t("docs.upload")}>
             <Card>
               <ActionForm action={saveDocument} resetOnSuccess>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -64,7 +68,8 @@ export function DocumentsScreen() {
                 <SubmitButton>{t("docs.store")}</SubmitButton>
               </ActionForm>
             </Card>
-          </Section>
+          </Tab>
+          </Tabs>
         </>
       )}
     </ViewGate>

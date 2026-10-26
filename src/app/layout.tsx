@@ -26,6 +26,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={locale}>
       <body>
+        <noscript>
+          <style>{`.section-panel[hidden]{display:block !important}`}</style>
+        </noscript>
         <QueryProvider>
           <LocaleProvider locale={locale}>{children}</LocaleProvider>
         </QueryProvider>

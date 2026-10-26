@@ -74,18 +74,6 @@ export function PageHeader({ title, lede, action }: { title: string; lede?: stri
   );
 }
 
-export function Section({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
-  return (
-    <section className="mt-8">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-2xl">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 export function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <Card>

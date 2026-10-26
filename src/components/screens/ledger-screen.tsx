@@ -9,7 +9,8 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { JournalForm } from "@/components/journal-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Check, Disclaimer, Field, PageHeader, Section, SelectInput, Stat, TextInput, textLinkClass } from "@/components/ui";
+import { Tab, Tabs } from "@/components/tabs";
+import { Card, Check, Disclaimer, Field, PageHeader, SelectInput, Stat, TextInput, textLinkClass } from "@/components/ui";
 
 type Ledger = ReturnType<typeof ledgerView>;
 
@@ -23,7 +24,6 @@ export function LedgerScreen({ all }: { all: boolean }) {
           <PageHeader
             title={t("ledger.title")}
             lede={t("ledger.lede", { label: data.fy.label, start: formatDate(data.fy.start), end: formatDate(data.fy.end) })}
-            action={data.all ? <a className={textLinkClass} href="/ledger">{t("ledger.hideZero")}</a> : <a className={textLinkClass} href="/ledger?all=1">{t("ledger.showAll")}</a>}
           />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label={t("ledger.revenue")} value={formatEuro(data.profit.revenueCents)} />
@@ -47,8 +47,13 @@ export function LedgerScreen({ all }: { all: boolean }) {
               <Disclaimer>{t("disclaimer.default")}</Disclaimer>
             </div>
           </Card>
-          <p className="mt-4 text-sm">{data.equation === 0 ? t("ledger.balanced") : t("ledger.imbalance", { amount: formatEuro(data.equation) })}</p>
-          <div className="mt-4 min-w-0 overflow-x-auto">
+          <Tabs label={t("tabs.sections")}>
+          <Tab id="accounts" label={t("ledger.accounts")}>
+          <p className="mb-3 text-sm">{data.equation === 0 ? t("ledger.balanced") : t("ledger.imbalance", { amount: formatEuro(data.equation) })}</p>
+          <p className="mb-3">
+            {data.all ? <a className={textLinkClass} href="/ledger">{t("ledger.hideZero")}</a> : <a className={textLinkClass} href="/ledger?all=1#accounts">{t("ledger.showAll")}</a>}
+          </p>
+          <div className="min-w-0 overflow-x-auto">
             <table className="w-full min-w-[40rem] text-sm">
               <thead>
                 <tr className="border-b border-line text-left">
@@ -72,7 +77,8 @@ export function LedgerScreen({ all }: { all: boolean }) {
               </tbody>
             </table>
           </div>
-          <Section title={t("ledger.expense")}>
+          </Tab>
+          <Tab id="expense" label={t("ledger.expense")}>
             <Card>
               {data.kleinunternehmer ? <p className="mb-3 text-sm text-muted">{t("ledger.kleinVat")}</p> : null}
               <ActionForm action={saveExpense} resetOnSuccess>
@@ -101,8 +107,8 @@ export function LedgerScreen({ all }: { all: boolean }) {
                 <SubmitButton>{t("ledger.postExpense")}</SubmitButton>
               </ActionForm>
             </Card>
-          </Section>
-          <Section title={t("ledger.prepayment")}>
+          </Tab>
+          <Tab id="prepayment" label={t("ledger.prepayment")}>
             <Card>
               <ActionForm action={saveVatPayment} resetOnSuccess>
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -113,13 +119,13 @@ export function LedgerScreen({ all }: { all: boolean }) {
                 <SubmitButton>{t("ledger.postPrepayment")}</SubmitButton>
               </ActionForm>
             </Card>
-          </Section>
-          <Section title={t("ledger.manual")}>
+          </Tab>
+          <Tab id="manual" label={t("ledger.manual")}>
             <Card>
               <JournalForm today={data.today} accounts={data.accounts} />
             </Card>
-          </Section>
-          <Section title={t("ledger.recent")}>
+          </Tab>
+          <Tab id="journal" label={t("ledger.recent")}>
             <div className="grid gap-2">
               {data.journal.map((entry) => (
                 <details key={entry.id} className="rounded-2xl border border-line bg-card px-4 py-3">
@@ -141,7 +147,8 @@ export function LedgerScreen({ all }: { all: boolean }) {
                 </details>
               ))}
             </div>
-          </Section>
+          </Tab>
+          </Tabs>
           <p className="mt-4 text-xs text-muted">{t("ledger.footer", { amount: formatEuro(data.bankCents) })}</p>
         </>
       )}
