@@ -1,4 +1,9 @@
-export const KLEINUNTERNEHMER_NOTE = "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.";
+/** Printed in German on a Kleinunternehmer invoice. §14c UStG taxes a shown VAT amount. */
+export const KLEINUNTERNEHMER_NOTE = "Gemäß § 19 UStG wird keine Umsatzsteuer ausgewiesen.";
+
+export function isKleinunternehmerNote(note: string): boolean {
+  return /§\s*19/.test(note) && /keine Umsatzsteuer/.test(note);
+}
 
 export type InvoiceReviewInput = {
   legalName: string;
@@ -52,7 +57,7 @@ export function reviewInvoice(input: InvoiceReviewInput): { blockers: string[]; 
   }
   if (input.kleinunternehmer) {
     if (input.vatCents !== 0) blockers.push("A Kleinunternehmer invoice must not show VAT.");
-    if (!/§\s*19/.test(input.exemptionNote)) blockers.push("Add the § 19 UStG exemption sentence.");
+    if (!isKleinunternehmerNote(input.exemptionNote)) blockers.push("Add the § 19 UStG exemption sentence.");
   }
   if (!input.iban.trim()) warnings.push("No IBAN yet. The invoice can still be issued.");
   return { blockers, warnings };

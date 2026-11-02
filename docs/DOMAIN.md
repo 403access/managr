@@ -26,10 +26,11 @@ Standard and reduced rates: `STANDARD_VAT_BPS`, `REDUCED_VAT_BPS`. VAT is comput
 - Prior calendar year turnover may not exceed `KLEIN_PRIOR_CENTS`.
 - The current calendar year may not exceed `KLEIN_CURRENT_CENTS`. Crossing it ends the exemption on that supply.
 - In the founding year the current-year ceiling used here is `KLEIN_FOUNDING_CENTS` (Finanzverwaltung practice).
-- A Kleinunternehmer invoice has no VAT and carries a §19 sentence. Showing VAT can create a tax debt under §14c UStG, so issue is blocked.
-- Ledger revenue is only a proxy for Gesamtumsatz. The prior-year figure is a field the user maintains.
+- A Kleinunternehmer invoice shows no VAT rate and no VAT amount. It carries `KLEINUNTERNEHMER_NOTE` from `src/domain/invoice.ts`. Showing VAT can create a tax debt under §14c UStG, so issue is blocked.
+- Ledger revenue is only a proxy. §19 uses vereinnahmte Entgelte, and the prior-year figure is a field the user maintains. The check warns. It does not block issue on that proxy.
+- Profit of the UG, including profit on those invoices, stays in the company. `estimateCorporateTax` is the planning figure for Körperschaftsteuer, Solidaritätszuschlag, and Gewerbesteuer. That profit is not income on the shareholder's Einkommensteuer return (Anlage G or Anlage S).
 
-Waiving the exemption is a decision to confirm with a tax adviser. The app does not guess the binding period.
+The ceilings are the figures in force since 2025. The earlier prior-year ceiling of 22.000 Euro is not used. Waiving the exemption is a decision to confirm with a tax adviser. The app does not guess the binding period.
 
 ## Invoices and business letters
 

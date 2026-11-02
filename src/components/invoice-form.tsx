@@ -176,7 +176,7 @@ export function InvoiceForm({
       <div className="grid gap-3">
         {lines.map((line, index) => (
           <div key={index} className="grid gap-3 rounded-2xl border border-line bg-white p-3 sm:grid-cols-12">
-            <label className="grid gap-1 text-sm sm:col-span-5">
+            <label className={`grid gap-1 text-sm ${seller.kleinunternehmer ? "sm:col-span-6" : "sm:col-span-5"}`}>
               <span className="font-medium">{t("invoices.description")}</span>
               <input className={inputClass} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} />
             </label>
@@ -184,18 +184,20 @@ export function InvoiceForm({
               <span className="font-medium">{t("invoices.quantity")}</span>
               <input className={inputClass} inputMode="decimal" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} />
             </label>
-            <label className="grid gap-1 text-sm sm:col-span-3">
-              <span className="font-medium">{t("invoices.unitNet")}</span>
+            <label className={`grid gap-1 text-sm ${seller.kleinunternehmer ? "sm:col-span-4" : "sm:col-span-3"}`}>
+              <span className="font-medium">{seller.kleinunternehmer ? t("invoices.unitAmount") : t("invoices.unitNet")}</span>
               <input className={inputClass} inputMode="decimal" value={line.unitNet} onChange={(event) => updateLine(index, { unitNet: event.target.value })} placeholder="0,00" />
             </label>
-            <label className="grid gap-1 text-sm sm:col-span-2">
-              <span className="font-medium">{t("common.vat")}</span>
-              <select className={inputClass} value={seller.kleinunternehmer ? 0 : line.vatBps} disabled={seller.kleinunternehmer} onChange={(event) => updateLine(index, { vatBps: Number(event.target.value) })}>
-                <option value={0}>0%</option>
-                <option value={REDUCED_VAT_BPS}>7%</option>
-                <option value={STANDARD_VAT_BPS}>19%</option>
-              </select>
-            </label>
+            {seller.kleinunternehmer ? null : (
+              <label className="grid gap-1 text-sm sm:col-span-2">
+                <span className="font-medium">{t("common.vat")}</span>
+                <select className={inputClass} value={line.vatBps} onChange={(event) => updateLine(index, { vatBps: Number(event.target.value) })}>
+                  <option value={0}>0%</option>
+                  <option value={REDUCED_VAT_BPS}>7%</option>
+                  <option value={STANDARD_VAT_BPS}>19%</option>
+                </select>
+              </label>
+            )}
             {lines.length > 1 ? (
               <button type="button" className={`${buttonClass("quiet")} sm:col-span-12`} onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}>
                 {t("invoices.removeLine")}
@@ -213,10 +215,12 @@ export function InvoiceForm({
       {seller.kleinunternehmer ? <p className="text-sm text-muted">{KLEINUNTERNEHMER_NOTE}</p> : null}
       {preview ? (
         <p className="font-mono text-sm tabular-nums">
-          {t("invoices.preview", { net: formatEuro(preview.netCents), vat: formatEuro(preview.vatCents), gross: formatEuro(preview.grossCents) })}
+          {seller.kleinunternehmer
+            ? t("invoices.previewKlein", { gross: formatEuro(preview.grossCents) })
+            : t("invoices.preview", { net: formatEuro(preview.netCents), vat: formatEuro(preview.vatCents), gross: formatEuro(preview.grossCents) })}
         </p>
       ) : (
-        <p className="text-sm text-muted">{t("invoices.previewEmpty")}</p>
+        <p className="text-sm text-muted">{seller.kleinunternehmer ? t("invoices.previewEmptyKlein") : t("invoices.previewEmpty")}</p>
       )}
       {review.blockers.length > 0 ? (
         <ul className="grid gap-1 text-sm text-clay">

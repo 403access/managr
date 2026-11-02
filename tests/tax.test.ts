@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CHART, ACCOUNTS, journalImbalance } from "@/domain/accounts";
-import { AVERAGE_TOTAL_SV_BPS, FAKTOR_F_NUMERATOR, GMBH_MINIMUM_CAPITAL_CENTS, MINIJOB_LIMIT_CENTS, derivedMinijobLimitCents } from "@/domain/rates-2026";
+import { AVERAGE_TOTAL_SV_BPS, FAKTOR_F_NUMERATOR, GMBH_MINIMUM_CAPITAL_CENTS, KLEIN_CURRENT_CENTS, KLEIN_FOUNDING_CENTS, KLEIN_PRIOR_CENTS, MINIJOB_LIMIT_CENTS, derivedMinijobLimitCents } from "@/domain/rates-2026";
 import { conversionGap, requiredReserveCents } from "@/domain/reserve";
 import { estimateCorporateTax, kleinunternehmerAssessment } from "@/domain/tax";
 import { lineNetCents, summarizeVat } from "@/domain/vat";
@@ -82,14 +82,26 @@ describe("corporate tax and the small-business exemption", () => {
       claimsExemption: false,
     };
     expect(kleinunternehmerAssessment(base).eligible).toBe(true);
+    expect(kleinunternehmerAssessment(base).currentLimitCents).toBe(KLEIN_CURRENT_CENTS);
+    expect(kleinunternehmerAssessment(base).priorLimitCents).toBe(KLEIN_PRIOR_CENTS);
     expect(kleinunternehmerAssessment({ ...base, priorYearTurnoverCents: 2_500_001 }).eligible).toBe(false);
     expect(kleinunternehmerAssessment({ ...base, currentYearTurnoverCents: 10_000_001 }).eligible).toBe(false);
+    const founding = kleinunternehmerAssessment({
+      foundingDate: "2026-11-02",
+      calendarYear: 2026,
+      priorYearTurnoverCents: 0,
+      currentYearTurnoverCents: 2_500_000,
+      claimsExemption: true,
+    });
+    expect(founding.foundingYear).toBe(true);
+    expect(founding.currentLimitCents).toBe(KLEIN_FOUNDING_CENTS);
+    expect(founding.eligible).toBe(true);
     expect(
       kleinunternehmerAssessment({
-        foundingDate: "2026-02-01",
+        foundingDate: "2026-11-02",
         calendarYear: 2026,
         priorYearTurnoverCents: 0,
-        currentYearTurnoverCents: 2_500_001,
+        currentYearTurnoverCents: KLEIN_FOUNDING_CENTS + 1,
         claimsExemption: true,
       }).eligible,
     ).toBe(false);

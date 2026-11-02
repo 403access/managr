@@ -43,6 +43,7 @@ export function LedgerScreen({ all }: { all: boolean }) {
               })}
             </p>
             <p className="mt-2 text-sm text-muted">{t("ledger.estimateNote", { rate: data.hebesatzPercent })}</p>
+            {data.kleinunternehmer ? <p className="mt-2 text-sm leading-relaxed">{t("company.kleinProfit")}</p> : null}
             <div className="mt-3">
               <Disclaimer>{t("disclaimer.default")}</Disclaimer>
             </div>

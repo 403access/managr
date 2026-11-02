@@ -48,6 +48,25 @@ function sellerFrom(company: ReturnType<typeof loadCompany>) {
   };
 }
 
+function kleinSnapshot(company: ReturnType<typeof loadCompany>) {
+  const today = todayIso();
+  const year = Number(today.slice(0, 4));
+  const currentYearTurnoverCents = summarizeProfit(accountBalances(`${year}-01-01`, today)).revenueCents;
+  const assessment = kleinunternehmerAssessment({
+    foundingDate: company.foundingDate,
+    calendarYear: year,
+    priorYearTurnoverCents: company.priorYearRevenueCents,
+    currentYearTurnoverCents,
+    claimsExemption: company.kleinunternehmer,
+  });
+  return {
+    year,
+    priorYearTurnoverCents: company.priorYearRevenueCents,
+    currentYearTurnoverCents,
+    ...assessment,
+  };
+}
+
 function customerOptions() {
   return listCustomers().map((customer) => ({
     id: customer.id,
@@ -76,14 +95,7 @@ export function deskView() {
   const balances = accountBalances();
   const reserve = signedAccount(balances, ACCOUNTS.reserve);
   const gap = conversionGap(company.shareCapitalCents, reserve);
-  const calendarRevenue = summarizeProfit(accountBalances(`${yearNumber}-01-01`, today)).revenueCents;
-  const klein = kleinunternehmerAssessment({
-    foundingDate: company.foundingDate,
-    calendarYear: yearNumber,
-    priorYearTurnoverCents: company.priorYearRevenueCents,
-    currentYearTurnoverCents: calendarRevenue,
-    claimsExemption: company.kleinunternehmer,
-  });
+  const klein = kleinSnapshot(company);
   const horizon = addDays(today, 45);
   const dates = [...listObligations(yearNumber), ...listObligations(yearNumber + 1)]
     .filter((item) => item.status !== "done" && item.status !== "skipped" && item.dueDate <= horizon)
@@ -147,6 +159,7 @@ export function companyView() {
     reserve,
     gap: conversionGap(company.shareCapitalCents, reserve),
     duty: reserveDutyActive(company.shareCapitalCents),
+    klein: kleinSnapshot(company),
     today: todayIso(),
     movements: listReserveMovements(),
     policies: listPolicies(),

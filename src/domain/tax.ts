@@ -46,17 +46,23 @@ export function kleinunternehmerAssessment(input: {
   priorYearTurnoverCents: number;
   currentYearTurnoverCents: number;
   claimsExemption: boolean;
-}): { eligible: boolean; notes: string[] } {
+}): {
+  eligible: boolean;
+  notes: string[];
+  foundingYear: boolean;
+  priorLimitCents: number;
+  currentLimitCents: number;
+} {
   const foundingYear = parseIso(input.foundingDate).y;
   const foundingYearNow = foundingYear === input.calendarYear;
-  const runningLimit = foundingYearNow ? KLEIN_FOUNDING_CENTS : KLEIN_CURRENT_CENTS;
+  const currentLimitCents = foundingYearNow ? KLEIN_FOUNDING_CENTS : KLEIN_CURRENT_CENTS;
   const notes: string[] = [];
   if (foundingYearNow) {
     notes.push("In the founding year this check uses the lower current-year ceiling.");
   }
   const priorOk = foundingYearNow || input.priorYearTurnoverCents <= KLEIN_PRIOR_CENTS;
   if (!priorOk) notes.push("Prior-year turnover is above the §19 ceiling, so the exemption does not apply this year.");
-  const currentOk = input.currentYearTurnoverCents <= runningLimit;
+  const currentOk = input.currentYearTurnoverCents <= currentLimitCents;
   if (!currentOk) notes.push("Turnover has passed this year's ceiling. The exemption ends on the supply that crosses it.");
   const eligible = priorOk && currentOk;
   if (input.claimsExemption && !eligible) {
@@ -65,5 +71,5 @@ export function kleinunternehmerAssessment(input: {
   if (!input.claimsExemption && eligible) {
     notes.push("These figures would allow the §19 exemption. Charging VAT is a waiver. Confirm the binding period before switching.");
   }
-  return { eligible, notes };
+  return { eligible, notes, foundingYear: foundingYearNow, priorLimitCents: KLEIN_PRIOR_CENTS, currentLimitCents };
 }

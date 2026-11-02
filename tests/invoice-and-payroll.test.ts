@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { journalImbalance } from "@/domain/accounts";
-import { formatInvoiceNumber, reviewInvoice, type InvoiceReviewInput } from "@/domain/invoice";
+import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, isKleinunternehmerNote, reviewInvoice, type InvoiceReviewInput } from "@/domain/invoice";
 import { estimateContributions, payrollAmounts, type SocialInput } from "@/domain/social";
 import { buildExpense, buildPayroll, buildReserveAllocation, buildSalesInvoice, reverseLines } from "@/domain/postings";
 import { summarizeVat } from "@/domain/vat";
@@ -40,6 +40,11 @@ describe("invoices", () => {
     expect(broken.blockers.join(" ")).toMatch(/UG/);
     expect(broken.blockers.join(" ")).toMatch(/HRB/);
     expect(broken.blockers.join(" ")).toMatch(/must not show VAT/);
+    expect(reviewInvoice({ ...ready, kleinunternehmer: true, vatCents: 0, exemptionNote: "§ 19 UStG" }).blockers.join(" ")).toMatch(/exemption sentence/);
+    const clean = reviewInvoice({ ...ready, kleinunternehmer: true, vatCents: 0, exemptionNote: KLEINUNTERNEHMER_NOTE });
+    expect(clean.blockers).toEqual([]);
+    expect(isKleinunternehmerNote(KLEINUNTERNEHMER_NOTE)).toBe(true);
+    expect(KLEINUNTERNEHMER_NOTE).toBe("Gemäß § 19 UStG wird keine Umsatzsteuer ausgewiesen.");
   });
 
   it("posts a sales invoice, a payment-sized expense, and a reversal that still balances", () => {

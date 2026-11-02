@@ -173,7 +173,9 @@ export async function updateTaxProfile(_state: ActionState, formData: FormData):
     if (hebesatzPercent === null || hebesatzPercent > 900) throw new Error("Hebesatz is a whole percent, such as 410.");
     const additionalKvBps = basisPoints(formData, "additionalKv");
     if (additionalKvBps === null || additionalKvBps > 5000) throw new Error("Additional contribution is a percent, such as 2,90.");
-    const defaultVatBps = wholeNumber(formData, "defaultVat");
+    const kleinunternehmer = checked(formData, "kleinunternehmer");
+    const submittedVat = wholeNumber(formData, "defaultVat");
+    const defaultVatBps = kleinunternehmer ? 0 : submittedVat;
     if (defaultVatBps === null || !isSupportedVat(defaultVatBps)) throw new Error("Choose 0%, 7%, or 19%.");
     const priorYearRevenueCents = euros(formData, "priorYearRevenue");
     const lossCarryforwardCents = euros(formData, "lossCarryforward");
@@ -188,7 +190,7 @@ export async function updateTaxProfile(_state: ActionState, formData: FormData):
         taxNumber: text(formData, "taxNumber"),
         vatId: text(formData, "vatId").toUpperCase(),
         economicId: text(formData, "economicId"),
-        kleinunternehmer: checked(formData, "kleinunternehmer"),
+        kleinunternehmer,
         vatPermanentExtension: checked(formData, "vatPermanentExtension"),
         usesTaxAdvisor: checked(formData, "usesTaxAdvisor"),
         hebesatzPercent,

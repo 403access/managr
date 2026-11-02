@@ -4,6 +4,7 @@ import { addPolicy, addShareholder, deletePolicy, deleteShareholder, offsetReser
 import type { companyView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { formatEuro } from "@/domain/money";
+import { KLEINUNTERNEHMER_NOTE } from "@/domain/invoice";
 import { GMBH_MINIMUM_CAPITAL_CENTS } from "@/domain/rates-2026";
 import { FEDERAL_STATES } from "@/domain/states";
 import { queryKeys, viewPath } from "@/client/query-keys";
@@ -19,7 +20,7 @@ type Company = ReturnType<typeof companyView>;
 
 export function CompanyScreen() {
   const query = useView<Company>(queryKeys.company, viewPath.company);
-  const { t, label, monthName } = useI18n();
+  const { t, tx, label, monthName } = useI18n();
   return (
     <ViewGate query={query}>
       {(data) => {
@@ -62,6 +63,35 @@ export function CompanyScreen() {
               </Card>
             </Tab>
             <Tab id="tax" label={t("company.tax")}>
+              <Card className="mb-3">
+                <h2 className="text-xl">{t("company.kleinTitle")}</h2>
+                <p className="mt-2 text-sm leading-relaxed">
+                  {data.klein.eligible ? t("company.kleinEligible") : t("company.kleinIneligible")}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed">
+                  {t("company.kleinPrior", {
+                    amount: formatEuro(data.klein.priorYearTurnoverCents),
+                    limit: formatEuro(data.klein.priorLimitCents),
+                  })}
+                </p>
+                <p className="mt-1 text-sm leading-relaxed">
+                  {t("company.kleinCurrent", {
+                    year: data.klein.year,
+                    amount: formatEuro(data.klein.currentYearTurnoverCents),
+                    limit: formatEuro(data.klein.currentLimitCents),
+                  })}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">{t("company.kleinProxy")}</p>
+                {data.klein.notes.length > 0 ? (
+                  <div className="mt-3 grid gap-1">
+                    {data.klein.notes.map((note) => (
+                      <p key={note} className="text-sm leading-relaxed">{tx(note)}</p>
+                    ))}
+                  </div>
+                ) : null}
+                <p className="mt-3 text-sm leading-relaxed">{t("company.kleinSentence", { note: KLEINUNTERNEHMER_NOTE })}</p>
+                <p className="mt-2 text-sm leading-relaxed">{t("company.kleinProfit")}</p>
+              </Card>
               <Card>
                 <ActionForm action={updateTaxProfile}>
                   <div className="grid gap-3 sm:grid-cols-2">

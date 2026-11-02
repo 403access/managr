@@ -4,6 +4,7 @@ import Link from "next/link";
 import { deleteDraft, recordPayment, voidInvoice } from "@/server/actions";
 import type { invoiceView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
+import { isKleinunternehmerNote } from "@/domain/invoice";
 import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { euroInput } from "@/components/amounts";
@@ -21,6 +22,7 @@ export function InvoiceScreen({ id }: { id: number }) {
     <ViewGate query={query}>
       {(loaded) => {
         const { invoice, customer, lines, payments, grossCents, openCents, displayStatus: status } = loaded;
+        const kleinunternehmer = isKleinunternehmerNote(invoice.exemptionNote);
         return (
           <>
             <PageHeader
@@ -35,18 +37,20 @@ export function InvoiceScreen({ id }: { id: number }) {
             />
             <div className="grid gap-2">
               {lines.map((line) => (
-                <Card key={line.id} className="grid gap-1 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center">
+                <Card key={line.id} className={`grid gap-1 sm:items-center ${kleinunternehmer ? "sm:grid-cols-[1fr_auto_auto]" : "sm:grid-cols-[1fr_auto_auto_auto]"}`}>
                   <p className="text-sm">{line.description || t("invoices.untitled")}</p>
                   <p className="text-sm text-muted">
                     {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
                   </p>
-                  <p className="text-sm text-muted">{formatPercentBps(line.vatBps)}</p>
+                  {kleinunternehmer ? null : <p className="text-sm text-muted">{formatPercentBps(line.vatBps)}</p>}
                   <Money cents={line.netCents} />
                 </Card>
               ))}
             </div>
             <p className="mt-4 font-mono text-sm tabular-nums">
-              {t("invoices.totals", { net: formatEuro(loaded.netCents), vat: formatEuro(loaded.vatCents), gross: formatEuro(grossCents), open: formatEuro(openCents) })}
+              {kleinunternehmer
+                ? t("invoices.totalsKlein", { gross: formatEuro(grossCents), open: formatEuro(openCents) })
+                : t("invoices.totals", { net: formatEuro(loaded.netCents), vat: formatEuro(loaded.vatCents), gross: formatEuro(grossCents), open: formatEuro(openCents) })}
             </p>
             {invoice.exemptionNote ? <p className="mt-2 text-sm">{invoice.exemptionNote}</p> : null}
             {invoice.notes ? <p className="mt-2 text-sm text-muted">{invoice.notes}</p> : null}
