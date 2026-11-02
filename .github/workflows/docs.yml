@@ -1,6 +1,6 @@
 # Pages source must be GitHub Actions.
 # GitHub Free does not serve Pages for a private repository.
-name: Deploy docs
+name: Deploy site
 
 on:
   push:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build Docusaurus
+    name: Build site
     runs-on: ubuntu-latest
     defaults:
       run:

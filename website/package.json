@@ -2,7 +2,7 @@
   "name": "managr-docs",
   "version": "1.0.0",
   "private": true,
-  "description": "Docusaurus site for the managr notes in ../docs",
+  "description": "Marketing site and Docusaurus docs for managr. Notes are served at /docs.",
   "packageManager": "bun@1.4.4",
   "scripts": {
     "docusaurus": "docusaurus",
@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@docusaurus/core": "3.10.2",
+    "@docusaurus/plugin-client-redirects": "3.10.2",
     "@docusaurus/preset-classic": "3.10.2",
     "@fontsource/fraunces": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",

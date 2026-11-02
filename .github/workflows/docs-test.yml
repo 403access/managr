@@ -1,4 +1,4 @@
-name: Test docs
+name: Test site
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test-deploy:
-    name: Test docs build
+    name: Test site build
     runs-on: ubuntu-latest
     defaults:
       run:

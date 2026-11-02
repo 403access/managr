@@ -39,3 +39,15 @@ h2,
 h3 {
   font-family: var(--ifm-heading-font-family);
 }
+
+.navbar__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.footer__link-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

@@ -4,7 +4,7 @@ import { themes as prismThemes } from "prism-react-renderer";
 
 const config: Config = {
   title: "managr",
-  tagline: "Notes for a local desk for one German UG",
+  tagline: "A local desk for one German UG (haftungsbeschränkt)",
   url: "https://403access.github.io",
   baseUrl: "/managr/",
   organizationName: "403access",
@@ -23,13 +23,25 @@ const config: Config = {
     defaultLocale: "en",
     locales: ["en"],
   },
+  plugins: [
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        redirects: [
+          { from: "/architecture", to: "/docs/architecture" },
+          { from: "/domain", to: "/docs/domain" },
+          { from: "/roadmap", to: "/docs/roadmap" },
+        ],
+      },
+    ],
+  ],
   presets: [
     [
       "classic",
       {
         docs: {
           path: "../docs",
-          routeBasePath: "/",
+          routeBasePath: "docs",
           sidebarPath: "./sidebars.ts",
           editUrl: ({ docPath }) =>
             `https://github.com/403access/managr/edit/main/docs/${docPath}`,
@@ -45,6 +57,7 @@ const config: Config = {
     navbar: {
       title: "managr",
       items: [
+        { to: "/", label: "Home", position: "left", activeBaseRegex: "^/managr/?$" },
         {
           type: "docSidebar",
           sidebarId: "docs",
@@ -62,12 +75,19 @@ const config: Config = {
       style: "dark",
       links: [
         {
+          title: "Site",
+          items: [
+            { label: "Home", to: "/" },
+            { label: "GitHub", href: "https://github.com/403access/managr" },
+          ],
+        },
+        {
           title: "Docs",
           items: [
-            { label: "Overview", to: "/" },
-            { label: "Architecture", to: "/architecture" },
-            { label: "Domain rules", to: "/domain" },
-            { label: "Roadmap", to: "/roadmap" },
+            { label: "Overview", to: "/docs" },
+            { label: "Architecture", to: "/docs/architecture" },
+            { label: "Domain rules", to: "/docs/domain" },
+            { label: "Roadmap", to: "/docs/roadmap" },
           ],
         },
       ],

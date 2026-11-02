@@ -15,7 +15,7 @@ src/app           routes, including GET /api/views/[name]
 src/components    layout, forms, and screens
 src/i18n          German and English catalogs, labels, and phrase translation
 docs/             notes published by the Docusaurus site
-website/          Docusaurus app; its docs path is ../docs
+website/          published site; marketing page, docs served at /docs
 data/managr.db    created on first launch (gitignored)
 data/uploads      document files (gitignored)
 ```
@@ -62,12 +62,12 @@ The interface is German by default. English is the second language. The cookie `
 
 Printed invoices stay German in both languages, including the Kleinunternehmer note. SKR03 account names stay German. Dates and euro amounts stay in `de-DE` format. Stored titles, notes, and checklist rows are not translated when the language changes. The sample company is seeded in German. On startup, known English sample sentences are rewritten only when the company is still marked as the sample and the text still matches.
 
-## Docs site
+## Published site
 
-`website/` is a Docusaurus app. It reads `docs/` and does not copy those files. `bun run docs` serves it at `http://localhost:3001/managr/`. `bun install --cwd website` installs its own dependencies from `website/bun.lock`.
+`website/` is the public site. The marketing page is `website/src/pages/index.tsx`. Docusaurus reads `docs/` and does not copy those files. The notes are served at `/docs` (`routeBasePath: "docs"`). `/architecture`, `/domain`, and `/roadmap` redirect there. `bun run docs` serves the site at `http://localhost:3001/managr/`, and the notes at `http://localhost:3001/managr/docs`. `bun install --cwd website` installs its own dependencies from `website/bun.lock`.
 
-A push to `main` runs `.github/workflows/docs.yml`. That workflow builds `website/` and deploys the static files to GitHub Pages at `https://403access.github.io/managr/`. The Pages source has to be GitHub Actions. A pull request runs `.github/workflows/docs-test.yml` and does not deploy. GitHub Free does not serve Pages for a private repository. The desk itself is not hosted and has no environment secret.
+A push to `main` runs `.github/workflows/docs.yml`. That workflow builds `website/` and deploys the static files to GitHub Pages at `https://403access.github.io/managr/`, with the notes at `https://403access.github.io/managr/docs`. The Pages source has to be GitHub Actions. A pull request runs `.github/workflows/docs-test.yml` and does not deploy. GitHub Free does not serve Pages for a private repository. The desk itself is not hosted and has no environment secret.
 
 ## Checks
 
-`bun install` installs dependencies from `bun.lock`. `bun run test` runs Vitest. `bun run typecheck` runs the TypeScript compiler for the desk and for `website/`. `bun run build` produces the production server. `bun run docs:build` produces the docs site.
+`bun install` installs dependencies from `bun.lock`. `bun run test` runs Vitest. `bun run typecheck` runs the TypeScript compiler for the desk and for `website/`. `bun run build` produces the production server. `bun run docs:build` produces the published site, marketing page and docs together.
