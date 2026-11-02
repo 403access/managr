@@ -1,0 +1,10 @@
+node_modules
+.next
+data
+.git
+**/.DS_Store
+website/node_modules
+website/.docusaurus
+website/build
+*.log
+tsconfig.tsbuildinfo
