@@ -2,6 +2,7 @@ import "server-only";
 import { CHART, ACCOUNTS, signedBalance } from "@/domain/accounts";
 import { addDays, fiscalYearContaining, todayIso } from "@/domain/calendar";
 import { reviewInvoice } from "@/domain/invoice";
+import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
 import { policyReminders } from "@/domain/obligations";
 import { conversionGap, reserveDutyActive } from "@/domain/reserve";
 import { balanceSheetTotals, summarizeProfit } from "@/domain/reporting";
@@ -31,6 +32,7 @@ import {
   vatPayableCents,
 } from "./queries";
 import { parseViewQuery, viewIsReady, type ViewName } from "./view-request";
+import { toXRechnungInput } from "./xrechnung";
 
 function sellerFrom(company: ReturnType<typeof loadCompany>) {
   return {
@@ -44,6 +46,10 @@ function sellerFrom(company: ReturnType<typeof loadCompany>) {
     registerNumber: company.registerNumber,
     managingDirector: company.managingDirector,
     iban: company.iban,
+    bic: company.bic,
+    email: company.email,
+    phone: company.phone,
+    country: company.country,
     kleinunternehmer: company.kleinunternehmer,
   };
 }
@@ -77,6 +83,7 @@ function customerOptions() {
     country: customer.country,
     email: customer.email,
     vatId: customer.vatId,
+    buyerReference: customer.buyerReference,
   }));
 }
 
@@ -197,7 +204,11 @@ export function invoiceView(id: number) {
     exemptionNote: invoice.exemptionNote,
     vatCents: loaded.vatCents,
   });
-  return { ...loaded, blockers: review.blockers, today: todayIso() };
+  const fileBlockers = reviewXRechnung(toXRechnungInput(company, loaded)).blockers;
+  const eInvoiceBlockers = loaded.invoice.status === "draft"
+    ? fileBlockers.filter((item) => item !== XRECHNUNG_NUMBER_BLOCKER && !review.blockers.includes(item))
+    : fileBlockers;
+  return { ...loaded, blockers: review.blockers, eInvoiceBlockers, today: todayIso() };
 }
 
 export function invoiceNewView() {
@@ -231,6 +242,7 @@ export function invoiceEditView(id: number) {
       serviceDate: loaded.invoice.serviceDate,
       dueDate: loaded.invoice.dueDate,
       notes: loaded.invoice.notes,
+      buyerReference: loaded.invoice.buyerReference,
       lines: loaded.lines.map((line) => ({
         description: line.description,
         quantity: quantityInput(line.quantityMilli),

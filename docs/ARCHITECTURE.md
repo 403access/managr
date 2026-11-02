@@ -38,6 +38,8 @@ A screen does not open SQLite. `src/server/views.ts` builds the JSON for that sc
 
 Mutations stay server actions in `src/server/actions.ts`. After a write they call `revalidatePath`, and the form invalidates the `view` query cache so the open screen refetches. Issued invoices, payments, expenses, payroll, reserve movements, and voids all go through a posting builder in `src/domain/postings.ts`. The printable invoice stays a server render and is not a query.
 
+`GET /invoices/[id]/xrechnung` renders an XRechnung 3.0.2 UBL document from the current company, customer, and invoice. The rules live in `src/domain/xrechnung.ts`. The XML is not stored.
+
 `src/server/payloads.ts` validates the invoice and manual-journal JSON. `src/server/people.ts` maps a person onto the social-insurance estimate. `src/server/files.ts` writes uploads under `data/uploads` and refuses a stored name that leaves that directory. `src/server/invoice-math.ts` is the only place that turns stored invoice lines into net, VAT, and open amounts.
 
 ## UI

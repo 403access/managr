@@ -59,6 +59,7 @@ export const customers = sqliteTable("customers", {
   country: text("country").notNull().default("Deutschland"),
   email: text("email").notNull().default(""),
   vatId: text("vat_id").notNull().default(""),
+  buyerReference: text("buyer_reference").notNull().default(""),
 });
 
 export const accounts = sqliteTable("accounts", {
@@ -101,6 +102,7 @@ export const invoices = sqliteTable("invoices", {
   dueDate: text("due_date").notNull(),
   notes: text("notes").notNull().default(""),
   exemptionNote: text("exemption_note").notNull().default(""),
+  buyerReference: text("buyer_reference").notNull().default(""),
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
 });
 

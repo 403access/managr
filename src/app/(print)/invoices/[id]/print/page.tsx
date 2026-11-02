@@ -46,6 +46,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
           <dt className="text-muted">Rechnungsdatum</dt><dd>{formatDate(invoice.issueDate)}</dd>
           <dt className="text-muted">Leistungsdatum</dt><dd>{formatDate(invoice.serviceDate)}</dd>
           <dt className="text-muted">Fällig</dt><dd>{formatDate(invoice.dueDate)}</dd>
+          {invoice.buyerReference ? <><dt className="text-muted">Käuferreferenz</dt><dd>{invoice.buyerReference}</dd></> : null}
         </dl>
       </div>
       <table className="mt-8 w-full text-sm">

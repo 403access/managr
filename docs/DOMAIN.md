@@ -36,6 +36,24 @@ The ceilings are the figures in force since 2025. The earlier prior-year ceiling
 
 Issue is blocked until the draft has the particulars needed for §14 UStG and the business-letter particulars of §35a GmbHG: both addresses, tax number or VAT id, dates, at least one described line, register court, register number, and the managing director. The app assigns a gap-free number `prefix + year + sequence` when the invoice is issued. Voiding posts a reversing journal entry and does not reuse the number.
 
+## E-Rechnung (XRechnung)
+
+The e-invoice this desk writes is an XRechnung 3.0.2 file in UBL syntax. That is an EN 16931 invoice and therefore an e-invoice under §14 UStG. The file is rendered on download. It is not stored, not sent, and not checked with the KoSIT validator. ZUGFeRD is not produced. A void invoice stays a reversing journal entry; the desk does not write a credit note.
+
+Implementation: `src/domain/xrechnung.ts`. Specification identifiers: `XRECHNUNG_CUSTOMIZATION_ID`, `XRECHNUNG_PROFILE_ID`. Quantity uses `XRECHNUNG_UNIT_CODE` (UNECE Rec 20 code C62, "one"). The invoice has no unit of measure.
+
+Issue still follows §14 and §35a only. The extra XRechnung fields do not block issue. They block the file.
+
+- The buyer reference (BT-10) is stored on the invoice. For a public authority it is the Leitweg-ID. The desk does not check that checksum.
+- Seller and buyer electronic addresses are the e-mail addresses, scheme EM (BT-34, BT-49).
+- The seller contact is the managing director, the company phone, and the company e-mail.
+- Payment is a SEPA credit transfer (code 58) with a checksum-valid IBAN. A BIC is included only when it is present and well formed.
+- 19% and 7% are VAT category S. A category S file needs the seller VAT id. A German address needs a DE id of nine digits. The desk does not check the VAT id checksum.
+- 0% is category E and needs an exemption sentence (BT-120). A Kleinunternehmer invoice uses `KLEINUNTERNEHMER_NOTE`.
+- VAT amounts are the same cents as `summarizeVat`. A prepaid amount reduces the payable amount (BT-115). A fully paid invoice stays an invoice with a payable amount of zero.
+- The register court, HRB number, and managing director are written into BT-33. The HRB number is also BT-30.
+- Country names the desk knows, and ISO alpha-2 codes, become the country code. An unknown country blocks the file.
+
 ## Books
 
 The ledger is double-entry and append-only. Every posting is built in `src/domain/postings.ts` and refused if it does not balance.

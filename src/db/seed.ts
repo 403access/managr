@@ -9,6 +9,13 @@ import { lineNetCents, summarizeVat } from "@/domain/vat";
 import { weekStart } from "@/domain/time";
 import { statutoryObligations } from "@/domain/obligations";
 import type { DB } from "@/db/client";
+
+/** Fake commercial references for the sample company. Not Leitweg-IDs. */
+const SAMPLE_BUYER_REFERENCE: Record<string, string> = {
+  "Lichtfeld GmbH": "LF-BER-2026",
+  "Kiezküche e.K.": "KK-BER",
+  "Havel & Sohn AG": "HAVEL-PITCH",
+};
 import { uploadsDir } from "@/db/paths";
 import {
   absences,
@@ -96,9 +103,9 @@ export function seedIfEmpty(db: DB) {
       .values(CHART.map((account) => ({ ...account, system: true })))
       .run();
 
-    const lichtfeld = insertId(tx.insert(customers).values({ name: "Lichtfeld GmbH", street: "Torstraße 1", postalCode: "10119", city: "Berlin", email: "finance@lichtfeld.example", vatId: "DE111111111" }).run());
-    const kiez = insertId(tx.insert(customers).values({ name: "Kiezküche e.K.", street: "Weserstraße 40", postalCode: "12045", city: "Berlin", email: "hello@kiezkueche.example" }).run());
-    const havel = insertId(tx.insert(customers).values({ name: "Havel & Sohn AG", street: "Havelchaussee 2", postalCode: "14193", city: "Berlin", email: "ap@havel.example", vatId: "DE222222222" }).run());
+    const lichtfeld = insertId(tx.insert(customers).values({ name: "Lichtfeld GmbH", street: "Torstraße 1", postalCode: "10119", city: "Berlin", email: "finance@lichtfeld.example", vatId: "DE111111111", buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"] }).run());
+    const kiez = insertId(tx.insert(customers).values({ name: "Kiezküche e.K.", street: "Weserstraße 40", postalCode: "12045", city: "Berlin", email: "hello@kiezkueche.example", buyerReference: SAMPLE_BUYER_REFERENCE["Kiezküche e.K."] }).run());
+    const havel = insertId(tx.insert(customers).values({ name: "Havel & Sohn AG", street: "Havelchaussee 2", postalCode: "14193", city: "Berlin", email: "ap@havel.example", vatId: "DE222222222", buyerReference: SAMPLE_BUYER_REFERENCE["Havel & Sohn AG"] }).run());
 
     post(tx, "2024-03-15", "Gründung, Stammkapital eingezahlt", "opening", "capital", [
       { accountCode: "1200", debitCents: 250_000, creditCents: 0 },
@@ -113,11 +120,11 @@ export function seedIfEmpty(db: DB) {
       .values({ year: year - 1, movedOn: `${year}-01-15`, kind: "allocation", amountCents: 160_000, note: "Beispieleinstellung: ein Viertel eines Jahresüberschusses von 6.400 €.", journalEntryId: reserveEntry })
       .run();
 
-    bookInvoice(tx, { customerId: lichtfeld, number: `RE-${year}-0001`, issue: on(-120), due: on(-100), paid: on(-90), description: "Markenworkshop", unitNetCents: 240_000 });
-    bookInvoice(tx, { customerId: lichtfeld, number: `RE-${year}-0002`, issue: on(-40), due: on(-26), paid: on(-20), description: "Kampagnengestaltung", unitNetCents: 320_000 });
-    bookInvoice(tx, { customerId: havel, number: `RE-${year}-0003`, issue: on(-55), due: on(-35), description: "Pitchfilm", unitNetCents: 90_000 });
-    bookInvoice(tx, { customerId: kiez, number: `RE-${year}-0004`, issue: on(-10), due: on(14), description: "Websitebetreuung Oktober", unitNetCents: 140_000 });
-    bookInvoice(tx, { customerId: lichtfeld, number: null, issue: today, due: on(14), description: "Angebot, Lookbook Frühjahr", unitNetCents: 180_000, draft: true });
+    bookInvoice(tx, { customerId: lichtfeld, number: `RE-${year}-0001`, issue: on(-120), due: on(-100), paid: on(-90), description: "Markenworkshop", unitNetCents: 240_000, buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"]! });
+    bookInvoice(tx, { customerId: lichtfeld, number: `RE-${year}-0002`, issue: on(-40), due: on(-26), paid: on(-20), description: "Kampagnengestaltung", unitNetCents: 320_000, buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"]! });
+    bookInvoice(tx, { customerId: havel, number: `RE-${year}-0003`, issue: on(-55), due: on(-35), description: "Pitchfilm", unitNetCents: 90_000, buyerReference: SAMPLE_BUYER_REFERENCE["Havel & Sohn AG"]! });
+    bookInvoice(tx, { customerId: kiez, number: `RE-${year}-0004`, issue: on(-10), due: on(14), description: "Websitebetreuung Oktober", unitNetCents: 140_000, buyerReference: SAMPLE_BUYER_REFERENCE["Kiezküche e.K."]! });
+    bookInvoice(tx, { customerId: lichtfeld, number: null, issue: today, due: on(14), description: "Angebot, Lookbook Frühjahr", unitNetCents: 180_000, draft: true, buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"]! });
 
     for (const offset of [-100, -70, -40]) {
       post(tx, on(offset), "Studiomiete", "expense", null, buildExpense({ expenseAccount: "4210", netCents: 85_000, vatBps: 1900, paidNow: true }));
@@ -388,6 +395,20 @@ export function localizeSample(db: DB) {
       const memo = samplePhrase(entry.memo);
       if (memo) tx.update(journalEntries).set({ memo }).where(eq(journalEntries.id, entry.id)).run();
     }
+    // Empty references on the known sample names are filled so an existing sample database can download an e-invoice. A company that is no longer marked as the sample is left alone.
+    for (const customer of tx.select().from(customers).all()) {
+      const reference = SAMPLE_BUYER_REFERENCE[customer.name];
+      if (reference && !customer.buyerReference.trim()) {
+        tx.update(customers).set({ buyerReference: reference }).where(eq(customers.id, customer.id)).run();
+      }
+    }
+    const customerNames = new Map(tx.select().from(customers).all().map((customer) => [customer.id, customer.name]));
+    for (const invoice of tx.select().from(invoices).all()) {
+      if (invoice.buyerReference.trim()) continue;
+      const reference = SAMPLE_BUYER_REFERENCE[customerNames.get(invoice.customerId) ?? ""];
+      if (!reference) continue;
+      tx.update(invoices).set({ buyerReference: reference }).where(eq(invoices.id, invoice.id)).run();
+    }
     for (const line of tx.select().from(invoiceLines).all()) {
       const description = samplePhrase(line.description);
       if (description) tx.update(invoiceLines).set({ description }).where(eq(invoiceLines.id, line.id)).run();
@@ -479,7 +500,7 @@ function post(db: DB, date: string, memo: string, source: string, sourceId: stri
 
 function bookInvoice(
   db: DB,
-  input: { customerId: number; number: string | null; issue: string; due: string; paid?: string; description: string; unitNetCents: number; draft?: boolean },
+  input: { customerId: number; number: string | null; issue: string; due: string; paid?: string; description: string; unitNetCents: number; draft?: boolean; buyerReference: string },
 ) {
   const id = insertId(
     db
@@ -493,6 +514,7 @@ function bookInvoice(
         dueDate: input.due,
         notes: "",
         exemptionNote: "",
+        buyerReference: input.buyerReference,
       })
       .run(),
   );

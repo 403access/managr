@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { deleteDraft, recordPayment, voidInvoice } from "@/server/actions";
+import { deleteDraft, recordPayment, saveBuyerReference, voidInvoice } from "@/server/actions";
 import type { invoiceView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { isKleinunternehmerNote } from "@/domain/invoice";
+import { xrechnungStatusBlocker } from "@/domain/xrechnung";
 import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { euroInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Disclaimer, Field, LinkButton, Money, PageHeader, Pill, textLinkClass, TextInput } from "@/components/ui";
+import { buttonClass, Card, Disclaimer, Field, LinkButton, Money, PageHeader, Pill, textLinkClass, TextInput } from "@/components/ui";
 
 type Invoice = NonNullable<ReturnType<typeof invoiceView>>;
 
@@ -54,6 +55,37 @@ export function InvoiceScreen({ id }: { id: number }) {
             </p>
             {invoice.exemptionNote ? <p className="mt-2 text-sm">{invoice.exemptionNote}</p> : null}
             {invoice.notes ? <p className="mt-2 text-sm text-muted">{invoice.notes}</p> : null}
+            {invoice.status === "void" ? (
+              <p className="mt-4 text-sm text-muted">{tx(xrechnungStatusBlocker("void") ?? "")}</p>
+            ) : (
+              <Card className="mt-6">
+                <h2 className="text-xl">{t("invoices.xrechnungTitle")}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{t("invoices.xrechnungBody")}</p>
+                {invoice.status === "draft" ? <p className="mt-3 text-sm">{t("invoices.xrechnungAfterIssue")}</p> : (
+                  <ActionForm action={saveBuyerReference} className="mt-4 grid gap-3">
+                    <input type="hidden" name="invoiceId" value={invoice.id} />
+                    <Field label={t("invoices.buyerReference")} hint={t("invoices.buyerReferenceHint")}>
+                      <TextInput name="buyerReference" defaultValue={invoice.buyerReference} maxLength={100} />
+                    </Field>
+                    <SubmitButton tone="quiet">{t("invoices.saveBuyerReference")}</SubmitButton>
+                  </ActionForm>
+                )}
+                {loaded.eInvoiceBlockers.length > 0 ? (
+                  <ul className="mt-3 grid gap-1 text-sm text-amber">
+                    {loaded.eInvoiceBlockers.map((item) => (
+                      <li key={item}>{tx(item)}</li>
+                    ))}
+                  </ul>
+                ) : invoice.status !== "draft" ? (
+                  <a className={`${buttonClass()} mt-3`} href={`/invoices/${invoice.id}/xrechnung`} download>
+                    {t("invoices.downloadXrechnung")}
+                  </a>
+                ) : null}
+                <div className="mt-4">
+                  <Disclaimer>{t("invoices.xrechnungDisclaimer")}</Disclaimer>
+                </div>
+              </Card>
+            )}
             {invoice.status === "draft" && loaded.blockers.length > 0 ? (
               <ul className="mt-4 grid gap-1 text-sm text-clay">
                 {loaded.blockers.map((item) => (

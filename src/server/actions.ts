@@ -27,6 +27,7 @@ import {
 import { ACCOUNTS, CHART, type DraftLine } from "@/domain/accounts";
 import { formatDate, nextDueDate, todayIso, type Recurrence } from "@/domain/calendar";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, reviewInvoice } from "@/domain/invoice";
+import { buyerReferenceProblem } from "@/domain/xrechnung";
 import { parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import {
   buildCustomerPayment,
@@ -363,6 +364,9 @@ export async function saveCustomer(_state: ActionState, formData: FormData): Pro
   try {
     const name = text(formData, "name");
     if (!name) throw new Error("The customer needs a name.");
+    const buyerReference = text(formData, "buyerReference");
+    const referenceProblem = buyerReferenceProblem(buyerReference);
+    if (referenceProblem) throw new Error(referenceProblem);
     const values = {
       name,
       street: text(formData, "street"),
@@ -371,6 +375,7 @@ export async function saveCustomer(_state: ActionState, formData: FormData): Pro
       country: text(formData, "country") || "Deutschland",
       email: text(formData, "email"),
       vatId: text(formData, "vatId").toUpperCase(),
+      buyerReference,
     };
     const id = optionalId(formData);
     const db = getDb();
@@ -437,6 +442,7 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
         dueDate: payload.dueDate,
         notes: payload.notes.trim(),
         exemptionNote,
+        buyerReference: payload.buyerReference,
       };
       let id = payload.invoiceId;
       if (id) {
@@ -494,9 +500,27 @@ function resolveCustomer(db: ReturnType<typeof getDb>, payload: InvoicePayload):
       country: payload.newCustomer.country || "Deutschland",
       email: payload.newCustomer.email,
       vatId: payload.newCustomer.vatId.toUpperCase(),
+      buyerReference: payload.buyerReference,
     })
     .run();
   return Number(created.lastInsertRowid);
+}
+
+export async function saveBuyerReference(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const id = requiredId(formData, "invoiceId");
+    const buyerReference = text(formData, "buyerReference");
+    const problem = buyerReferenceProblem(buyerReference);
+    if (problem) throw new Error(problem);
+    const db = getDb();
+    const invoice = db.select().from(invoices).where(eq(invoices.id, id)).get();
+    if (!invoice) throw new Error("Invoice not found.");
+    if (invoice.status === "draft" || invoice.status === "void") throw new Error("The buyer reference on this invoice cannot be changed.");
+    db.update(invoices).set({ buyerReference }).where(eq(invoices.id, id)).run();
+    return saved("Buyer reference saved.");
+  } catch (error) {
+    return failed(error);
+  }
 }
 
 export async function recordPayment(_state: ActionState, formData: FormData): Promise<ActionState> {

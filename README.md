@@ -30,4 +30,4 @@ The desk opens in German. Switch to English with DE/EN in the sidebar, or under 
 - Legal and tax rules: `docs/DOMAIN.md`
 - Structure: `docs/ARCHITECTURE.md`
 
-Version 1 does not include ELSTER, DATEV, XRechnung, bank feeds, or a Lohnsteuer calculation. Those are listed in the roadmap so they are not pretended here.
+An issued invoice can be downloaded as an XRechnung 3.0.2 file (the e-invoice). The desk does not send it. Version 1 does not include ELSTER, DATEV, ZUGFeRD, bank feeds, or a Lohnsteuer calculation. Those are listed in the roadmap so they are not pretended here.

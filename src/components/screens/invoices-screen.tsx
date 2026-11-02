@@ -59,6 +59,9 @@ export function InvoicesScreen() {
                       <Field label={t("common.city")}><TextInput name="city" defaultValue={customer.city} /></Field>
                       <Field label={t("common.country")}><TextInput name="country" defaultValue={customer.country} /></Field>
                       <Field label={t("company.vatId")}><TextInput name="vatId" defaultValue={customer.vatId} /></Field>
+                      <Field label={t("invoices.buyerReference")} hint={t("invoices.buyerReferenceHint")}>
+                        <TextInput name="buyerReference" defaultValue={customer.buyerReference} maxLength={100} />
+                      </Field>
                     </div>
                     <SubmitButton tone="quiet">{t("invoices.saveCustomer")}</SubmitButton>
                   </ActionForm>
@@ -75,6 +78,9 @@ export function InvoicesScreen() {
                   <Field label={t("common.city")}><TextInput name="city" /></Field>
                   <Field label={t("common.country")}><TextInput name="country" defaultValue="Deutschland" /></Field>
                   <Field label={t("company.vatId")}><TextInput name="vatId" /></Field>
+                  <Field label={t("invoices.buyerReference")} hint={t("invoices.buyerReferenceHint")}>
+                    <TextInput name="buyerReference" maxLength={100} />
+                  </Field>
                 </div>
                 <SubmitButton>{t("invoices.addCustomer")}</SubmitButton>
               </ActionForm>

@@ -11,6 +11,7 @@ Shipped in this repo. One user, one company, SQLite on disk, no account system.
 - Company master data, shareholders, and the statutory reserve (§5a GmbHG), including the conversion gap toward €25,000 share capital.
 - Obligation calendar: VAT, wage tax, trade tax, corporate tax, social-insurance reminders, disclosure, IHK, Berufsgenossenschaft, plus custom deadlines.
 - Customers, invoices with the statutory particulars, issue, payment, void, and a printable invoice.
+- XRechnung 3.0.2 (UBL) download for an issued invoice. The file is an e-invoice under §14 UStG. It is not transmitted.
 - Double-entry ledger on a SKR03 working chart, trial balance, profit before tax, and corporate-tax estimate.
 - People: employment, minijob / midijob / regular contribution estimates for 2026, vacation, and a payroll journal posting. Wage tax is entered, not calculated.
 - Founder health cover and business policies, with renewal reminders.
@@ -27,7 +28,7 @@ Shipped in this repo. One user, one company, SQLite on disk, no account system.
 These need an external system or a different product decision. They are not stubbed as if they worked.
 
 - Sign-in, roles, and multi-company books.
-- XRechnung or ZUGFeRD.
+- ZUGFeRD, and transmission of an e-invoice (Peppol, a portal, or e-mail). The KoSIT validator is not run.
 - DATEV EXTF export and a locked DATEV account map.
 - Bank CSV or a bank feed.
 - ELSTER transmission.
@@ -40,9 +41,8 @@ These need an external system or a different product decision. They are not stub
 
 1. Bank CSV import that posts through the same journal rules.
 2. DATEV export once the chart is confirmed against the office's Kontenrahmen.
-3. XRechnung from the invoice model that already exists.
-4. A real Lohnsteuer function, or an explicit import of payroll results from a Lohnprogramm.
-5. Sign-in, only when the file is no longer a single local database.
+3. A real Lohnsteuer function, or an explicit import of payroll results from a Lohnprogramm.
+4. Sign-in, only when the file is no longer a single local database.
 
 ## Done
 
