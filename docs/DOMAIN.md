@@ -1,3 +1,7 @@
+---
+slug: /domain
+---
+
 # Domain rules
 
 managr is a planning aid. It does not file, assess social-insurance status, or compute wage tax. The UI must keep that visible wherever it shows an estimate.

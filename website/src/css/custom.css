@@ -1,0 +1,41 @@
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/fraunces/500.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+
+:root {
+  --ifm-color-primary: #0e5c52;
+  --ifm-color-primary-dark: #0d554b;
+  --ifm-color-primary-darker: #0c5148;
+  --ifm-color-primary-darkest: #0b4840;
+  --ifm-color-primary-light: #2b7067;
+  --ifm-color-primary-lighter: #397971;
+  --ifm-color-primary-lightest: #5b9089;
+  --ifm-font-family-base: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --ifm-heading-font-family: Fraunces, Georgia, serif;
+  --ifm-font-family-monospace: "IBM Plex Mono", ui-monospace, monospace;
+  --ifm-background-color: #f7f3eb;
+  --ifm-navbar-background-color: #efeae0;
+  --ifm-footer-background-color: #0a3f38;
+  --ifm-heading-font-weight: 500;
+  --ifm-code-font-size: 95%;
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #7dcec3;
+  --ifm-color-primary-dark: #73beb3;
+  --ifm-color-primary-darker: #6eb5ac;
+  --ifm-color-primary-darkest: #62a198;
+  --ifm-color-primary-light: #8dd4ca;
+  --ifm-color-primary-lighter: #94d7ce;
+  --ifm-color-primary-lightest: #a7ded6;
+  --ifm-background-color: #1c2430;
+  --ifm-navbar-background-color: #161c26;
+  --ifm-footer-background-color: #12181f;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--ifm-heading-font-family);
+}

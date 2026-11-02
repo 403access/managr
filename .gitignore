@@ -6,3 +6,5 @@ data
 .DS_Store
 tsconfig.tsbuildinfo
 next-env.d.ts
+website/.docusaurus
+website/build

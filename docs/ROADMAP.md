@@ -1,3 +1,7 @@
+---
+slug: /roadmap
+---
+
 # Roadmap
 
 managr is a local desk for running a German UG (haftungsbeschränkt): company records, obligations, invoices, books, people, social-insurance estimates, time, documents, and legal paperwork.
