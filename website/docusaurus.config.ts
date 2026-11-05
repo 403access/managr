@@ -21,7 +21,19 @@ const config: Config = {
   favicon: "img/favicon.svg",
   i18n: {
     defaultLocale: "en",
-    locales: ["en"],
+    locales: ["en", "de"],
+    localeConfigs: {
+      en: {
+        label: "English",
+        direction: "ltr",
+        htmlLang: "en",
+      },
+      de: {
+        label: "Deutsch",
+        direction: "ltr",
+        htmlLang: "de",
+      },
+    },
   },
   plugins: [
     [
@@ -67,6 +79,10 @@ const config: Config = {
         {
           href: "https://github.com/403access/managr",
           label: "GitHub",
+          position: "right",
+        },
+        {
+          type: "localeDropdown",
           position: "right",
         },
       ],

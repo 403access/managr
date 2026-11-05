@@ -24,4 +24,4 @@ bun run dev
 
 The first launch creates `data/managr.db` and loads the sample company Atelier Nordlicht UG. Open [http://localhost:3000](http://localhost:3000).
 
-The interface is German by default, with English as the second language. These notes stay English.
+The interface is German by default, with English as the second language. These notes are available in English and German; switch languages in the navigation bar.

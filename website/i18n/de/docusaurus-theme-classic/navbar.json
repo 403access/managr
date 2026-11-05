@@ -1,0 +1,18 @@
+{
+  "title": {
+    "message": "managr",
+    "description": "The title in the navbar"
+  },
+  "item.label.Home": {
+    "message": "Startseite",
+    "description": "Navbar item with label Home"
+  },
+  "item.label.Docs": {
+    "message": "Dokumentation",
+    "description": "Navbar item with label Docs"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}

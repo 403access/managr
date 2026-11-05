@@ -70,7 +70,7 @@ Printed invoices stay German in both languages, including the Kleinunternehmer n
 
 ## Published site
 
-`website/` is the public site. The marketing page is `website/src/pages/index.tsx`. Docusaurus reads `docs/` and does not copy those files. The notes are served at `/docs` (`routeBasePath: "docs"`). `/architecture`, `/domain`, and `/roadmap` redirect there. `bun run docs` serves the site at `http://localhost:3001/managr/`, and the notes at `http://localhost:3001/managr/docs`. `bun install --cwd website` installs its own dependencies from `website/bun.lock`.
+`website/` is the public site. The marketing page is `website/src/pages/index.tsx`. Docusaurus reads `docs/` and does not copy those files. The notes are served at `/docs` (`routeBasePath: "docs"`). `/architecture`, `/domain`, and `/roadmap` redirect there. The German edition is at `/de/docs`, and the navbar language menu switches between the two. Translated pages live in `website/i18n/de/docusaurus-plugin-content-docs/current/`. `bun run docs` serves the site at `http://localhost:3001/managr/`, and the notes at `http://localhost:3001/managr/docs`. `bun install --cwd website` installs its own dependencies from `website/bun.lock`.
 
 A push to `main` runs `.github/workflows/docs.yml`. That workflow builds `website/` and deploys the static files to GitHub Pages at `https://403access.github.io/managr/`, with the notes at `https://403access.github.io/managr/docs`. The Pages source has to be GitHub Actions. A pull request runs `.github/workflows/docs-test.yml` and does not deploy. GitHub Free does not serve Pages for a private repository. The desk itself is not hosted and has no environment secret.
 
