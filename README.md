@@ -90,7 +90,7 @@ The desk opens in German. Switch to English with DE/EN in the sidebar, or under 
 
 ## Site
 
-`website/` is the public site. The marketing page is the root. Docusaurus serves the notes in `docs/` at `/docs` and the German edition at `/de/docs`. The language menu in the navbar switches between them.
+`website/` is the public site. The marketing page is the root and is translated at `/de/`. Docusaurus serves the notes in `docs/` at `/docs` and the German edition at `/de/docs`. The language menu in the navbar switches between them.
 
 ```bash
 bun install --cwd website

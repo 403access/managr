@@ -1,0 +1,150 @@
+{
+  "home.meta.title": {
+    "message": "Ein lokaler Schreibtisch für eine deutsche UG",
+    "description": "The home page title"
+  },
+  "home.meta.description": {
+    "message": "managr ist ein lokaler Planungsschreibtisch für eine Unternehmergesellschaft (haftungsbeschränkt): Gesellschaftsdaten, Pflichten, Rechnungen, ein Journal, Personen und rechtliche Notizen.",
+    "description": "The home page meta description"
+  },
+  "home.hero.title": {
+    "message": "Ein lokaler Schreibtisch für eine Gesellschaft.",
+    "description": "The home page hero heading"
+  },
+  "home.hero.lead": {
+    "message": "managr hält Stammdaten, die gesetzliche Rücklage, Pflichten, Rechnungen, ein doppelt geführtes Journal, Personen, Zeit, Dokumente und rechtliche Notizen für eine Unternehmergesellschaft. Es läuft auf diesem Computer.",
+    "description": "The home page hero introduction"
+  },
+  "home.hero.readDocs": {
+    "message": "Dokumentation lesen",
+    "description": "The home page link to the docs"
+  },
+  "home.hero.source": {
+    "message": "Quellcode ansehen",
+    "description": "The home page link to the source code"
+  },
+  "home.hero.disclaimer": {
+    "message": "Eine Planungshilfe. Sie reicht keine Steuererklärung ein, berechnet keine Lohnsteuer und entscheidet nicht über den Sozialversicherungsstatus.",
+    "description": "The home page disclaimer"
+  },
+  "home.sample.aria": {
+    "message": "Beispielgesellschaft, die beim ersten Start geladen wird",
+    "description": "The aria label for the sample company panel"
+  },
+  "home.sample.label": {
+    "message": "Beispiel · erster Start",
+    "description": "The label above the sample company"
+  },
+  "home.sample.foot.before": {
+    "message": "Offensichtlich fiktiv. HRB 123456 B ist kein Registereintrag. Lösche",
+    "description": "The text before the sample database file name"
+  },
+  "home.sample.foot.after": {
+    "message": ", um diese Gesellschaft wiederherzustellen.",
+    "description": "The text after the sample database file name"
+  },
+  "home.holds.title": {
+    "message": "Was der Schreibtisch enthält",
+    "description": "The heading of the features section"
+  },
+  "home.holds.intro": {
+    "message": "Version 1 ist der Schreibtisch in diesem Repository. Die Roadmap listet, was eine spätere Version ergänzen könnte und was diese Version nicht nachahmen will.",
+    "description": "The introduction of the features section"
+  },
+  "home.area.company": {
+    "message": "Rechtlicher Name, Gesellschafter, Stammkapital und die Rücklage nach §5a GmbHG, einschließlich der Lücke zum Stammkapital von 25.000 €.",
+    "description": "The company feature description"
+  },
+  "home.area.deadlines": {
+    "message": "Umsatzsteuer, Lohnsteuer, Gewerbesteuer, Körperschaftsteuer, Sozialversicherung, Offenlegung, IHK, Berufsgenossenschaft und eigene Fristen in einem Kalender.",
+    "description": "The deadlines feature description"
+  },
+  "home.area.invoices": {
+    "message": "Entwerfen, ausstellen, bezahlen und stornieren. Der Ausdruck trägt die Angaben nach §14 UStG und §35a GmbHG. Eine ausgestellte Rechnung lässt sich als XRechnung 3.0.2 herunterladen. Die Datei wird nicht versendet.",
+    "description": "The invoices feature description"
+  },
+  "home.area.books": {
+    "message": "Ein SKR03-Arbeitskontenrahmen, eine Saldenliste, Gewinn vor Steuern und eine Körperschaftsteuerschätzung. Journale sind ausgeglichen, und eine Korrektur ist eine Gegenbuchung.",
+    "description": "The books feature description"
+  },
+  "home.area.people": {
+    "message": "Anstellung, Minijob-, Midijob- und reguläre Beitragsschätzungen für 2026, Urlaub, Krankenversicherung der Gründerin oder des Gründers und ein Lohnjournal. Die Lohnsteuer wird eingegeben, nicht berechnet.",
+    "description": "The people feature description"
+  },
+  "home.area.records": {
+    "message": "Zeitaufzeichnungen, Dokumente auf der Festplatte, eine rechtliche Checkliste und Gesellschafterbeschlüsse.",
+    "description": "The records feature description"
+  },
+  "home.split.aria": {
+    "message": "Wie es läuft und was es nicht tut",
+    "description": "The aria label for the runtime and limits section"
+  },
+  "home.runs.title": {
+    "message": "Auf diesem Computer",
+    "description": "The heading of the runtime section"
+  },
+  "home.runs.oneUser": {
+    "message": "Ein Benutzer, eine Gesellschaft, keine Anmeldung.",
+    "description": "The single-user runtime detail"
+  },
+  "home.runs.sqlite.before": {
+    "message": "SQLite in",
+    "description": "The text before the database path"
+  },
+  "home.runs.sqlite.middle": {
+    "message": ". Dateien in",
+    "description": "The text between the database and upload paths"
+  },
+  "home.runs.sqlite.after": {
+    "message": ".",
+    "description": "The punctuation after the upload path"
+  },
+  "home.runs.language": {
+    "message": "Standardmäßig Deutsch, Englisch als zweite Sprache. Datumsangaben, Beträge und eine gedruckte Rechnung bleiben Deutsch.",
+    "description": "The runtime language detail"
+  },
+  "home.runs.browser": {
+    "message": "Der Browser öffnet die Datenbank nie.",
+    "description": "The runtime browser detail"
+  },
+  "home.runs.caption.before": {
+    "message": "Öffne dann",
+    "description": "The text before the local URL"
+  },
+  "home.runs.caption.after": {
+    "message": ".",
+    "description": "The punctuation after the local URL"
+  },
+  "home.refuses.title": {
+    "message": "Was er nicht vortäuscht",
+    "description": "The heading of the limits section"
+  },
+  "home.refuses.elster": {
+    "message": "Keine ELSTER-Übermittlung.",
+    "description": "The ELSTER limit"
+  },
+  "home.refuses.wageTax": {
+    "message": "Keine Lohnsteuerberechnung. Die Lohnsteuer ist eine Zahl, die du eingibst.",
+    "description": "The wage tax limit"
+  },
+  "home.refuses.datev": {
+    "message": "Kein DATEV-Export und kein Bank-Feed.",
+    "description": "The DATEV limit"
+  },
+  "home.refuses.xrechnung": {
+    "message": "Die XRechnung-Datei ist ein Download. Sie wird nicht versendet.",
+    "description": "The XRechnung limit"
+  },
+  "home.refuses.contributions": {
+    "message": "Beitragszahlen sind Schätzungen. Sie sind keine Statusfeststellung.",
+    "description": "The contribution estimate limit"
+  },
+  "home.refuses.domain": {
+    "message": "Domänenregeln",
+    "description": "The link to the domain rules"
+  },
+  "home.refuses.roadmap": {
+    "message": "Roadmap",
+    "description": "The link to the roadmap"
+  }
+}
