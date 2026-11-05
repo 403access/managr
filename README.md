@@ -29,13 +29,20 @@ Save the currently open books as the demo copy:
 bun run db:demo:set
 ```
 
-Production must start from your own books. Import it explicitly; the script refuses the demo copy and any database that still contains the sample company:
+Production must start without demo books. Either create a clean production database and open it:
+
+```bash
+bun run db:prod:init
+bun run db:prod:init -- --name "Your UG (haftungsbeschränkt)"
+```
+
+Or import an existing database. The script refuses the demo copy and any database that still contains the sample company:
 
 ```bash
 bun run db:prod:set -- --from ~/backup/managr.db
 ```
 
-`db:prod:set` without `--from` only works while production is already the active copy, so saving production changes does not pull in demo data.
+`db:prod:set` without `--from` only works while production is already the active copy, so saving production changes does not pull in demo data. `db:prod:init` creates the schema and chart of accounts but no sample ledgers; fill in the company details on the company screen.
 
 When you switch away from a copy, the open database is saved back to that copy first, so edits are not lost. An open database that has not been saved as a copy is kept as `data/managr.unsaved-<timestamp>.db` before the first switch. If the copy is already active, add `--force` to load the saved copy over the open one. Start the desk again after a switch because the running server keeps its open connection. Uploads in `data/uploads` are shared by both copies.
 

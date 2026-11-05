@@ -15,7 +15,8 @@
     "db:demo": "tsx scripts/databases.ts use demo",
     "db:prod": "tsx scripts/databases.ts use production",
     "db:demo:set": "tsx scripts/databases.ts set demo",
-    "db:prod:set": "tsx scripts/databases.ts set production"
+    "db:prod:set": "tsx scripts/databases.ts set production",
+    "db:prod:init": "tsx scripts/databases.ts init production"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.3.0",

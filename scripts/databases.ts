@@ -1,12 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { CHART } from "../src/domain/accounts";
 
 type Slot = "demo" | "production";
 
 const dataDir = path.join(process.cwd(), "data");
 const activePath = path.join(dataDir, "managr.db");
 const markerPath = path.join(dataDir, "managr.active");
+const migrationsDir = path.join(process.cwd(), "src/db/migrations");
 
 const slotPaths: Record<Slot, string> = {
   demo: path.join(dataDir, "managr.demo.db"),
@@ -68,6 +70,60 @@ function copyDatabase(source: string, destination: string): void {
   removeSidecars(destination);
 }
 
+function migrate(sqlite: Database.Database): void {
+  sqlite.exec("CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
+  const applied = new Set(
+    (sqlite.prepare("SELECT id FROM schema_migrations").all() as { id: string }[]).map((row) => row.id),
+  );
+  const insert = sqlite.prepare("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)");
+  const files = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
+
+  for (const file of files) {
+    if (applied.has(file)) continue;
+    sqlite.exec(fs.readFileSync(path.join(migrationsDir, file), "utf8"));
+    insert.run(file, new Date().toISOString());
+  }
+}
+
+/** Creates a production database with no sample books and a placeholder company. */
+function createCleanDatabase(destination: string, legalName: string): void {
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  const temporary = path.join(
+    path.dirname(destination),
+    `.${path.basename(destination)}.${process.pid}.init.tmp`,
+  );
+
+  removeSidecars(temporary);
+  fs.rmSync(temporary, { force: true });
+
+  const sqlite = new Database(temporary);
+  try {
+    sqlite.pragma("foreign_keys = ON");
+    migrate(sqlite);
+
+    const insertAccount = sqlite.prepare(
+      "INSERT INTO accounts (code, name, type, pnl, system) VALUES (?, ?, ?, ?, 1)",
+    );
+    sqlite.transaction(() => {
+      for (const account of CHART) {
+        insertAccount.run(account.code, account.name, account.type, account.pnl);
+      }
+    })();
+
+    sqlite
+      .prepare(
+        "INSERT INTO companies (legal_name, share_capital_cents, founding_date, is_sample) VALUES (?, 0, ?, 0)",
+      )
+      .run(legalName, new Date().toISOString().slice(0, 10));
+  } finally {
+    sqlite.close();
+  }
+
+  removeSidecars(temporary);
+  fs.renameSync(temporary, destination);
+  removeSidecars(destination);
+}
+
 function readActiveSlot(): Slot | null {
   try {
     const value = fs.readFileSync(markerPath, "utf8").trim();
@@ -87,6 +143,16 @@ function parseSlot(value: string | undefined): Slot {
   if (value === "demo") return "demo";
   if (value === "production" || value === "prod") return "production";
   throw new ScriptError(`Unknown database "${value ?? ""}". Use "demo" or "production".`);
+}
+
+function option(args: string[], name: string): string | undefined {
+  const index = args.indexOf(name);
+  if (index < 0) return undefined;
+  const value = args[index + 1];
+  if (!value || value.startsWith("--")) {
+    throw new ScriptError(`"${name}" needs a value.`);
+  }
+  return value;
 }
 
 function formatBytes(bytes: number): string {
@@ -195,6 +261,30 @@ function set(slot: Slot, from: string | undefined): void {
   console.log(`Saved ${relative(source)} as the ${slot} database (${relative(slotPaths[slot])}).`);
 }
 
+function initProduction(force: boolean, legalName: string): void {
+  if (fs.existsSync(slotPaths.production) && !force) {
+    throw new ScriptError(
+      `A production database already exists. Add "--force" to replace it with a clean one.`,
+    );
+  }
+
+  const current = readActiveSlot();
+  if (
+    !current &&
+    !fs.existsSync(slotPaths.demo) &&
+    fs.existsSync(activePath) &&
+    isSampleDatabase(activePath)
+  ) {
+    copyDatabase(activePath, slotPaths.demo);
+    writeActiveSlot("demo");
+    console.log(`Saved the active sample database as the demo copy (${relative(slotPaths.demo)}).`);
+  }
+
+  createCleanDatabase(slotPaths.production, legalName);
+  console.log(`Created a clean production database at ${relative(slotPaths.production)}.`);
+  use("production", force);
+}
+
 function status(): void {
   const current = readActiveSlot();
   const active = fs.existsSync(activePath)
@@ -207,6 +297,7 @@ function status(): void {
   console.log("");
   console.log("Switch: npm run db:demo | npm run db:prod");
   console.log("Save:   npm run db:demo:set | npm run db:prod:set [-- --from <file>]");
+  console.log("Create: npm run db:prod:init [-- --name <legal name>]");
   console.log("Uploads in data/uploads are shared by both databases.");
 }
 
@@ -221,6 +312,9 @@ Commands:
                          Production needs "--from <file>" unless production is active.
                          Add "--from <file>" to save another SQLite file instead.
                          A sample database is refused for production.
+  init production         Create a clean production database with no sample books
+                         and open it. Add "--name <legal name>" to set the company name.
+                         Add "--force" to replace an existing production copy.
 
 The active database is saved back to its copy before switching, so edits are
 not lost. Stop the desk before switching; the running server keeps its open
@@ -248,12 +342,16 @@ function main(): void {
 
   if (command === "set") {
     const slot = parseSlot(args[1]);
-    const fromIndex = args.indexOf("--from");
-    const from = fromIndex >= 0 ? args[fromIndex + 1] : undefined;
-    if (fromIndex >= 0 && !from) {
-      throw new ScriptError('"--from" needs a file path.');
+    set(slot, option(args, "--from"));
+    return;
+  }
+
+  if (command === "init") {
+    const slot = parseSlot(args[1]);
+    if (slot !== "production") {
+      throw new ScriptError('Only "init production" is available. Use "db:demo:set" for the demo copy.');
     }
-    set(slot, from);
+    initProduction(args.includes("--force"), option(args, "--name") ?? "Neue UG (haftungsbeschränkt)");
     return;
   }
 
