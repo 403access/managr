@@ -76,6 +76,8 @@ A push to `main` runs `.github/workflows/docs.yml`. That workflow builds `websit
 
 `docker compose up --build` runs the stack on this computer. The desk container is the Next.js server on port 3000. It reads `src/db/migrations` from the image and keeps `data/` on the host. The site container is nginx on port 3001. The build still uses `baseUrl: /managr/`, and nginx serves that prefix, so the notes stay at `/managr/docs`.
 
+The image copies the source at build time, so a code change needs a rebuild, not a container restart. `bun run docker:restart` rebuilds and recreates the desk and site, `bun run docker:restart:desk` limits that to the desk, and `bun run docker:rebuild` bypasses the desk build cache. `bun run docker:status`, `bun run docker:logs`, and `bun run docker:down` wrap the matching Compose commands.
+
 The validator container is the KoSIT daemon on port 8080, published only on `127.0.0.1:8090`. The desk reaches it at `http://validator:8080`; a process on the host uses `http://127.0.0.1:8090`. The image pins the engine and the XRechnung rules and verifies both by SHA-256 at build time. See `docs/XRECHNUNG-VALIDATION.md`.
 
 ## Checks

@@ -16,7 +16,13 @@
     "db:prod": "tsx scripts/databases.ts use production",
     "db:demo:set": "tsx scripts/databases.ts set demo",
     "db:prod:set": "tsx scripts/databases.ts set production",
-    "db:prod:init": "tsx scripts/databases.ts init production"
+    "db:prod:init": "tsx scripts/databases.ts init production",
+    "docker:restart": "docker compose up --build -d",
+    "docker:restart:desk": "docker compose up --build -d desk",
+    "docker:rebuild": "docker compose build --no-cache desk && docker compose up -d desk",
+    "docker:status": "docker compose ps",
+    "docker:logs": "docker compose logs -f desk",
+    "docker:down": "docker compose down"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.3.0",

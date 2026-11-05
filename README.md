@@ -52,6 +52,19 @@ docker compose up --build
 
 That runs the same desk at [http://localhost:3000](http://localhost:3000) and the site at [http://localhost:3001/managr/](http://localhost:3001/managr/). The notes are at [http://localhost:3001/managr/docs](http://localhost:3001/managr/docs). Compose keeps the database and uploads in `data/` on this computer. It does not host the desk for anyone else.
 
+After code changes, the image has to be rebuilt. These scripts wrap the Compose commands:
+
+```bash
+bun run docker:restart        # rebuild and restart the desk and site
+bun run docker:restart:desk   # rebuild and restart only the desk
+bun run docker:rebuild        # clean rebuild of the desk without cache
+bun run docker:status         # show container health
+bun run docker:logs           # follow the desk logs
+bun run docker:down           # stop and remove the containers
+```
+
+The same scripts work with `npm run`, for example `npm run docker:restart`.
+
 The stack also runs the KoSIT validator as a third container. Its daemon is published only on `127.0.0.1:8090`; the desk reaches it at `http://validator:8080`. Check it with:
 
 ```bash
