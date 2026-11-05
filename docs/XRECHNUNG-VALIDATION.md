@@ -91,7 +91,9 @@ KoSIT publishes no Docker image. The repository builds its own in `docker/valida
 
 ## In this repository
 
-`docker compose up --build` starts the desk, the site, and the validator. The validator publishes `127.0.0.1:8090` on the host; inside the Compose network it is `http://validator:8080`, which is how the desk will call it.
+`docker compose up --build` starts the desk, the site, and the validator. The validator publishes `127.0.0.1:8090` on the host; inside the Compose network it is `http://validator:8080`. Compose sets `VALIDATOR_URL` for the desk to that internal address. A desk started with `bun dev` falls back to `http://127.0.0.1:8090`, so the validator container has to be running.
+
+The invoice screen has a check button next to the download. It renders the file, posts it to the validator, and shows the verdict with the rule messages. `src/server/validator.ts` makes the call; `src/server/validator-report.ts` parses the KoSIT report and is covered by `tests/validator-report.test.ts`.
 
 ```bash
 curl -X POST http://127.0.0.1:8090/invoice.xml \

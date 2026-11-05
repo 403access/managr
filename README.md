@@ -77,4 +77,4 @@ Open [http://localhost:3001/managr/](http://localhost:3001/managr/). The notes a
 - Structure: `docs/ARCHITECTURE.md`
 - Published site: `website/` (marketing page, docs at `/docs`)
 
-An issued invoice can be downloaded as an XRechnung 3.0.2 file (the e-invoice). The desk does not send it. Version 1 does not include ELSTER, DATEV, ZUGFeRD, bank feeds, or a Lohnsteuer calculation. Those are listed in the roadmap so they are not pretended here.
+An issued invoice can be downloaded as an XRechnung 3.0.2 file (the e-invoice) and checked against the KoSIT rules on this computer. The desk does not send it. Version 1 does not include ELSTER, DATEV, ZUGFeRD, bank feeds, or a Lohnsteuer calculation. Those are listed in the roadmap so they are not pretended here.

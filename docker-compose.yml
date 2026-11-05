@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    environment:
+      VALIDATOR_URL: http://validator:8080
     volumes:
       - ./data:/app/data
     init: true

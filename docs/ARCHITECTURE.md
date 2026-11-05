@@ -48,6 +48,8 @@ Mutations stay server actions in `src/server/actions.ts`. After a write they cal
 
 `GET /invoices/[id]/xrechnung` renders an XRechnung 3.0.2 UBL document from the current company, customer, and invoice. The rules live in `src/domain/xrechnung.ts`. The XML is not stored.
 
+The check button calls the `checkInvoiceXRechnung` server action. `src/server/validator.ts` posts the rendered XML to `VALIDATOR_URL` (the Compose validator, or `127.0.0.1:8090` for `bun dev`). `src/server/validator-report.ts` turns the KoSIT report into a verdict and a message list. It is a pure function with a test; the HTTP call is not cached and nothing is written to the database.
+
 `src/server/payloads.ts` validates the invoice and manual-journal JSON. `src/server/people.ts` maps a person onto the social-insurance estimate. `src/server/files.ts` writes uploads under `data/uploads` and refuses a stored name that leaves that directory. `src/server/invoice-math.ts` is the only place that turns stored invoice lines into net, VAT, and open amounts.
 
 ## UI

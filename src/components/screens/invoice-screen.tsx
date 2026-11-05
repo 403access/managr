@@ -12,6 +12,7 @@ import { euroInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
+import { XRechnungCheck } from "@/components/xrechnung-check";
 import { buttonClass, Card, Disclaimer, Field, LinkButton, Money, PageHeader, Pill, textLinkClass, TextInput } from "@/components/ui";
 
 type Invoice = NonNullable<ReturnType<typeof invoiceView>>;
@@ -77,9 +78,12 @@ export function InvoiceScreen({ id }: { id: number }) {
                     ))}
                   </ul>
                 ) : invoice.status !== "draft" ? (
-                  <a className={`${buttonClass()} mt-3`} href={`/invoices/${invoice.id}/xrechnung`} download>
-                    {t("invoices.downloadXrechnung")}
-                  </a>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <a className={buttonClass()} href={`/invoices/${invoice.id}/xrechnung`} download>
+                      {t("invoices.downloadXrechnung")}
+                    </a>
+                    <XRechnungCheck invoiceId={invoice.id} />
+                  </div>
                 ) : null}
                 <div className="mt-4">
                   <Disclaimer>{t("invoices.xrechnungDisclaimer")}</Disclaimer>
