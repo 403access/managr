@@ -17,6 +17,19 @@ services:
       retries: 20
       start_period: 15s
 
+  validator:
+    build:
+      context: docker/validator
+    ports:
+      - "127.0.0.1:8090:8080"
+    init: true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/server/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
   site:
     build:
       context: .

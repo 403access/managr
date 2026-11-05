@@ -38,6 +38,16 @@ docker compose up --build
 
 That runs the same desk at [http://localhost:3000](http://localhost:3000) and the site at [http://localhost:3001/managr/](http://localhost:3001/managr/). The notes are at [http://localhost:3001/managr/docs](http://localhost:3001/managr/docs). Compose keeps the database and uploads in `data/` on this computer. It does not host the desk for anyone else.
 
+The stack also runs the KoSIT validator as a third container. Its daemon is published only on `127.0.0.1:8090`; the desk reaches it at `http://validator:8080`. Check it with:
+
+```bash
+curl -X POST http://127.0.0.1:8090/invoice.xml \
+  -H 'Content-Type: application/xml' \
+  --data-binary @invoice.xml
+```
+
+The answer is 200 for an acceptable file and 406 for a rejected one, with the validation report as XML. `docs/XRECHNUNG-VALIDATION.md` records the versions and the endpoint.
+
 ```bash
 bun run test
 bun run typecheck

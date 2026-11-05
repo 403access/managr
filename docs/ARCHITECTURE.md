@@ -70,7 +70,9 @@ Printed invoices stay German in both languages, including the Kleinunternehmer n
 
 A push to `main` runs `.github/workflows/docs.yml`. That workflow builds `website/` and deploys the static files to GitHub Pages at `https://403access.github.io/managr/`, with the notes at `https://403access.github.io/managr/docs`. The Pages source has to be GitHub Actions. A pull request runs `.github/workflows/docs-test.yml` and does not deploy. GitHub Free does not serve Pages for a private repository. The desk itself is not hosted and has no environment secret.
 
-`docker compose up --build` runs both on this computer. The desk container is the Next.js server on port 3000. It reads `src/db/migrations` from the image and keeps `data/` on the host. The site container is nginx on port 3001. The build still uses `baseUrl: /managr/`, and nginx serves that prefix, so the notes stay at `/managr/docs`.
+`docker compose up --build` runs the stack on this computer. The desk container is the Next.js server on port 3000. It reads `src/db/migrations` from the image and keeps `data/` on the host. The site container is nginx on port 3001. The build still uses `baseUrl: /managr/`, and nginx serves that prefix, so the notes stay at `/managr/docs`.
+
+The validator container is the KoSIT daemon on port 8080, published only on `127.0.0.1:8090`. The desk reaches it at `http://validator:8080`; a process on the host uses `http://127.0.0.1:8090`. The image pins the engine and the XRechnung rules and verifies both by SHA-256 at build time. See `docs/XRECHNUNG-VALIDATION.md`.
 
 ## Checks
 

@@ -87,10 +87,22 @@ curl -X POST http://localhost:8080/invoice.xml \
 
 The daemon answers 200 for an acceptable file, 406 for a rejected one, and 400, 422, or 500 for request and configuration errors. `GET /server/health` reports status. It expects the XML as the raw body; it does not accept `multipart/form-data`.
 
-KoSIT publishes no Docker image. A JRE plus the standalone JAR is enough to build one, or a community image such as `apps4everything/kosit-validator-xrechnung` can be used.
+KoSIT publishes no Docker image. The repository builds its own in `docker/validator/Dockerfile`: Temurin 21 JRE on Alpine, the pinned standalone JAR, and the pinned XRechnung configuration, both verified by SHA-256. The daemon runs with the GUI off.
+
+## In this repository
+
+`docker compose up --build` starts the desk, the site, and the validator. The validator publishes `127.0.0.1:8090` on the host; inside the Compose network it is `http://validator:8080`, which is how the desk will call it.
+
+```bash
+curl -X POST http://127.0.0.1:8090/invoice.xml \
+  -H 'Content-Type: application/xml' \
+  --data-binary @invoice.xml
+```
+
+To update the rules, change `VALIDATOR_ASSET`, `CONFIG_ASSET`, and the two SHA-256 values in the Dockerfile together. The asset ids come from the release pages linked in the file.
 
 ## Recommendation
 
-Use a self-hosted KoSIT daemon to check every generated invoice, in tests and on demand. The rules are the same ones the BW page applies, the report is structured, and the service cannot rate-limit or change under the desk.
+Use the self-hosted KoSIT daemon to check every generated invoice, in tests and on demand. The rules are the same ones the BW page applies, the report is structured, and the service cannot rate-limit or change under the desk.
 
 Use the BW endpoint only for occasional spot checks, called from the server, and treat its result as a convenience rather than a contract.
