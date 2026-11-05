@@ -1,6 +1,6 @@
 # managr
 
-A local desk for one German UG (haftungsbeschränkt): company records, obligations, invoices, a double-entry ledger, people, social-insurance estimates, time, documents, and legal notes.
+A local desk for German companies: company records, obligations, invoices, a double-entry ledger, people, social-insurance estimates, time, documents, and legal notes. Each company keeps its own books; a switcher changes the whole desk.
 
 It is a planning aid. It does not file a return, calculate wage tax, or decide social-insurance status.
 
@@ -12,6 +12,10 @@ bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The first launch creates `data/managr.db` and loads the sample company Atelier Nordlicht UG. Delete that file to start over. Uploaded files live in `data/uploads`.
+
+## Multiple companies
+
+The desk can keep several companies in the same database, for example a UG and an Einzelunternehmen. On the company screen, open **Companies** and add another company. Each company has separate customers, invoices, invoice numbering, ledger, people, tasks, documents, deadlines, and legal records. The sidebar switcher changes the active company; existing data stays with the company that owned it.
 
 ## Demo and production books
 

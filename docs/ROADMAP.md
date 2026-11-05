@@ -10,9 +10,9 @@ Engineering rules: `.grok/skills/managr-engineering/SKILL.md`.
 
 ## Version 1 — the desk
 
-Shipped in this repo. One user, one company, SQLite on disk, no account system.
+Shipped in this repo. One user, several companies with separate books, SQLite on disk, no account system.
 
-- Company master data, shareholders, and the statutory reserve (§5a GmbHG), including the conversion gap toward €25,000 share capital.
+- Company master data for UG, GmbH, AG, OHG, KG, GbR, PartG, e.K., and Einzelunternehmen, with a company switcher and separate books per company.
 - Obligation calendar: VAT, wage tax, trade tax, corporate tax, social-insurance reminders, disclosure, IHK, Berufsgenossenschaft, plus custom deadlines.
 - Customers, invoices with the statutory particulars, issue, payment, void, and a printable invoice.
 - XRechnung 3.0.2 (UBL) download for an issued invoice. The file is an e-invoice under §14 UStG. It is not transmitted.
@@ -31,7 +31,7 @@ Shipped in this repo. One user, one company, SQLite on disk, no account system.
 
 These need an external system or a different product decision. They are not stubbed as if they worked.
 
-- Sign-in, roles, and multi-company books.
+- Sign-in and roles.
 - ZUGFeRD, and transmission of an e-invoice (Peppol, a portal, or e-mail). The KoSIT validator is not run.
 - DATEV EXTF export and a locked DATEV account map.
 - Bank CSV or a bank feed.

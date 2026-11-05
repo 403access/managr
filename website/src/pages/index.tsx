@@ -44,22 +44,22 @@ const areas: { id: string; term: string; text: string }[] = [
 export default function Home(): ReactNode {
   return (
     <Layout
-      title={t("home.meta.title", "A local desk for one German UG")}
+      title={t("home.meta.title", "A local desk for German companies")}
       description={t(
         "home.meta.description",
-        "managr is a local planning desk for one Unternehmergesellschaft (haftungsbeschränkt): company records, obligations, invoices, a ledger, people, and legal notes.",
+        "managr is a local planning desk for German companies, including the UG (haftungsbeschränkt), an Einzelunternehmen, and other legal forms: company records, obligations, invoices, a ledger, people, and legal notes.",
       )}
     >
       <div className={styles.page}>
         <div className={styles.wrap}>
           <section className={styles.hero} aria-labelledby="hero-title">
             <div>
-              <p className={styles.kicker}>UG (haftungsbeschränkt)</p>
-              <h1 id="hero-title">{t("home.hero.title", "A local desk for one company.")}</h1>
+              <p className={styles.kicker}>UG · Einzelunternehmen · GmbH</p>
+              <h1 id="hero-title">{t("home.hero.title", "A local desk for your companies.")}</h1>
               <p className={styles.lead}>
                 {t(
                   "home.hero.lead",
-                  "managr keeps Stammdaten, the statutory reserve, obligations, invoices, a double-entry ledger, people, time, documents, and legal notes for one Unternehmergesellschaft. It runs on this computer.",
+                  "managr keeps Stammdaten, the statutory reserve, obligations, invoices, a double-entry ledger, people, time, documents, and legal notes for each company. Every company has separate books. It runs on this computer.",
                 )}
               </p>
               <div className={styles.actions}>
@@ -143,7 +143,7 @@ export default function Home(): ReactNode {
             <div className={styles.runs}>
               <h2>{t("home.runs.title", "On this computer")}</h2>
               <ul>
-                <li>{t("home.runs.oneUser", "One user, one company, no sign-in.")}</li>
+                <li>{t("home.runs.oneUser", "One user, several companies, no sign-in.")}</li>
                 <li>
                   {t("home.runs.sqlite.before", "SQLite in")} <code>data/managr.db</code>
                   {t("home.runs.sqlite.middle", ". Files in")} <code>data/uploads</code>

@@ -1,8 +1,9 @@
 "use client";
 
-import { addPolicy, addShareholder, deletePolicy, deleteShareholder, offsetReserve, recordReserve, updateBank, updateIdentity, updateTaxProfile } from "@/server/actions";
+import { addPolicy, addShareholder, createCompany, deletePolicy, deleteShareholder, offsetReserve, recordReserve, switchCompany, updateBank, updateIdentity, updateTaxProfile } from "@/server/actions";
 import type { companyView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
+import { LEGAL_FORMS, legalFormLabel } from "@/domain/company";
 import { formatEuro } from "@/domain/money";
 import { KLEINUNTERNEHMER_NOTE } from "@/domain/invoice";
 import { GMBH_MINIMUM_CAPITAL_CENTS } from "@/domain/rates-2026";
@@ -18,6 +19,18 @@ import { Card, Check, Disclaimer, Field, PageHeader, SelectInput, TextArea, Text
 
 type Company = ReturnType<typeof companyView>;
 
+function LegalFormSelect({ defaultValue }: { defaultValue: string }) {
+  return (
+    <SelectInput name="legalForm" defaultValue={defaultValue}>
+      {LEGAL_FORMS.map((form) => (
+        <option key={form} value={form}>
+          {legalFormLabel(form)}
+        </option>
+      ))}
+    </SelectInput>
+  );
+}
+
 export function CompanyScreen() {
   const query = useView<Company>(queryKeys.company, viewPath.company);
   const { t, tx, label, monthName } = useI18n();
@@ -29,11 +42,61 @@ export function CompanyScreen() {
           <>
             <PageHeader title={t("company.title")} lede={t("company.lede")} />
             <Tabs label={t("tabs.sections")}>
+            <Tab id="companies" label={t("company.companies")}>
+              <div className="grid gap-2">
+                {data.companies.map((item) => (
+                  <Card key={item.id} className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{item.legalName}</p>
+                      <p className="text-sm text-muted">
+                        {legalFormLabel(item.legalForm)}
+                        {item.isActive ? ` · ${t("company.active")}` : ""}
+                      </p>
+                    </div>
+                    {item.isActive ? null : (
+                      <ActionForm action={switchCompany} compact reloadOnSuccess>
+                        <input type="hidden" name="companyId" value={item.id} />
+                        <SubmitButton tone="quiet">{t("company.switch")}</SubmitButton>
+                      </ActionForm>
+                    )}
+                  </Card>
+                ))}
+              </div>
+              <Card className="mt-3">
+                <h2 className="text-xl">{t("company.newCompany")}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted">{t("company.newCompanyHint")}</p>
+                <ActionForm action={createCompany} reloadOnSuccess>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <Field label={t("company.legalName")}><TextInput name="legalName" /></Field>
+                    <Field label={t("company.legalForm")}><LegalFormSelect defaultValue="ug" /></Field>
+                    <Field label={t("company.director")}><TextInput name="managingDirector" /></Field>
+                    <Field label={t("common.street")}><TextInput name="street" /></Field>
+                    <Field label={t("common.postal")}><TextInput name="postalCode" /></Field>
+                    <Field label={t("common.city")}><TextInput name="city" /></Field>
+                    <Field label={t("company.state")}>
+                      <SelectInput name="stateCode" defaultValue="BE">
+                        {FEDERAL_STATES.map((state) => (
+                          <option key={state.code} value={state.code}>
+                            {state.name}
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </Field>
+                    <Field label={t("company.founded")}><TextInput name="foundingDate" type="date" defaultValue={data.today} /></Field>
+                    <Field label={t("company.taxNumber")}><TextInput name="taxNumber" /></Field>
+                    <Field label={t("company.vatId")}><TextInput name="vatId" /></Field>
+                    <Field label={t("company.capital")}><TextInput name="shareCapital" inputMode="decimal" /></Field>
+                  </div>
+                  <SubmitButton>{t("company.addCompany")}</SubmitButton>
+                </ActionForm>
+              </Card>
+            </Tab>
             <Tab id="identity" label={t("company.identity")}>
               <Card>
                 <ActionForm action={updateIdentity}>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label={t("company.legalName")} hint={t("company.legalNameHint")}><TextInput name="legalName" defaultValue={company.legalName} /></Field>
+                    <Field label={t("company.legalForm")}><LegalFormSelect defaultValue={company.legalForm} /></Field>
                     <Field label={t("company.director")}><TextInput name="managingDirector" defaultValue={company.managingDirector} /></Field>
                     <Field label={t("common.street")}><TextInput name="street" defaultValue={company.street} /></Field>
                     <Field label={t("common.postal")}><TextInput name="postalCode" defaultValue={company.postalCode} /></Field>

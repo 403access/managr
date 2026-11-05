@@ -1,7 +1,7 @@
 CREATE TABLE companies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   legal_name TEXT NOT NULL,
-  legal_form TEXT NOT NULL DEFAULT 'UG (haftungsbeschränkt)',
+  legal_form TEXT NOT NULL DEFAULT 'ug',
   street TEXT NOT NULL DEFAULT '',
   postal_code TEXT NOT NULL DEFAULT '',
   city TEXT NOT NULL DEFAULT '',

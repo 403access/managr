@@ -1,9 +1,9 @@
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const companies = sqliteTable("companies", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   legalName: text("legal_name").notNull(),
-  legalForm: text("legal_form").notNull().default("UG (haftungsbeschränkt)"),
+  legalForm: text("legal_form").notNull().default("ug"),
   street: text("street").notNull().default(""),
   postalCode: text("postal_code").notNull().default(""),
   city: text("city").notNull().default(""),
@@ -38,10 +38,12 @@ export const companies = sqliteTable("companies", {
   paymentTermsDays: integer("payment_terms_days").notNull().default(14),
   managingDirector: text("managing_director").notNull().default(""),
   isSample: integer("is_sample", { mode: "boolean" }).notNull().default(false),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(false),
 });
 
 export const shareholders = sqliteTable("shareholders", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   street: text("street").notNull().default(""),
   postalCode: text("postal_code").notNull().default(""),
@@ -52,6 +54,7 @@ export const shareholders = sqliteTable("shareholders", {
 
 export const customers = sqliteTable("customers", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   street: text("street").notNull().default(""),
   postalCode: text("postal_code").notNull().default(""),
@@ -75,13 +78,14 @@ export const journalEntries = sqliteTable(
   "journal_entries",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
     entryDate: text("entry_date").notNull(),
     memo: text("memo").notNull(),
     source: text("source").notNull(),
     sourceId: text("source_id"),
     createdAt: text("created_at").notNull(),
   },
-  (table) => [uniqueIndex("journal_source_unique").on(table.source, table.sourceId)],
+  (table) => [uniqueIndex("journal_source_unique").on(table.companyId, table.source, table.sourceId)],
 );
 
 export const journalLines = sqliteTable("journal_lines", {
@@ -94,8 +98,9 @@ export const journalLines = sqliteTable("journal_lines", {
 
 export const invoices = sqliteTable("invoices", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   customerId: integer("customer_id").notNull().references(() => customers.id),
-  number: text("number").unique(),
+  number: text("number"),
   status: text("status").notNull(),
   issueDate: text("issue_date").notNull(),
   serviceDate: text("service_date").notNull(),
@@ -104,7 +109,7 @@ export const invoices = sqliteTable("invoices", {
   exemptionNote: text("exemption_note").notNull().default(""),
   buyerReference: text("buyer_reference").notNull().default(""),
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
-});
+}, (table) => [uniqueIndex("invoices_company_number_unique").on(table.companyId, table.number)]);
 
 export const invoiceLines = sqliteTable("invoice_lines", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -126,6 +131,7 @@ export const payments = sqliteTable("payments", {
 
 export const employees = sqliteTable("employees", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   role: text("role").notNull().default(""),
@@ -169,6 +175,7 @@ export const absences = sqliteTable("absences", {
 
 export const tasks = sqliteTable("tasks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   notes: text("notes").notNull().default(""),
   dueDate: text("due_date"),
@@ -178,6 +185,7 @@ export const tasks = sqliteTable("tasks", {
 
 export const timeEntries = sqliteTable("time_entries", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   entryDate: text("entry_date").notNull(),
   startedAt: text("started_at").notNull(),
   endedAt: text("ended_at").notNull(),
@@ -190,6 +198,7 @@ export const timeEntries = sqliteTable("time_entries", {
 
 export const documents = sqliteTable("documents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   category: text("category").notNull(),
   fileName: text("file_name").notNull(),
@@ -200,15 +209,21 @@ export const documents = sqliteTable("documents", {
   uploadedAt: text("uploaded_at").notNull(),
 });
 
-export const obligationStates = sqliteTable("obligation_states", {
-  key: text("key").primaryKey(),
-  status: text("status").notNull(),
-  note: text("note").notNull().default(""),
-  updatedAt: text("updated_at").notNull(),
-});
+export const obligationStates = sqliteTable(
+  "obligation_states",
+  {
+    companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    status: text("status").notNull(),
+    note: text("note").notNull().default(""),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.companyId, table.key] })],
+);
 
 export const customDeadlines = sqliteTable("custom_deadlines", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   category: text("category").notNull(),
   dueDate: text("due_date").notNull(),
@@ -219,6 +234,7 @@ export const customDeadlines = sqliteTable("custom_deadlines", {
 
 export const resolutions = sqliteTable("resolutions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   resolvedOn: text("resolved_on").notNull(),
   title: text("title").notNull(),
   kind: text("kind").notNull(),
@@ -228,6 +244,7 @@ export const resolutions = sqliteTable("resolutions", {
 
 export const complianceItems = sqliteTable("compliance_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   area: text("area").notNull(),
   title: text("title").notNull(),
   detail: text("detail").notNull().default(""),
@@ -237,6 +254,7 @@ export const complianceItems = sqliteTable("compliance_items", {
 
 export const policies = sqliteTable("policies", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
   kind: text("kind").notNull(),
   provider: text("provider").notNull().default(""),
@@ -248,6 +266,7 @@ export const policies = sqliteTable("policies", {
 
 export const reserveMovements = sqliteTable("reserve_movements", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   year: integer("year").notNull(),
   movedOn: text("moved_on").notNull(),
   kind: text("kind").notNull(),

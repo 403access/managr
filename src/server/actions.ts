@@ -26,6 +26,7 @@ import {
 } from "@/db/schema";
 import { ACCOUNTS, CHART, type DraftLine } from "@/domain/accounts";
 import { formatDate, nextDueDate, todayIso, type Recurrence } from "@/domain/calendar";
+import { DEFAULT_LEGAL_FORM, isCorporation, isLegalForm } from "@/domain/company";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, reviewInvoice } from "@/domain/invoice";
 import { buyerReferenceProblem } from "@/domain/xrechnung";
 import { parseEuroToCents, parseQuantityMilli } from "@/domain/money";
@@ -50,7 +51,7 @@ import { invoiceMoney } from "./invoice-math";
 import { invoicePayloadSchema, journalPayloadSchema, type InvoicePayload } from "./payloads";
 import { socialInput } from "./people";
 import { entryLines, payrollSourceId, postJournal } from "./posting";
-import { accountBalances, signedAccount } from "./queries";
+import { accountBalances, loadCompany, signedAccount } from "./queries";
 
 const KINDS = ["regular", "minijob", "midijob", "apprentice", "managing_director"] as const;
 const SV = ["automatic", "subject", "exempt"] as const;
@@ -99,9 +100,7 @@ function optionalId(formData: FormData, name = "id"): number | null {
 }
 
 function requireCompany() {
-  const row = getDb().select().from(companies).get();
-  if (!row) throw new Error("The company record is missing.");
-  return row;
+  return loadCompany();
 }
 
 function readJson(formData: FormData): unknown {
@@ -126,8 +125,60 @@ function pricedLines(lines: InvoicePayload["lines"], klein: boolean) {
 }
 
 export async function dismissSample(): Promise<ActionState> {
-  getDb().update(companies).set({ isSample: false }).run();
+  getDb().update(companies).set({ isSample: false }).where(eq(companies.id, requireCompany().id)).run();
   return saved("Sample label hidden.");
+}
+
+export async function switchCompany(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const id = requiredId(formData);
+    const db = getDb();
+    const company = db.select().from(companies).where(eq(companies.id, id)).get();
+    if (!company) throw new Error("Company not found.");
+    db.transaction(() => {
+      db.update(companies).set({ isActive: false }).where(eq(companies.isActive, true)).run();
+      db.update(companies).set({ isActive: true }).where(eq(companies.id, id)).run();
+    });
+    return saved("Company switched.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function createCompany(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const legalName = text(formData, "legalName");
+    if (!legalName) throw new Error("The company needs its legal name.");
+    const legalForm = text(formData, "legalForm") || DEFAULT_LEGAL_FORM;
+    if (!isLegalForm(legalForm)) throw new Error("Choose a legal form.");
+    const shareCapitalCents = euros(formData, "shareCapital") ?? 0;
+    if (shareCapitalCents < 0) throw new Error("Share capital cannot be negative.");
+    if (isCorporation(legalForm) && shareCapitalCents < 100) throw new Error("Share capital is in euros. A UG can be formed from €1.");
+    const db = getDb();
+    db.transaction(() => {
+      db.update(companies).set({ isActive: false }).where(eq(companies.isActive, true)).run();
+      db.insert(companies)
+        .values({
+          legalName,
+          legalForm,
+          managingDirector: text(formData, "managingDirector"),
+          street: text(formData, "street"),
+          postalCode: text(formData, "postalCode"),
+          city: text(formData, "city"),
+          country: text(formData, "country") || "Deutschland",
+          stateCode: isStateCode(text(formData, "stateCode")) ? text(formData, "stateCode") : "BE",
+          taxNumber: text(formData, "taxNumber"),
+          vatId: text(formData, "vatId").toUpperCase(),
+          foundingDate: text(formData, "foundingDate") ? requireDate(text(formData, "foundingDate"), "The founding date") : todayIso(),
+          shareCapitalCents,
+          isActive: true,
+        })
+        .run();
+    });
+    return saved("Company added.");
+  } catch (error) {
+    return failed(error);
+  }
 }
 
 export async function updateIdentity(_state: ActionState, formData: FormData): Promise<ActionState> {
@@ -135,14 +186,18 @@ export async function updateIdentity(_state: ActionState, formData: FormData): P
     const company = requireCompany();
     const legalName = text(formData, "legalName");
     if (!legalName) throw new Error("The company needs its legal name.");
-    const shareCapitalCents = euros(formData, "shareCapital");
-    if (shareCapitalCents === null || shareCapitalCents < 100) throw new Error("Share capital is in euros. A UG can be formed from €1.");
+    const shareCapitalCents = euros(formData, "shareCapital") ?? 0;
     const stateCode = text(formData, "stateCode");
     if (!isStateCode(stateCode)) throw new Error("Choose a federal state.");
+    const legalForm = text(formData, "legalForm") || company.legalForm;
+    if (!isLegalForm(legalForm)) throw new Error("Choose a legal form.");
+    if (isCorporation(legalForm) && shareCapitalCents < 100) throw new Error("Share capital is in euros. A UG can be formed from €1.");
+    if (shareCapitalCents < 0) throw new Error("Share capital cannot be negative.");
     getDb()
       .update(companies)
       .set({
         legalName,
+        legalForm,
         street: text(formData, "street"),
         postalCode: text(formData, "postalCode"),
         city: text(formData, "city"),
@@ -243,7 +298,7 @@ export async function addShareholder(_state: ActionState, formData: FormData): P
     if (nominalCents === null) throw new Error("Enter the nominal amount. Use 0 if you only want to record the percent.");
     getDb()
       .insert(shareholders)
-      .values({ name, street: text(formData, "street"), postalCode: text(formData, "postalCode"), city: text(formData, "city"), shareBps, nominalCents })
+      .values({ companyId: requireCompany().id, name, street: text(formData, "street"), postalCode: text(formData, "postalCode"), city: text(formData, "city"), shareBps, nominalCents })
       .run();
     return saved("Shareholder added.");
   } catch (error) {
@@ -253,7 +308,8 @@ export async function addShareholder(_state: ActionState, formData: FormData): P
 
 export async function deleteShareholder(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(shareholders).where(eq(shareholders.id, requiredId(formData))).run();
+    const company = requireCompany();
+    getDb().delete(shareholders).where(and(eq(shareholders.id, requiredId(formData)), eq(shareholders.companyId, company.id))).run();
     return saved("Shareholder removed.");
   } catch (error) {
     return failed(error);
@@ -274,20 +330,21 @@ export async function recordReserve(_state: ActionState, formData: FormData): Pr
     const existing = db
       .select()
       .from(reserveMovements)
-      .where(and(eq(reserveMovements.year, year), eq(reserveMovements.kind, "allocation")))
+      .where(and(eq(reserveMovements.companyId, company.id), eq(reserveMovements.year, year), eq(reserveMovements.kind, "allocation")))
       .get();
     if (existing) throw new Error("That year already has a reserve allocation.");
     const movedOn = requireDate(text(formData, "movedOn"), "The allocation");
     const note = text(formData, "note");
     db.transaction(() => {
       const entryId = postJournal(db, {
+        companyId: company.id,
         date: movedOn,
         memo: `Statutory reserve ${year}`,
         source: "reserve",
         sourceId: `allocation:${year}`,
         lines: buildReserveAllocation(amountCents),
       });
-      db.insert(reserveMovements).values({ year, movedOn, kind: "allocation", amountCents, note, journalEntryId: entryId }).run();
+      db.insert(reserveMovements).values({ companyId: company.id, year, movedOn, kind: "allocation", amountCents, note, journalEntryId: entryId }).run();
     });
     return saved("Reserve allocation posted.");
   } catch (error) {
@@ -304,13 +361,15 @@ export async function offsetReserve(_state: ActionState, formData: FormData): Pr
     const movedOn = requireDate(text(formData, "movedOn"), "The offset");
     const note = text(formData, "note");
     const db = getDb();
+    const company = requireCompany();
     db.transaction(() => {
       const created = db
         .insert(reserveMovements)
-        .values({ year: Number(movedOn.slice(0, 4)), movedOn, kind: "offset", amountCents, note, journalEntryId: null })
+        .values({ companyId: company.id, year: Number(movedOn.slice(0, 4)), movedOn, kind: "offset", amountCents, note, journalEntryId: null })
         .run();
       const id = Number(created.lastInsertRowid);
       const entryId = postJournal(db, {
+        companyId: company.id,
         date: movedOn,
         memo: note || "Offset statutory reserve against a loss",
         source: "reserve",
@@ -336,6 +395,7 @@ export async function addPolicy(_state: ActionState, formData: FormData): Promis
     getDb()
       .insert(policies)
       .values({
+        companyId: requireCompany().id,
         label,
         kind: oneOf(text(formData, "kind"), POLICY_KIND, "Cover"),
         provider: text(formData, "provider"),
@@ -353,7 +413,7 @@ export async function addPolicy(_state: ActionState, formData: FormData): Promis
 
 export async function deletePolicy(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(policies).where(eq(policies.id, requiredId(formData))).run();
+    getDb().delete(policies).where(and(eq(policies.id, requiredId(formData)), eq(policies.companyId, requireCompany().id))).run();
     return saved("Policy removed.");
   } catch (error) {
     return failed(error);
@@ -379,13 +439,14 @@ export async function saveCustomer(_state: ActionState, formData: FormData): Pro
     };
     const id = optionalId(formData);
     const db = getDb();
+    const company = requireCompany();
     if (id) {
-      const existing = db.select().from(customers).where(eq(customers.id, id)).get();
+      const existing = db.select().from(customers).where(and(eq(customers.id, id), eq(customers.companyId, company.id))).get();
       if (!existing) throw new Error("Customer not found.");
       db.update(customers).set(values).where(eq(customers.id, id)).run();
       return saved("Customer saved.");
     }
-    db.insert(customers).values(values).run();
+    db.insert(customers).values({ ...values, companyId: company.id }).run();
     return saved("Customer added.");
   } catch (error) {
     return failed(error);
@@ -407,12 +468,13 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
     );
     const exemptionNote = company.kleinunternehmer ? KLEINUNTERNEHMER_NOTE : "";
     const invoiceId = db.transaction(() => {
-      const customerId = resolveCustomer(db, payload);
+      const customerId = resolveCustomer(db, payload, company.id);
       const customer = db.select().from(customers).where(eq(customers.id, customerId)).get();
       if (!customer) throw new Error("Choose a customer.");
       if (intent === "issue") {
         const review = reviewInvoice({
           legalName: company.legalName,
+          legalForm: company.legalForm,
           supplierStreet: company.street,
           supplierPostalCode: company.postalCode,
           supplierCity: company.city,
@@ -446,13 +508,13 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
       };
       let id = payload.invoiceId;
       if (id) {
-        const existing = db.select().from(invoices).where(eq(invoices.id, id)).get();
+        const existing = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
         if (!existing) throw new Error("Invoice not found.");
         if (existing.status !== "draft") throw new Error("Only a draft can be edited.");
         db.update(invoices).set(header).where(eq(invoices.id, id)).run();
         db.delete(invoiceLines).where(eq(invoiceLines.invoiceId, id)).run();
       } else {
-        const created = db.insert(invoices).values({ ...header, number: null, status: "draft", journalEntryId: null }).run();
+        const created = db.insert(invoices).values({ ...header, companyId: company.id, number: null, status: "draft", journalEntryId: null }).run();
         id = Number(created.lastInsertRowid);
       }
       lines.forEach((line, index) => {
@@ -466,6 +528,7 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
         const number = formatInvoiceNumber(fresh.invoicePrefix, Number(payload.issueDate.slice(0, 4)), fresh.nextInvoiceSeq);
         db.update(companies).set({ nextInvoiceSeq: fresh.nextInvoiceSeq + 1 }).where(eq(companies.id, fresh.id)).run();
         const entryId = postJournal(db, {
+          companyId: company.id,
           date: payload.issueDate,
           memo: `Invoice ${number}`,
           source: "invoice",
@@ -482,10 +545,10 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
   }
 }
 
-function resolveCustomer(db: ReturnType<typeof getDb>, payload: InvoicePayload): number {
+function resolveCustomer(db: ReturnType<typeof getDb>, payload: InvoicePayload, companyId: number): number {
   if (payload.customerMode === "existing") {
     if (!payload.customerId) throw new Error("Choose a customer.");
-    const customer = db.select().from(customers).where(eq(customers.id, payload.customerId)).get();
+    const customer = db.select().from(customers).where(and(eq(customers.id, payload.customerId), eq(customers.companyId, companyId))).get();
     if (!customer) throw new Error("Choose a customer.");
     return customer.id;
   }
@@ -493,6 +556,7 @@ function resolveCustomer(db: ReturnType<typeof getDb>, payload: InvoicePayload):
   const created = db
     .insert(customers)
     .values({
+      companyId,
       name: payload.newCustomer.name,
       street: payload.newCustomer.street,
       postalCode: payload.newCustomer.postalCode,
@@ -513,7 +577,8 @@ export async function saveBuyerReference(_state: ActionState, formData: FormData
     const problem = buyerReferenceProblem(buyerReference);
     if (problem) throw new Error(problem);
     const db = getDb();
-    const invoice = db.select().from(invoices).where(eq(invoices.id, id)).get();
+    const company = requireCompany();
+    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
     if (!invoice) throw new Error("Invoice not found.");
     if (invoice.status === "draft" || invoice.status === "void") throw new Error("The buyer reference on this invoice cannot be changed.");
     db.update(invoices).set({ buyerReference }).where(eq(invoices.id, id)).run();
@@ -527,7 +592,8 @@ export async function recordPayment(_state: ActionState, formData: FormData): Pr
   try {
     const id = requiredId(formData, "invoiceId");
     const db = getDb();
-    const invoice = db.select().from(invoices).where(eq(invoices.id, id)).get();
+    const company = requireCompany();
+    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
     if (!invoice) throw new Error("Invoice not found.");
     if (invoice.status === "draft" || invoice.status === "void") throw new Error("This invoice cannot take a payment.");
     const amountCents = euros(formData, "amount");
@@ -539,6 +605,7 @@ export async function recordPayment(_state: ActionState, formData: FormData): Pr
       const created = db.insert(payments).values({ invoiceId: id, paidOn, amountCents, journalEntryId: null }).run();
       const paymentId = Number(created.lastInsertRowid);
       const entryId = postJournal(db, {
+        companyId: company.id,
         date: paidOn,
         memo: `Payment ${invoice.number ?? id}`,
         source: "payment",
@@ -561,7 +628,8 @@ export async function voidInvoice(_state: ActionState, formData: FormData): Prom
   try {
     const id = requiredId(formData, "invoiceId");
     const db = getDb();
-    const invoice = db.select().from(invoices).where(eq(invoices.id, id)).get();
+    const company = requireCompany();
+    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
     if (!invoice) throw new Error("Invoice not found.");
     if (invoice.status === "draft") throw new Error("Delete the draft instead of voiding it.");
     if (invoice.status === "void") throw new Error("This invoice is already void.");
@@ -571,6 +639,7 @@ export async function voidInvoice(_state: ActionState, formData: FormData): Prom
       for (const payment of money.payments) {
         if (!payment.journalEntryId) continue;
         postJournal(db, {
+          companyId: company.id,
           date: today,
           memo: `Reverse payment on ${invoice.number ?? id}`,
           source: "reversal",
@@ -580,6 +649,7 @@ export async function voidInvoice(_state: ActionState, formData: FormData): Prom
       }
       if (invoice.journalEntryId) {
         postJournal(db, {
+          companyId: company.id,
           date: today,
           memo: `Reverse invoice ${invoice.number ?? id}`,
           source: "reversal",
@@ -599,7 +669,8 @@ export async function deleteDraft(_state: ActionState, formData: FormData): Prom
   try {
     const id = requiredId(formData, "invoiceId");
     const db = getDb();
-    const invoice = db.select().from(invoices).where(eq(invoices.id, id)).get();
+    const company = requireCompany();
+    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
     if (!invoice) throw new Error("Invoice not found.");
     if (invoice.status !== "draft" || invoice.journalEntryId) throw new Error("Only a draft can be deleted.");
     db.delete(invoices).where(eq(invoices.id, id)).run();
@@ -621,6 +692,7 @@ export async function saveExpense(_state: ActionState, formData: FormData): Prom
     if (!memo) throw new Error("Add a short description.");
     const db = getDb();
     postJournal(db, {
+      companyId: requireCompany().id,
       date: requireDate(text(formData, "date"), "The expense"),
       memo,
       source: "expense",
@@ -639,6 +711,7 @@ export async function saveVatPayment(_state: ActionState, formData: FormData): P
     if (!amountCents) throw new Error("Enter the amount paid to the tax office.");
     const db = getDb();
     postJournal(db, {
+      companyId: requireCompany().id,
       date: requireDate(text(formData, "date"), "The payment"),
       memo: text(formData, "memo") || "VAT prepayment",
       source: "vat-prepayment",
@@ -661,7 +734,7 @@ export async function saveJournal(_state: ActionState, formData: FormData): Prom
       if (debitCents === null || creditCents === null) throw new Error("Check the amounts. Use euros, such as 49,90.");
       return { accountCode: line.accountCode, debitCents, creditCents };
     });
-    postJournal(getDb(), { date: parsed.data.date, memo: parsed.data.memo, source: "manual", sourceId: null, lines });
+    postJournal(getDb(), { companyId: requireCompany().id, date: parsed.data.date, memo: parsed.data.memo, source: "manual", sourceId: null, lines });
     return saved("Journal entry posted.");
   } catch (error) {
     return failed(error);
@@ -727,14 +800,15 @@ export async function saveEmployee(_state: ActionState, formData: FormData): Pro
       notes: text(formData, "notes"),
     };
     const db = getDb();
+    const company = requireCompany();
     const id = optionalId(formData);
     if (id) {
-      const existing = db.select().from(employees).where(eq(employees.id, id)).get();
+      const existing = db.select().from(employees).where(and(eq(employees.id, id), eq(employees.companyId, company.id))).get();
       if (!existing) throw new Error("Person not found.");
       db.update(employees).set(values).where(eq(employees.id, id)).run();
       go(`/people/${id}`);
     }
-    const created = db.insert(employees).values(values).run();
+    const created = db.insert(employees).values({ ...values, companyId: company.id }).run();
     go(`/people/${Number(created.lastInsertRowid)}`);
   } catch (error) {
     return failed(error);
@@ -744,7 +818,7 @@ export async function saveEmployee(_state: ActionState, formData: FormData): Pro
 export async function addAbsence(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const employeeId = requiredId(formData, "employeeId");
-    const employee = getDb().select().from(employees).where(eq(employees.id, employeeId)).get();
+    const employee = getDb().select().from(employees).where(and(eq(employees.id, employeeId), eq(employees.companyId, requireCompany().id))).get();
     if (!employee) throw new Error("Person not found.");
     const startDate = requireDate(text(formData, "startDate"), "The start");
     const endDate = requireDate(text(formData, "endDate"), "The end");
@@ -768,7 +842,13 @@ export async function addAbsence(_state: ActionState, formData: FormData): Promi
 
 export async function deleteAbsence(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(absences).where(eq(absences.id, requiredId(formData))).run();
+    const id = requiredId(formData);
+    const db = getDb();
+    const absence = db.select().from(absences).where(eq(absences.id, id)).get();
+    if (!absence) throw new Error("Absence not found.");
+    const employee = db.select().from(employees).where(and(eq(employees.id, absence.employeeId), eq(employees.companyId, requireCompany().id))).get();
+    if (!employee) throw new Error("Absence not found.");
+    db.delete(absences).where(eq(absences.id, id)).run();
     return saved("Absence removed.");
   } catch (error) {
     return failed(error);
@@ -779,16 +859,16 @@ export async function postPayroll(_state: ActionState, formData: FormData): Prom
   try {
     const employeeId = requiredId(formData, "employeeId");
     const db = getDb();
-    const employee = db.select().from(employees).where(eq(employees.id, employeeId)).get();
-    if (!employee) throw new Error("Person not found.");
     const company = requireCompany();
+    const employee = db.select().from(employees).where(and(eq(employees.id, employeeId), eq(employees.companyId, company.id))).get();
+    if (!employee) throw new Error("Person not found.");
     const month = text(formData, "month");
     if (!/^\d{4}-\d{2}$/.test(month)) throw new Error("Choose the payroll month.");
     const payDate = requireDate(text(formData, "payDate"), "The pay date");
     const gross = text(formData, "gross") ? euros(formData, "gross") : employee.grossMonthlyCents;
     if (!gross) throw new Error("Enter the monthly gross.");
     const sourceId = payrollSourceId(employeeId, month);
-    const duplicate = db.select().from(journalEntries).where(and(eq(journalEntries.source, "payroll"), eq(journalEntries.sourceId, sourceId))).get();
+    const duplicate = db.select().from(journalEntries).where(and(eq(journalEntries.companyId, company.id), eq(journalEntries.source, "payroll"), eq(journalEntries.sourceId, sourceId))).get();
     if (duplicate) throw new Error("Payroll for this person and month is already posted.");
     const estimate = estimateContributions(socialInput(employee, company, gross));
     let wageTax = 0;
@@ -800,6 +880,7 @@ export async function postPayroll(_state: ActionState, formData: FormData): Prom
     }
     const amounts = payrollAmounts(estimate, wageTax);
     postJournal(db, {
+      companyId: company.id,
       date: payDate,
       memo: `Payroll ${employee.lastName} ${month}`,
       source: "payroll",
@@ -820,6 +901,7 @@ export async function saveTask(_state: ActionState, formData: FormData): Promise
     getDb()
       .insert(tasks)
       .values({
+        companyId: requireCompany().id,
         title,
         notes: text(formData, "notes"),
         dueDate: dueRaw ? requireDate(dueRaw, "The due date") : null,
@@ -837,7 +919,7 @@ export async function toggleTask(_state: ActionState, formData: FormData): Promi
   try {
     const id = requiredId(formData);
     const db = getDb();
-    const task = db.select().from(tasks).where(eq(tasks.id, id)).get();
+    const task = db.select().from(tasks).where(and(eq(tasks.id, id), eq(tasks.companyId, requireCompany().id))).get();
     if (!task) throw new Error("Task not found.");
     const status = task.status === "open" ? "doing" : task.status === "doing" ? "done" : "open";
     db.update(tasks).set({ status }).where(eq(tasks.id, id)).run();
@@ -849,7 +931,7 @@ export async function toggleTask(_state: ActionState, formData: FormData): Promi
 
 export async function deleteTask(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(tasks).where(eq(tasks.id, requiredId(formData))).run();
+    getDb().delete(tasks).where(and(eq(tasks.id, requiredId(formData)), eq(tasks.companyId, requireCompany().id))).run();
     return saved("Task removed.");
   } catch (error) {
     return failed(error);
@@ -867,12 +949,14 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
     const stop = warnings.find((warning) => warning.level === "stop");
     if (stop) throw new Error(stop.message);
     const db = getDb();
+    const company = requireCompany();
     const employeeId = optionalId(formData, "employeeId");
-    if (employeeId && !db.select().from(employees).where(eq(employees.id, employeeId)).get()) throw new Error("Person not found.");
+    if (employeeId && !db.select().from(employees).where(and(eq(employees.id, employeeId), eq(employees.companyId, company.id))).get()) throw new Error("Person not found.");
     const taskId = optionalId(formData, "taskId");
-    if (taskId && !db.select().from(tasks).where(eq(tasks.id, taskId)).get()) throw new Error("Task not found.");
+    if (taskId && !db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.companyId, company.id))).get()) throw new Error("Task not found.");
     db.insert(timeEntries)
       .values({
+        companyId: company.id,
         entryDate,
         startedAt: text(formData, "startedAt"),
         endedAt: text(formData, "endedAt"),
@@ -892,7 +976,7 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
 
 export async function deleteTime(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(timeEntries).where(eq(timeEntries.id, requiredId(formData))).run();
+    getDb().delete(timeEntries).where(and(eq(timeEntries.id, requiredId(formData)), eq(timeEntries.companyId, requireCompany().id))).run();
     return saved("Time entry removed.");
   } catch (error) {
     return failed(error);
@@ -908,6 +992,7 @@ export async function saveDocument(_state: ActionState, formData: FormData): Pro
       getDb()
         .insert(documents)
         .values({
+          companyId: requireCompany().id,
           title: text(formData, "title") || stored.fileName,
           category: oneOf(text(formData, "category") || "other", DOCUMENT_CATEGORY, "Category"),
           fileName: stored.fileName,
@@ -932,7 +1017,7 @@ export async function deleteDocument(_state: ActionState, formData: FormData): P
   try {
     const id = requiredId(formData);
     const db = getDb();
-    const document = db.select().from(documents).where(eq(documents.id, id)).get();
+    const document = db.select().from(documents).where(and(eq(documents.id, id), eq(documents.companyId, requireCompany().id))).get();
     if (!document) throw new Error("Document not found.");
     removeUpload(document.storedName);
     db.delete(documents).where(eq(documents.id, id)).run();
@@ -948,10 +1033,11 @@ export async function setObligation(_state: ActionState, formData: FormData): Pr
     if (!/^[\w-]+$/.test(key) || key.length > 80) throw new Error("Unknown obligation.");
     const status = oneOf(text(formData, "status"), ["open", "done", "skipped"] as const, "Status");
     const updatedAt = new Date().toISOString();
+    const companyId = requireCompany().id;
     getDb()
       .insert(obligationStates)
-      .values({ key, status, note: "", updatedAt })
-      .onConflictDoUpdate({ target: obligationStates.key, set: { status, updatedAt } })
+      .values({ companyId, key, status, note: "", updatedAt })
+      .onConflictDoUpdate({ target: [obligationStates.companyId, obligationStates.key], set: { status, updatedAt } })
       .run();
     return saved("Date updated.");
   } catch (error) {
@@ -966,6 +1052,7 @@ export async function saveDeadline(_state: ActionState, formData: FormData): Pro
     getDb()
       .insert(customDeadlines)
       .values({
+        companyId: requireCompany().id,
         title,
         category: text(formData, "category") || "general",
         dueDate: requireDate(text(formData, "dueDate"), "The due date"),
@@ -984,7 +1071,7 @@ export async function completeDeadline(_state: ActionState, formData: FormData):
   try {
     const id = requiredId(formData);
     const db = getDb();
-    const row = db.select().from(customDeadlines).where(eq(customDeadlines.id, id)).get();
+    const row = db.select().from(customDeadlines).where(and(eq(customDeadlines.id, id), eq(customDeadlines.companyId, requireCompany().id))).get();
     if (!row) throw new Error("Deadline not found.");
     const recurrence = oneOf(row.recurrence, RECURRENCE, "Repeat");
     if (recurrence === "none") {
@@ -1002,7 +1089,7 @@ export async function completeDeadline(_state: ActionState, formData: FormData):
 
 export async function deleteDeadline(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(customDeadlines).where(eq(customDeadlines.id, requiredId(formData))).run();
+    getDb().delete(customDeadlines).where(and(eq(customDeadlines.id, requiredId(formData)), eq(customDeadlines.companyId, requireCompany().id))).run();
     return saved("Deadline removed.");
   } catch (error) {
     return failed(error);
@@ -1013,7 +1100,7 @@ export async function toggleCompliance(_state: ActionState, formData: FormData):
   try {
     const id = requiredId(formData);
     const db = getDb();
-    const item = db.select().from(complianceItems).where(eq(complianceItems.id, id)).get();
+    const item = db.select().from(complianceItems).where(and(eq(complianceItems.id, id), eq(complianceItems.companyId, requireCompany().id))).get();
     if (!item) throw new Error("Item not found.");
     db.update(complianceItems).set({ done: !item.done }).where(eq(complianceItems.id, id)).run();
     return saved(item.done ? "Marked open." : "Marked done.");
@@ -1030,6 +1117,7 @@ export async function saveResolution(_state: ActionState, formData: FormData): P
     getDb()
       .insert(resolutions)
       .values({
+        companyId: requireCompany().id,
         resolvedOn: requireDate(text(formData, "resolvedOn"), "The resolution"),
         title,
         kind: oneOf(text(formData, "kind") || "other", RESOLUTION_KIND, "Kind"),

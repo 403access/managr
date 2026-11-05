@@ -1,18 +1,18 @@
 {
   "home.meta.title": {
-    "message": "Ein lokaler Schreibtisch für eine deutsche UG",
+    "message": "Ein lokaler Schreibtisch für deutsche Unternehmen",
     "description": "The home page title"
   },
   "home.meta.description": {
-    "message": "managr ist ein lokaler Planungsschreibtisch für eine Unternehmergesellschaft (haftungsbeschränkt): Gesellschaftsdaten, Pflichten, Rechnungen, ein Journal, Personen und rechtliche Notizen.",
+    "message": "managr ist ein lokaler Planungsschreibtisch für deutsche Unternehmen, auch die Unternehmergesellschaft (haftungsbeschränkt) und ein Einzelunternehmen: Gesellschaftsdaten, Pflichten, Rechnungen, ein Journal, Personen und rechtliche Notizen.",
     "description": "The home page meta description"
   },
   "home.hero.title": {
-    "message": "Ein lokaler Schreibtisch für eine Gesellschaft.",
+    "message": "Ein lokaler Schreibtisch für Ihre Unternehmen.",
     "description": "The home page hero heading"
   },
   "home.hero.lead": {
-    "message": "managr hält Stammdaten, die gesetzliche Rücklage, Pflichten, Rechnungen, ein doppelt geführtes Journal, Personen, Zeit, Dokumente und rechtliche Notizen für eine Unternehmergesellschaft. Es läuft auf diesem Computer.",
+    "message": "managr hält Stammdaten, die gesetzliche Rücklage, Pflichten, Rechnungen, ein doppelt geführtes Journal, Personen, Zeit, Dokumente und rechtliche Notizen für jedes Unternehmen. Jedes Unternehmen führt eigene Bücher. Es läuft auf diesem Computer.",
     "description": "The home page hero introduction"
   },
   "home.hero.readDocs": {
@@ -84,7 +84,7 @@
     "description": "The heading of the runtime section"
   },
   "home.runs.oneUser": {
-    "message": "Ein Benutzer, eine Gesellschaft, keine Anmeldung.",
+    "message": "Ein Benutzer, mehrere Unternehmen, keine Anmeldung.",
     "description": "The single-user runtime detail"
   },
   "home.runs.sqlite.before": {

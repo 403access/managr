@@ -88,6 +88,18 @@ describe("invoice review", () => {
     expect(reviewInvoice({ ...ready, vatCents: 0 }).blockers).toEqual([]);
     expect(reviewInvoice(ready).blockers).toEqual([]);
   });
+
+  it("accepts an Einzelunternehmen without a register entry or managing director", () => {
+    const result = reviewInvoice({
+      ...ready,
+      legalName: "Mara Elling",
+      legalForm: "einzelunternehmen",
+      registerCourt: "",
+      registerNumber: "",
+      managingDirector: "",
+    });
+    expect(result.blockers).toEqual([]);
+  });
 });
 
 describe("invoice amounts", () => {

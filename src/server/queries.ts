@@ -43,29 +43,36 @@ export type BalanceRow = {
 };
 
 export function loadCompany() {
-  const row = getDb().select().from(companies).get();
+  const db = getDb();
+  const row = db.select().from(companies).where(eq(companies.isActive, true)).get()
+    ?? db.select().from(companies).orderBy(asc(companies.id)).get();
   if (!row) throw new Error("The company record is missing.");
   return row;
 }
 
-export function loadShareholders() {
-  return getDb().select().from(shareholders).orderBy(asc(shareholders.name)).all();
+export function listCompanies() {
+  return getDb().select().from(companies).orderBy(asc(companies.legalName)).all();
 }
 
-export function listCustomers() {
-  return getDb().select().from(customers).orderBy(asc(customers.name)).all();
+export function loadShareholders() {
+  return getDb().select().from(shareholders).where(eq(shareholders.companyId, loadCompany().id)).orderBy(asc(shareholders.name)).all();
+}
+
+export function listCustomers(companyId = loadCompany().id) {
+  return getDb().select().from(customers).where(eq(customers.companyId, companyId)).orderBy(asc(customers.name)).all();
 }
 
 export function listPolicies() {
-  return getDb().select().from(policies).orderBy(asc(policies.renewalDate)).all();
+  return getDb().select().from(policies).where(eq(policies.companyId, loadCompany().id)).orderBy(asc(policies.renewalDate)).all();
 }
 
 export function listReserveMovements() {
-  return getDb().select().from(reserveMovements).orderBy(desc(reserveMovements.movedOn)).all();
+  return getDb().select().from(reserveMovements).where(eq(reserveMovements.companyId, loadCompany().id)).orderBy(desc(reserveMovements.movedOn)).all();
 }
 
 /** Date limits sit on the join. A WHERE on the entry would drop accounts with no lines in range. */
 export function accountBalances(from = "0001-01-01", to = "9999-12-31"): BalanceRow[] {
+  const companyId = loadCompany().id;
   const rows = getDb().all<BalanceRow>(sql`
     SELECT
       a.code AS code,
@@ -76,7 +83,7 @@ export function accountBalances(from = "0001-01-01", to = "9999-12-31"): Balance
       CAST(COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit_cents ELSE 0 END), 0) AS INTEGER) AS creditCents
     FROM accounts a
     LEFT JOIN journal_lines l ON l.account_id = a.id
-    LEFT JOIN journal_entries e ON e.id = l.entry_id AND e.entry_date >= ${from} AND e.entry_date <= ${to}
+    LEFT JOIN journal_entries e ON e.id = l.entry_id AND e.entry_date >= ${from} AND e.entry_date <= ${to} AND e.company_id = ${companyId}
     GROUP BY a.id
     ORDER BY a.code
   `);
@@ -122,6 +129,7 @@ export function listInvoices() {
     })
     .from(invoices)
     .innerJoin(customers, eq(customers.id, invoices.customerId))
+    .where(eq(invoices.companyId, loadCompany().id))
     .orderBy(desc(invoices.issueDate), desc(invoices.id))
     .all();
   const lineRows = db.select().from(invoiceLines).all();
@@ -147,11 +155,14 @@ export function loadInvoice(id: number) {
   const db = getDb();
   const invoice = db.select().from(invoices).where(eq(invoices.id, id)).get();
   if (!invoice) return null;
-  const customer = db.select().from(customers).where(eq(customers.id, invoice.customerId)).get();
+  const company = db.select().from(companies).where(eq(companies.id, invoice.companyId)).get();
+  if (!company) return null;
+  const customer = db.select().from(customers).where(and(eq(customers.id, invoice.customerId), eq(customers.companyId, invoice.companyId))).get();
   if (!customer) return null;
   const money = invoiceMoney(db, id);
   return {
     invoice,
+    company,
     customer,
     ...money,
     openCents: invoice.status === "void" ? 0 : money.openCents,
@@ -164,6 +175,7 @@ export function listPeople() {
   return getDb()
     .select()
     .from(employees)
+    .where(eq(employees.companyId, company.id))
     .orderBy(asc(employees.lastName), asc(employees.firstName))
     .all()
     .map((employee) => {
@@ -181,7 +193,7 @@ export function postedPayrollMonths(employeeId: number): string[] {
   return getDb()
     .select({ sourceId: journalEntries.sourceId })
     .from(journalEntries)
-    .where(eq(journalEntries.source, "payroll"))
+    .where(and(eq(journalEntries.source, "payroll"), eq(journalEntries.companyId, loadCompany().id)))
     .all()
     .flatMap((row) => (row.sourceId?.startsWith(prefix) ? [row.sourceId.slice(prefix.length)] : []))
     .sort();
@@ -189,9 +201,10 @@ export function postedPayrollMonths(employeeId: number): string[] {
 
 export function loadPerson(id: number) {
   const company = loadCompany();
-  const employee = getDb().select().from(employees).where(eq(employees.id, id)).get();
+  const db = getDb();
+  const employee = db.select().from(employees).where(and(eq(employees.id, id), eq(employees.companyId, company.id))).get();
   if (!employee) return null;
-  const absenceRows = getDb().select().from(absences).where(eq(absences.employeeId, id)).orderBy(desc(absences.startDate)).all();
+  const absenceRows = db.select().from(absences).where(eq(absences.employeeId, id)).orderBy(desc(absences.startDate)).all();
   let estimate: ContributionEstimate | null = null;
   let estimateError = "";
   try {
@@ -217,6 +230,7 @@ export function payrollObligationsApply(): boolean {
   return getDb()
     .select()
     .from(employees)
+    .where(eq(employees.companyId, company.id))
     .all()
     .some((person) => {
       try {
@@ -239,7 +253,7 @@ export function listObligations(year: number) {
     if (item.when === "payroll" && !showPayroll) return false;
     return true;
   });
-  const states = getDb().select().from(obligationStates).all();
+  const states = getDb().select().from(obligationStates).where(eq(obligationStates.companyId, company.id)).all();
   const byKey = new Map(states.map((state) => [state.key, state]));
   return items.map((item) => ({
     ...item,
@@ -249,7 +263,7 @@ export function listObligations(year: number) {
 }
 
 export function listDeadlines() {
-  return getDb().select().from(customDeadlines).orderBy(asc(customDeadlines.dueDate)).all();
+  return getDb().select().from(customDeadlines).where(eq(customDeadlines.companyId, loadCompany().id)).orderBy(asc(customDeadlines.dueDate)).all();
 }
 
 export function listTasks() {
@@ -257,6 +271,7 @@ export function listTasks() {
   return getDb()
     .select()
     .from(tasks)
+    .where(eq(tasks.companyId, loadCompany().id))
     .all()
     .sort((a, b) => rank(a.status) - rank(b.status) || (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || a.id - b.id);
 }
@@ -267,27 +282,27 @@ export function listTime(anchor: string) {
   const entries = getDb()
     .select()
     .from(timeEntries)
-    .where(and(gte(timeEntries.entryDate, start), lte(timeEntries.entryDate, end)))
+    .where(and(eq(timeEntries.companyId, loadCompany().id), gte(timeEntries.entryDate, start), lte(timeEntries.entryDate, end)))
     .orderBy(asc(timeEntries.entryDate), asc(timeEntries.startedAt))
     .all();
   return { start, end, entries };
 }
 
 export function listDocuments() {
-  return getDb().select().from(documents).orderBy(desc(documents.uploadedAt)).all();
+  return getDb().select().from(documents).where(eq(documents.companyId, loadCompany().id)).orderBy(desc(documents.uploadedAt)).all();
 }
 
 export function listCompliance() {
-  return getDb().select().from(complianceItems).orderBy(asc(complianceItems.sortOrder)).all();
+  return getDb().select().from(complianceItems).where(eq(complianceItems.companyId, loadCompany().id)).orderBy(asc(complianceItems.sortOrder)).all();
 }
 
 export function listResolutions() {
-  return getDb().select().from(resolutions).orderBy(desc(resolutions.resolvedOn), desc(resolutions.id)).all();
+  return getDb().select().from(resolutions).where(eq(resolutions.companyId, loadCompany().id)).orderBy(desc(resolutions.resolvedOn), desc(resolutions.id)).all();
 }
 
 export function listJournal(limit = 20) {
   const db = getDb();
-  const entries = db.select().from(journalEntries).orderBy(desc(journalEntries.entryDate), desc(journalEntries.id)).limit(limit).all();
+  const entries = db.select().from(journalEntries).where(eq(journalEntries.companyId, loadCompany().id)).orderBy(desc(journalEntries.entryDate), desc(journalEntries.id)).limit(limit).all();
   if (entries.length === 0) return [];
   const lines = db
     .select({

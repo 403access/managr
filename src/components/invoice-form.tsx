@@ -26,6 +26,7 @@ export type CustomerOption = {
 
 export type Seller = {
   legalName: string;
+  legalForm: string;
   street: string;
   postalCode: string;
   city: string;
@@ -106,6 +107,7 @@ export function InvoiceForm({
 
   const review = reviewInvoice({
     legalName: seller.legalName,
+    legalForm: seller.legalForm,
     supplierStreet: seller.street,
     supplierPostalCode: seller.postalCode,
     supplierCity: seller.city,
@@ -152,6 +154,7 @@ export function InvoiceForm({
       exemptionNote: seller.kleinunternehmer ? KLEINUNTERNEHMER_NOTE : "",
       seller: {
         name: seller.legalName,
+        legalForm: seller.legalForm,
         street: seller.street,
         postalCode: seller.postalCode,
         city: seller.city,

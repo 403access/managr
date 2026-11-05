@@ -29,8 +29,10 @@ export function openDatabase(filename: string): DB {
   fs.mkdirSync(path.dirname(filename), { recursive: true });
   const sqlite = new Database(filename);
   sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
+  // Table rebuilds in a migration need foreign keys off. They are turned back on before use.
+  sqlite.pragma("foreign_keys = OFF");
   migrate(sqlite);
+  sqlite.pragma("foreign_keys = ON");
   return drizzle(sqlite, { schema });
 }
 

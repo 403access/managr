@@ -1,4 +1,5 @@
 import { parseIso, formatDate } from "./calendar";
+import { isCorporation, legalFormLabel } from "./company";
 import { isKleinunternehmerNote, reviewInvoice } from "./invoice";
 import { lineNetCents, isSupportedVat } from "./vat";
 import { percentOf } from "./money";
@@ -40,6 +41,7 @@ export type XRechnungInput = {
   notes: string;
   exemptionNote: string;
   seller: XRechnungParty & {
+    legalForm?: string;
     phone: string;
     taxNumber: string;
     registerCourt: string;
@@ -116,6 +118,7 @@ export function reviewXRechnung(input: XRechnungInput): { blockers: string[] } {
   };
   const issue = reviewInvoice({
     legalName: input.seller.name,
+    legalForm: input.seller.legalForm,
     supplierStreet: input.seller.street,
     supplierPostalCode: input.seller.postalCode,
     supplierCity: input.seller.city,
@@ -237,11 +240,17 @@ export function buildXRechnung(input: XRechnungInput): string {
   const bic = input.seller.bic.replace(/\s/g, "").toUpperCase();
   const rates = [...input.byRate].sort((a, b) => a.vatBps - b.vatBps);
   const payable = input.grossCents - input.prepaidCents;
-  const legal = [
-    input.seller.registerCourt.trim(),
-    input.seller.registerNumber.trim(),
-    `Geschäftsführer: ${input.seller.managingDirector.trim()}`,
-  ].filter(Boolean).join(", ");
+  const form = input.seller.legalForm ?? "ug";
+  const legal = isCorporation(form)
+    ? [
+        input.seller.registerCourt.trim(),
+        input.seller.registerNumber.trim(),
+        `Geschäftsführer: ${input.seller.managingDirector.trim()}`,
+      ].filter(Boolean).join(", ")
+    : [
+        legalFormLabel(form),
+        input.seller.managingDirector.trim() ? `Inhaber: ${input.seller.managingDirector.trim()}` : "",
+      ].filter(Boolean).join(", ");
 
   const lines = [
     `<?xml version="1.0" encoding="UTF-8"?>`,

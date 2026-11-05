@@ -5,7 +5,7 @@ sidebar_label: Overview
 
 # managr
 
-A local desk for one German UG (haftungsbeschränkt). These pages are the notes in this repository. On the published site they live under `/docs`. The site root is a short description of the desk.
+A local desk for German companies, including the UG (haftungsbeschränkt) and an Einzelunternehmen. These pages are the notes in this repository. On the published site they live under `/docs`. The site root is a short description of the desk.
 
 The desk does not file a return, calculate wage tax, or decide social-insurance status.
 

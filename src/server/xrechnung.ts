@@ -1,8 +1,8 @@
 import "server-only";
 import { buildXRechnung, reviewXRechnung, xrechnungFilename, xrechnungStatusBlocker, type XRechnungInput } from "@/domain/xrechnung";
-import { loadCompany, loadInvoice } from "./queries";
+import { loadInvoice } from "./queries";
 
-type Company = ReturnType<typeof loadCompany>;
+type Company = NonNullable<ReturnType<typeof loadInvoice>>["company"];
 type Loaded = NonNullable<ReturnType<typeof loadInvoice>>;
 
 export function toXRechnungInput(company: Company, loaded: Loaded): XRechnungInput {
@@ -17,6 +17,7 @@ export function toXRechnungInput(company: Company, loaded: Loaded): XRechnungInp
     exemptionNote: invoice.exemptionNote,
     seller: {
       name: company.legalName,
+      legalForm: company.legalForm,
       street: company.street,
       postalCode: company.postalCode,
       city: company.city,

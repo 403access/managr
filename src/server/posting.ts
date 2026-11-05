@@ -10,7 +10,7 @@ export function payrollSourceId(employeeId: number, month: string): string {
 
 export function postJournal(
   db: DB,
-  input: { date: string; memo: string; source: string; sourceId?: string | null; lines: DraftLine[] },
+  input: { companyId: number; date: string; memo: string; source: string; sourceId?: string | null; lines: DraftLine[] },
 ): number {
   const problem = journalImbalance(input.lines);
   if (problem) throw new Error(problem);
@@ -20,6 +20,7 @@ export function postJournal(
     const created = tx
       .insert(journalEntries)
       .values({
+        companyId: input.companyId,
         entryDate: input.date,
         memo: input.memo,
         source: input.source,

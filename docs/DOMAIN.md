@@ -10,7 +10,7 @@ If a sentence here disagrees with code, the TypeScript module named below wins, 
 
 ## Company law
 
-An Unternehmergesellschaft (haftungsbeschränkt) uses that phrase, or the short form UG (haftungsbeschränkt), in its name. Invoice review rejects a legal name that contains neither. Implementation: `src/domain/invoice.ts`.
+An Unternehmergesellschaft (haftungsbeschränkt) uses that phrase, or the short form UG (haftungsbeschränkt), in its name. Invoice review rejects a UG legal name that contains neither. Other legal forms are stored as a code (`ug`, `gmbh`, `ag`, `kg`, `ohg`, `gbr`, `einzelunternehmen`, `ek`, `partg`) and the name check follows the form. Each company has its own complete set of books. Implementation: `src/domain/company.ts` and `src/domain/invoice.ts`.
 
 Share capital may sit below the GmbH minimum (`GMBH_MINIMUM_CAPITAL_CENTS`). The 25% reserve duty in §5a Abs. 3 GmbHG:
 
@@ -38,7 +38,7 @@ The ceilings are the figures in force since 2025. The earlier prior-year ceiling
 
 ## Invoices and business letters
 
-Issue is blocked until the draft has the particulars needed for §14 UStG and the business-letter particulars of §35a GmbHG: both addresses, tax number or VAT id, dates, at least one described line, register court, register number, and the managing director. The app assigns a gap-free number `prefix + year + sequence` when the invoice is issued. Voiding posts a reversing journal entry and does not reuse the number.
+Issue is blocked until the draft has the particulars needed for §14 UStG: both addresses, tax number or VAT id, dates, and at least one described line. For a corporation (UG, GmbH, AG), the business-letter particulars of §35a GmbHG are also required: register court, register number, and the managing director. An Einzelunternehmen or a partnership does not need those three fields. The app assigns a gap-free number `prefix + year + sequence` when the invoice is issued; the sequence is per company. Voiding posts a reversing journal entry and does not reuse the number.
 
 ## E-Rechnung (XRechnung)
 
@@ -55,7 +55,7 @@ Issue still follows §14 and §35a only. The extra XRechnung fields do not block
 - 19% and 7% are VAT category S. A category S file needs the seller VAT id. A German address needs a DE id of nine digits. The desk does not check the VAT id checksum.
 - 0% is category E and needs an exemption sentence (BT-120). A Kleinunternehmer invoice uses `KLEINUNTERNEHMER_NOTE`.
 - VAT amounts are the same cents as `summarizeVat`. A prepaid amount reduces the payable amount (BT-115). A fully paid invoice stays an invoice with a payable amount of zero.
-- The register court, HRB number, and managing director are written into BT-33. The HRB number is also BT-30.
+- The register court, HRB number, and managing director are written into BT-33 for a corporation. The HRB number is also BT-30. For other legal forms the legal form and the owner are written instead.
 - Country names the desk knows, and ISO alpha-2 codes, become the country code. An unknown country blocks the file.
 
 ## Books

@@ -14,6 +14,7 @@ export function ActionForm({
   compact = false,
   className,
   resetOnSuccess = false,
+  reloadOnSuccess = false,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   children: ReactNode;
@@ -21,6 +22,7 @@ export function ActionForm({
   compact?: boolean;
   className?: string;
   resetOnSuccess?: boolean;
+  reloadOnSuccess?: boolean;
 }) {
   const { tx } = useI18n();
   const [state, formAction] = useActionState(action, initialState);
@@ -32,8 +34,12 @@ export function ActionForm({
     seen.current = state;
     if (!state.message) return;
     if (resetOnSuccess) formRef.current?.reset();
+    if (reloadOnSuccess) {
+      window.location.reload();
+      return;
+    }
     void queryClient.invalidateQueries({ queryKey: ["view"] });
-  }, [queryClient, resetOnSuccess, state]);
+  }, [queryClient, reloadOnSuccess, resetOnSuccess, state]);
   return (
     <form
       ref={formRef}

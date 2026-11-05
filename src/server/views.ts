@@ -24,6 +24,7 @@ import {
   listResolutions,
   listTasks,
   listTime,
+  listCompanies,
   loadCompany,
   loadInvoice,
   loadPerson,
@@ -37,6 +38,7 @@ import { toXRechnungInput } from "./xrechnung";
 function sellerFrom(company: ReturnType<typeof loadCompany>) {
   return {
     legalName: company.legalName,
+    legalForm: company.legalForm,
     street: company.street,
     postalCode: company.postalCode,
     city: company.city,
@@ -73,8 +75,8 @@ function kleinSnapshot(company: ReturnType<typeof loadCompany>) {
   };
 }
 
-function customerOptions() {
-  return listCustomers().map((customer) => ({
+function customerOptions(companyId = loadCompany().id) {
+  return listCustomers(companyId).map((customer) => ({
     id: customer.id,
     name: customer.name,
     street: customer.street,
@@ -89,7 +91,13 @@ function customerOptions() {
 
 export function shellView() {
   const company = loadCompany();
-  return { legalName: company.legalName, isSample: company.isSample };
+  return {
+    legalName: company.legalName,
+    legalForm: company.legalForm,
+    isSample: company.isSample,
+    activeCompanyId: company.id,
+    companies: listCompanies().map((item) => ({ id: item.id, legalName: item.legalName, legalForm: item.legalForm })),
+  };
 }
 
 export function deskView() {
@@ -163,6 +171,7 @@ export function companyView() {
     company,
     holders,
     shareBps: holders.reduce((sum, holder) => sum + holder.shareBps, 0),
+    companies: listCompanies().map((item) => ({ id: item.id, legalName: item.legalName, legalForm: item.legalForm, isActive: item.isActive })),
     reserve,
     gap: conversionGap(company.shareCapitalCents, reserve),
     duty: reserveDutyActive(company.shareCapitalCents),
@@ -184,10 +193,11 @@ export function customersView() {
 export function invoiceView(id: number) {
   const loaded = loadInvoice(id);
   if (!loaded) return null;
-  const company = loadCompany();
+  const company = loaded.company;
   const { invoice, customer, lines } = loaded;
   const review = reviewInvoice({
     legalName: company.legalName,
+    legalForm: company.legalForm,
     supplierStreet: company.street,
     supplierPostalCode: company.postalCode,
     supplierCity: company.city,
@@ -231,11 +241,11 @@ export function invoiceEditView(id: number) {
   const loaded = loadInvoice(id);
   if (!loaded) return { kind: "missing" as const };
   if (loaded.invoice.status !== "draft") return { kind: "issued" as const };
-  const company = loadCompany();
+  const company = loaded.company;
   return {
     kind: "draft" as const,
     seller: sellerFrom(company),
-    customers: customerOptions(),
+    customers: customerOptions(company.id),
     today: todayIso(),
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,

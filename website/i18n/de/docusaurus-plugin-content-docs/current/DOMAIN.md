@@ -10,7 +10,7 @@ Wenn ein Satz hier dem Code widerspricht, gewinnt das unten genannte TypeScript-
 
 ## Gesellschaftsrecht
 
-Eine Unternehmergesellschaft (haftungsbeschränkt) verwendet diese Bezeichnung oder die Kurzform UG (haftungsbeschränkt) in ihrem Namen. Die Rechnungsprüfung lehnt einen rechtlichen Namen ab, der keines von beiden enthält. Implementierung: `src/domain/invoice.ts`.
+Eine Unternehmergesellschaft (haftungsbeschränkt) verwendet diese Bezeichnung oder die Kurzform UG (haftungsbeschränkt) in ihrem Namen. Die Rechnungsprüfung lehnt einen UG-Namen ab, der keines von beiden enthält. Andere Rechtsformen werden als Code gespeichert (`ug`, `gmbh`, `ag`, `kg`, `ohg`, `gbr`, `einzelunternehmen`, `ek`, `partg`); die Namensprüfung folgt der Rechtsform. Jedes Unternehmen hat einen vollständigen eigenen Bücherkreis. Implementierung: `src/domain/company.ts` und `src/domain/invoice.ts`.
 
 Das Stammkapital kann unter dem GmbH-Minimum liegen (`GMBH_MINIMUM_CAPITAL_CENTS`). Die 25-%-Rücklagenpflicht nach §5a Abs. 3 GmbHG:
 
@@ -38,7 +38,7 @@ Die Obergrenzen sind die seit 2025 geltenden Werte. Die frühere Vorjahresobergr
 
 ## Rechnungen und Geschäftsbriefe
 
-Die Ausstellung wird blockiert, bis der Entwurf die Angaben nach §14 UStG und die Geschäftsbriefangaben nach §35a GmbHG enthält: beide Adressen, Steuernummer oder USt-IdNr., Daten, mindestens eine beschriebene Position, Registergericht, Registernummer und Geschäftsführung. Die App vergibt beim Ausstellen eine lückenlose Nummer `prefix + year + sequence`. Das Stornieren bucht eine Gegenjournalzeile und verwendet die Nummer nicht erneut.
+Die Ausstellung wird blockiert, bis der Entwurf die Angaben nach §14 UStG enthält: beide Adressen, Steuernummer oder USt-IdNr., Daten und mindestens eine beschriebene Position. Bei einer Kapitalgesellschaft (UG, GmbH, AG) kommen die Geschäftsbriefangaben nach §35a GmbHG hinzu: Registergericht, Registernummer und Geschäftsführung. Ein Einzelunternehmen oder eine Personengesellschaft braucht diese drei Felder nicht. Die App vergibt beim Ausstellen eine lückenlose Nummer `prefix + year + sequence`; die laufende Nummer gilt je Unternehmen. Das Stornieren bucht eine Gegenjournalzeile und verwendet die Nummer nicht erneut.
 
 ## E-Rechnung (XRechnung)
 
@@ -55,7 +55,7 @@ Die Ausstellung folgt weiterhin nur §14 und §35a. Die zusätzlichen XRechnung-
 - 19 % und 7 % sind Umsatzsteuerkategorie S. Eine Datei der Kategorie S benötigt die USt-IdNr. des Verkäufers. Eine deutsche Adresse benötigt eine DE-Nummer mit neun Ziffern. Der Schreibtisch prüft die Prüfsumme der USt-IdNr. nicht.
 - 0 % ist Kategorie E und benötigt einen Befreiungssatz (BT-120). Eine Kleinunternehmer-Rechnung verwendet `KLEINUNTERNEHMER_NOTE`.
 - Umsatzsteuerbeträge sind dieselben Cent wie bei `summarizeVat`. Ein Vorauszahlungsbetrag reduziert den zu zahlenden Betrag (BT-115). Eine vollständig bezahlte Rechnung bleibt eine Rechnung mit einem zu zahlenden Betrag von null.
-- Registergericht, HRB-Nummer und Geschäftsführung werden in BT-33 geschrieben. Die HRB-Nummer ist auch BT-30.
+- Registergericht, HRB-Nummer und Geschäftsführung werden bei einer Kapitalgesellschaft in BT-33 geschrieben. Die HRB-Nummer ist außerdem BT-30. Bei anderen Rechtsformen werden stattdessen Rechtsform und Inhaber geschrieben.
 - Dem Schreibtisch bekannte Ländernamen und ISO-Alpha-2-Codes werden zum Ländercode. Ein unbekanntes Land blockiert die Datei.
 
 ## Bücher

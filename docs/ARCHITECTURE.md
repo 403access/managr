@@ -34,7 +34,9 @@ Persisted money is integer cents. A euro input is parsed by `parseEuroToCents` (
 
 ## Database
 
-`src/db/migrations/0001_init.sql` is the schema applied at startup. `src/db/schema.ts` is the Drizzle map of that SQL. Change both together.
+`src/db/migrations/0001_init.sql` is the initial schema applied at startup. `src/db/migrations/0003_multi_company.sql` adds per-company books. `src/db/schema.ts` is the Drizzle map of that SQL. Change both together.
+
+Every bookkeeping table carries `company_id`. The active company is the row with `companies.is_active = 1`; switching is a database write, so it applies to the whole local desk. `accounts` is one shared SKR03 chart, while journal entries, invoices, customers, people, time, documents, obligations, and legal records are filtered by the active company. Invoice numbers and posting source keys are unique per company. A printed or downloaded invoice uses the company stored on that invoice, not whichever company is active.
 
 The first launch of an empty database loads the sample company Atelier Nordlicht UG. Deleting `data/managr.db` restores it. User data lives only in that file and in `data/uploads`.
 
@@ -42,11 +44,11 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 ## Request flow
 
-A screen does not open SQLite. `src/server/views.ts` builds the JSON for that screen from `src/server/queries.ts`. The server page puts that JSON into a TanStack Query cache with `Hydrate`. The client screen reads the same key with `useView`, and refetches `GET /api/views/[name]` when the cache is stale. Query keys live in `src/client/query-keys.ts`.
+A screen does not open SQLite. `src/server/views.ts` builds the JSON for that screen from `src/server/queries.ts`, scoped to the active company. The server page puts that JSON into a TanStack Query cache with `Hydrate`. The client screen reads the same key with `useView`, and refetches `GET /api/views/[name]` when the cache is stale. Query keys live in `src/client/query-keys.ts`. Switching companies reloads the page because the cache keys do not carry the company id.
 
 Mutations stay server actions in `src/server/actions.ts`. After a write they call `revalidatePath`, and the form invalidates the `view` query cache so the open screen refetches. Issued invoices, payments, expenses, payroll, reserve movements, and voids all go through a posting builder in `src/domain/postings.ts`. The printable invoice stays a server render and is not a query.
 
-`GET /invoices/[id]/xrechnung` renders an XRechnung 3.0.2 UBL document from the current company, customer, and invoice. The rules live in `src/domain/xrechnung.ts`. The XML is not stored.
+`GET /invoices/[id]/xrechnung` renders an XRechnung 3.0.2 UBL document from the invoice's company, the customer, and the invoice. The rules live in `src/domain/xrechnung.ts`. The XML is not stored.
 
 The check button calls the `checkInvoiceXRechnung` server action. `src/server/validator.ts` posts the rendered XML to `VALIDATOR_URL` (the Compose validator, or `127.0.0.1:8090` for `bun dev`). `src/server/validator-report.ts` turns the KoSIT report into a verdict and a message list. It is a pure function with a test; the HTTP call is not cached and nothing is written to the database.
 

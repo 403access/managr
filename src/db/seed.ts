@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { CHART } from "@/domain/accounts";
 import { addDays, todayIso } from "@/domain/calendar";
 import { buildCustomerPayment, buildExpense, buildPayroll, buildReserveAllocation, buildSalesInvoice } from "@/domain/postings";
@@ -65,74 +65,78 @@ export function seedIfEmpty(db: DB) {
   const on = (offset: number) => addDays(today, offset);
 
   db.transaction((tx) => {
-    tx.insert(companies)
-      .values({
-        legalName: "Atelier Nordlicht UG (haftungsbeschränkt)",
-        street: "Sonnenallee 12",
-        postalCode: "12045",
-        city: "Berlin",
-        stateCode: "BE",
-        registerCourt: "Amtsgericht Berlin-Charlottenburg",
-        registerNumber: "HRB 123456 B",
-        taxNumber: "30/123/45678",
-        vatId: "DE999999999",
-        shareCapitalCents: 250_000,
-        priorYearRevenueCents: 4_800_000,
-        foundingDate: "2024-03-15",
-        hebesatzPercent: 410,
-        additionalKvBps: 290,
-        iban: "DE89370400440532013000",
-        bic: "COBADEFFXXX",
-        bankName: "Commerzbank",
-        email: "hallo@atelier-nordlicht.example",
-        phone: "+49 30 12045670",
-        website: "https://atelier-nordlicht.example",
-        ihk: "IHK Berlin",
-        berufsgenossenschaft: "BG ETEM",
-        managingDirector: "Mara Elling",
-        isSample: true,
-        nextInvoiceSeq: 5,
-      })
-      .run();
+    const companyId = insertId(
+      tx.insert(companies)
+        .values({
+          legalName: "Atelier Nordlicht UG (haftungsbeschränkt)",
+          legalForm: "ug",
+          street: "Sonnenallee 12",
+          postalCode: "12045",
+          city: "Berlin",
+          stateCode: "BE",
+          registerCourt: "Amtsgericht Berlin-Charlottenburg",
+          registerNumber: "HRB 123456 B",
+          taxNumber: "30/123/45678",
+          vatId: "DE999999999",
+          shareCapitalCents: 250_000,
+          priorYearRevenueCents: 4_800_000,
+          foundingDate: "2024-03-15",
+          hebesatzPercent: 410,
+          additionalKvBps: 290,
+          iban: "DE89370400440532013000",
+          bic: "COBADEFFXXX",
+          bankName: "Commerzbank",
+          email: "hallo@atelier-nordlicht.example",
+          phone: "+49 30 12045670",
+          website: "https://atelier-nordlicht.example",
+          ihk: "IHK Berlin",
+          berufsgenossenschaft: "BG ETEM",
+          managingDirector: "Mara Elling",
+          isSample: true,
+          isActive: true,
+          nextInvoiceSeq: 5,
+        })
+        .run(),
+    );
 
     tx.insert(shareholders)
-      .values({ name: "Mara Elling", street: "Sonnenallee 12", postalCode: "12045", city: "Berlin", shareBps: 10_000, nominalCents: 250_000 })
+      .values({ companyId, name: "Mara Elling", street: "Sonnenallee 12", postalCode: "12045", city: "Berlin", shareBps: 10_000, nominalCents: 250_000 })
       .run();
 
     tx.insert(accounts)
       .values(CHART.map((account) => ({ ...account, system: true })))
       .run();
 
-    const lichtfeld = insertId(tx.insert(customers).values({ name: "Lichtfeld GmbH", street: "Torstraße 1", postalCode: "10119", city: "Berlin", email: "finance@lichtfeld.example", vatId: "DE111111111", buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"] }).run());
-    const kiez = insertId(tx.insert(customers).values({ name: "Kiezküche e.K.", street: "Weserstraße 40", postalCode: "12045", city: "Berlin", email: "hello@kiezkueche.example", buyerReference: SAMPLE_BUYER_REFERENCE["Kiezküche e.K."] }).run());
-    const havel = insertId(tx.insert(customers).values({ name: "Havel & Sohn AG", street: "Havelchaussee 2", postalCode: "14193", city: "Berlin", email: "ap@havel.example", vatId: "DE222222222", buyerReference: SAMPLE_BUYER_REFERENCE["Havel & Sohn AG"] }).run());
+    const lichtfeld = insertId(tx.insert(customers).values({ companyId, name: "Lichtfeld GmbH", street: "Torstraße 1", postalCode: "10119", city: "Berlin", email: "finance@lichtfeld.example", vatId: "DE111111111", buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"] }).run());
+    const kiez = insertId(tx.insert(customers).values({ companyId, name: "Kiezküche e.K.", street: "Weserstraße 40", postalCode: "12045", city: "Berlin", email: "hello@kiezkueche.example", buyerReference: SAMPLE_BUYER_REFERENCE["Kiezküche e.K."] }).run());
+    const havel = insertId(tx.insert(customers).values({ companyId, name: "Havel & Sohn AG", street: "Havelchaussee 2", postalCode: "14193", city: "Berlin", email: "ap@havel.example", vatId: "DE222222222", buyerReference: SAMPLE_BUYER_REFERENCE["Havel & Sohn AG"] }).run());
 
-    post(tx, "2024-03-15", "Gründung, Stammkapital eingezahlt", "opening", "capital", [
+    post(tx, companyId, "2024-03-15", "Gründung, Stammkapital eingezahlt", "opening", "capital", [
       { accountCode: "1200", debitCents: 250_000, creditCents: 0 },
       { accountCode: "0800", debitCents: 0, creditCents: 250_000 },
     ]);
-    post(tx, `${year}-01-02`, "Beispiel: Gewinnvortrag", "opening", "retained", [
+    post(tx, companyId, `${year}-01-02`, "Beispiel: Gewinnvortrag", "opening", "retained", [
       { accountCode: "1200", debitCents: 8_000_000, creditCents: 0 },
       { accountCode: "0860", debitCents: 0, creditCents: 8_000_000 },
     ]);
-    const reserveEntry = post(tx, `${year}-01-15`, "Gesetzliche Rücklage aus dem Jahresüberschuss des Vorjahres (Beispiel)", "reserve", `${year - 1}`, buildReserveAllocation(160_000));
+    const reserveEntry = post(tx, companyId, `${year}-01-15`, "Gesetzliche Rücklage aus dem Jahresüberschuss des Vorjahres (Beispiel)", "reserve", `${year - 1}`, buildReserveAllocation(160_000));
     tx.insert(reserveMovements)
-      .values({ year: year - 1, movedOn: `${year}-01-15`, kind: "allocation", amountCents: 160_000, note: "Beispieleinstellung: ein Viertel eines Jahresüberschusses von 6.400 €.", journalEntryId: reserveEntry })
+      .values({ companyId, year: year - 1, movedOn: `${year}-01-15`, kind: "allocation", amountCents: 160_000, note: "Beispieleinstellung: ein Viertel eines Jahresüberschusses von 6.400 €.", journalEntryId: reserveEntry })
       .run();
 
-    bookInvoice(tx, { customerId: lichtfeld, number: `RE-${year}-0001`, issue: on(-120), due: on(-100), paid: on(-90), description: "Markenworkshop", unitNetCents: 240_000, buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"]! });
-    bookInvoice(tx, { customerId: lichtfeld, number: `RE-${year}-0002`, issue: on(-40), due: on(-26), paid: on(-20), description: "Kampagnengestaltung", unitNetCents: 320_000, buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"]! });
-    bookInvoice(tx, { customerId: havel, number: `RE-${year}-0003`, issue: on(-55), due: on(-35), description: "Pitchfilm", unitNetCents: 90_000, buyerReference: SAMPLE_BUYER_REFERENCE["Havel & Sohn AG"]! });
-    bookInvoice(tx, { customerId: kiez, number: `RE-${year}-0004`, issue: on(-10), due: on(14), description: "Websitebetreuung Oktober", unitNetCents: 140_000, buyerReference: SAMPLE_BUYER_REFERENCE["Kiezküche e.K."]! });
-    bookInvoice(tx, { customerId: lichtfeld, number: null, issue: today, due: on(14), description: "Angebot, Lookbook Frühjahr", unitNetCents: 180_000, draft: true, buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"]! });
+    bookInvoice(tx, { companyId, customerId: lichtfeld, number: `RE-${year}-0001`, issue: on(-120), due: on(-100), paid: on(-90), description: "Markenworkshop", unitNetCents: 240_000, buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"]! });
+    bookInvoice(tx, { companyId, customerId: lichtfeld, number: `RE-${year}-0002`, issue: on(-40), due: on(-26), paid: on(-20), description: "Kampagnengestaltung", unitNetCents: 320_000, buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"]! });
+    bookInvoice(tx, { companyId, customerId: havel, number: `RE-${year}-0003`, issue: on(-55), due: on(-35), description: "Pitchfilm", unitNetCents: 90_000, buyerReference: SAMPLE_BUYER_REFERENCE["Havel & Sohn AG"]! });
+    bookInvoice(tx, { companyId, customerId: kiez, number: `RE-${year}-0004`, issue: on(-10), due: on(14), description: "Websitebetreuung Oktober", unitNetCents: 140_000, buyerReference: SAMPLE_BUYER_REFERENCE["Kiezküche e.K."]! });
+    bookInvoice(tx, { companyId, customerId: lichtfeld, number: null, issue: today, due: on(14), description: "Angebot, Lookbook Frühjahr", unitNetCents: 180_000, draft: true, buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"]! });
 
     for (const offset of [-100, -70, -40]) {
-      post(tx, on(offset), "Studiomiete", "expense", null, buildExpense({ expenseAccount: "4210", netCents: 85_000, vatBps: 1900, paidNow: true }));
+      post(tx, companyId, on(offset), "Studiomiete", "expense", null, buildExpense({ expenseAccount: "4210", netCents: 85_000, vatBps: 1900, paidNow: true }));
     }
-    post(tx, on(-25), "Abo für Gestaltungssoftware", "expense", null, buildExpense({ expenseAccount: "4900", netCents: 4_900, vatBps: 1900, paidNow: true }));
-    post(tx, on(-75), "Beratung zum Gesellschaftsvertrag", "expense", null, buildExpense({ expenseAccount: "4950", netCents: 40_000, vatBps: 1900, paidNow: true }));
+    post(tx, companyId, on(-25), "Abo für Gestaltungssoftware", "expense", null, buildExpense({ expenseAccount: "4900", netCents: 4_900, vatBps: 1900, paidNow: true }));
+    post(tx, companyId, on(-75), "Beratung zum Gesellschaftsvertrag", "expense", null, buildExpense({ expenseAccount: "4950", netCents: 40_000, vatBps: 1900, paidNow: true }));
 
-    const person = (values: typeof employees.$inferInsert) => insertId(tx.insert(employees).values(values).run());
+    const person = (values: Omit<typeof employees.$inferInsert, "companyId">) => insertId(tx.insert(employees).values({ ...values, companyId }).run());
     person({
       firstName: "Mara",
       lastName: "Elling",
@@ -217,7 +221,7 @@ export function seedIfEmpty(db: DB) {
       flatTax: true,
     });
     const payrollMonth = on(-15).slice(0, 7);
-    post(tx, on(-15), `Gehalt Jonas Rehberg ${payrollMonth}. Die Lohnsteuer ist eine Beispielzahl, keine Berechnung.`, "payroll", payrollSourceId(jonasId, payrollMonth), buildPayroll({
+    post(tx, companyId, on(-15), `Gehalt Jonas Rehberg ${payrollMonth}. Die Lohnsteuer ist eine Beispielzahl, keine Berechnung.`, "payroll", payrollSourceId(jonasId, payrollMonth), buildPayroll({
       minijob: false,
       grossCents: 160_000,
       withheldCents: jonasPay.employee.totalCents,
@@ -226,7 +230,7 @@ export function seedIfEmpty(db: DB) {
       flatTaxCents: 0,
       payNow: true,
     }));
-    post(tx, on(-15), `Minijob Aylin Demir ${payrollMonth}`, "payroll", payrollSourceId(aylinId, payrollMonth), buildPayroll({
+    post(tx, companyId, on(-15), `Minijob Aylin Demir ${payrollMonth}`, "payroll", payrollSourceId(aylinId, payrollMonth), buildPayroll({
       minijob: true,
       grossCents: 45_000,
       withheldCents: aylinPay.employee.totalCents,
@@ -239,22 +243,22 @@ export function seedIfEmpty(db: DB) {
     tx.insert(absences).values({ employeeId: jonasId, startDate: on(10), endDate: on(12), kind: "vacation", status: "approved", notes: "Kurze Pause" }).run();
 
     tx.insert(policies).values([
-      { label: "Kranken- und Pflegeversicherung Mara", kind: "health", provider: "Nordstern Kranken", policyNumber: "PKV-44021", monthlyPremiumCents: 48_600, renewalDate: on(120), notes: "Private Krankenversicherung der Geschäftsführerin. Keine Lohnabzugsposition." },
-      { label: "Betriebshaftpflicht", kind: "liability", provider: "Nordstern Versicherung", policyNumber: "BH-1882", monthlyPremiumCents: 3_500, renewalDate: on(26), notes: "Beispielpolice. Die echte Verlängerung prüfen." },
+      { companyId, label: "Kranken- und Pflegeversicherung Mara", kind: "health", provider: "Nordstern Kranken", policyNumber: "PKV-44021", monthlyPremiumCents: 48_600, renewalDate: on(120), notes: "Private Krankenversicherung der Geschäftsführerin. Keine Lohnabzugsposition." },
+      { companyId, label: "Betriebshaftpflicht", kind: "liability", provider: "Nordstern Versicherung", policyNumber: "BH-1882", monthlyPremiumCents: 3_500, renewalDate: on(26), notes: "Beispielpolice. Die echte Verlängerung prüfen." },
     ]).run();
 
     tx.insert(tasks).values([
-      { title: "Überfällige Rechnung Havel nachfassen", notes: "Eine Erinnerung, dann eine zweite, bevor eine Mahnung in Betracht kommt.", dueDate: on(2), status: "open", area: "invoices" },
-      { title: "Umsatzsteuerzahlen für Oktober zusammenstellen", notes: "Umsatzsteuer, Vorsteuer und die Vorauszahlung.", dueDate: on(12), status: "open", area: "tax" },
-      { title: "Unterlagen für die Gesellschafter vorbereiten", notes: "Jahresabschluss, Vorschlag zur Rücklage und der Beschluss.", dueDate: on(21), status: "doing", area: "legal" },
-      { title: "Verlängerung der Studioversicherung einreichen", dueDate: on(20), status: "open", area: "cover" },
+      { companyId, title: "Überfällige Rechnung Havel nachfassen", notes: "Eine Erinnerung, dann eine zweite, bevor eine Mahnung in Betracht kommt.", dueDate: on(2), status: "open", area: "invoices" },
+      { companyId, title: "Umsatzsteuerzahlen für Oktober zusammenstellen", notes: "Umsatzsteuer, Vorsteuer und die Vorauszahlung.", dueDate: on(12), status: "open", area: "tax" },
+      { companyId, title: "Unterlagen für die Gesellschafter vorbereiten", notes: "Jahresabschluss, Vorschlag zur Rücklage und der Beschluss.", dueDate: on(21), status: "doing", area: "legal" },
+      { companyId, title: "Verlängerung der Studioversicherung einreichen", dueDate: on(20), status: "open", area: "cover" },
     ]).run();
 
     const monday = weekStart(today);
     const tuesday = addDays(monday, 1);
     tx.insert(timeEntries).values([
-      { entryDate: monday, startedAt: "09:00", endedAt: "17:30", breakMinutes: 30, memo: "Kundenkorrekturen", billable: true },
-      { entryDate: tuesday <= today ? tuesday : monday, startedAt: "09:30", endedAt: "15:00", breakMinutes: 15, memo: "Studioverwaltung und Rechnungsentwurf", billable: false },
+      { companyId, entryDate: monday, startedAt: "09:00", endedAt: "17:30", breakMinutes: 30, memo: "Kundenkorrekturen", billable: true },
+      { companyId, entryDate: tuesday <= today ? tuesday : monday, startedAt: "09:30", endedAt: "15:00", breakMinutes: 15, memo: "Studioverwaltung und Rechnungsentwurf", billable: false },
     ]).run();
 
     const settings = { fiscalYearStartMonth: 1, vatPermanentExtension: false, usesTaxAdvisor: false };
@@ -265,20 +269,20 @@ export function seedIfEmpty(db: DB) {
         if (seen.has(item.key) || item.dueDate >= doneBefore) continue;
         if (item.when === "vat" || item.when === "payroll" || item.key.includes("advance")) {
           seen.add(item.key);
-          tx.insert(obligationStates).values({ key: item.key, status: "done", note: "Beispiel, als erledigt markiert", updatedAt: new Date().toISOString() }).run();
+          tx.insert(obligationStates).values({ companyId, key: item.key, status: "done", note: "Beispiel, als erledigt markiert", updatedAt: new Date().toISOString() }).run();
         }
       }
     }
 
-    tx.insert(customDeadlines).values({ title: "Erinnerung an Havel senden", category: "invoices", dueDate: on(3), recurrence: "none", status: "open", notes: "Sachlich und bestimmt bleiben." }).run();
+    tx.insert(customDeadlines).values({ companyId, title: "Erinnerung an Havel senden", category: "invoices", dueDate: on(3), recurrence: "none", status: "open", notes: "Sachlich und bestimmt bleiben." }).run();
 
     tx.insert(resolutions).values([
-      { resolvedOn: "2024-03-15", title: "Gründung", kind: "formation", body: "Gesellschafter", summary: "Gesellschaft errichtet. Mara Elling zur Geschäftsführerin bestellt. Stammkapital 2.500 € eingezahlt." },
-      { resolvedOn: `${year}-01-15`, title: `Feststellung des Jahresabschlusses ${year - 1} und Einstellung in die Rücklage`, kind: "profit", body: "Gesellschafter", summary: "Beispielbeschluss. Ein Viertel des Jahresüberschusses, 1.600 €, wird in die gesetzliche Rücklage eingestellt." },
+      { companyId, resolvedOn: "2024-03-15", title: "Gründung", kind: "formation", body: "Gesellschafter", summary: "Gesellschaft errichtet. Mara Elling zur Geschäftsführerin bestellt. Stammkapital 2.500 € eingezahlt." },
+      { companyId, resolvedOn: `${year}-01-15`, title: `Feststellung des Jahresabschlusses ${year - 1} und Einstellung in die Rücklage`, kind: "profit", body: "Gesellschafter", summary: "Beispielbeschluss. Ein Viertel des Jahresüberschusses, 1.600 €, wird in die gesetzliche Rücklage eingestellt." },
     ]).run();
 
     compliance.forEach((item, index) => {
-      tx.insert(complianceItems).values({ area: item[0], title: item[1], detail: item[2], done: item[3], sortOrder: index + 1 }).run();
+      tx.insert(complianceItems).values({ companyId, area: item[0], title: item[1], detail: item[2], done: item[3], sortOrder: index + 1 }).run();
     });
 
     const storedName = "sample-shareholder-list.txt";
@@ -297,6 +301,7 @@ export function seedIfEmpty(db: DB) {
     fs.writeFileSync(path.join(uploadsDir(), storedName), body);
     tx.insert(documents)
       .values({
+        companyId,
         title: "Gesellschafterliste (Beispiel)",
         category: "corporate",
         fileName: storedName,
@@ -388,32 +393,36 @@ function samplePhrase(value: string): string | null {
 
 /** Rewrites known English sample sentences. A changed row, or a company that is not the sample, stays as stored. */
 export function localizeSample(db: DB) {
-  const company = db.select().from(companies).get();
-  if (!company?.isSample) return;
+  const company = db.select().from(companies).where(eq(companies.isSample, true)).get();
+  if (!company) return;
+  const companyId = company.id;
   db.transaction((tx) => {
-    for (const entry of tx.select().from(journalEntries).all()) {
+    for (const entry of tx.select().from(journalEntries).where(eq(journalEntries.companyId, companyId)).all()) {
       const memo = samplePhrase(entry.memo);
       if (memo) tx.update(journalEntries).set({ memo }).where(eq(journalEntries.id, entry.id)).run();
     }
     // Empty references on the known sample names are filled so an existing sample database can download an e-invoice. A company that is no longer marked as the sample is left alone.
-    for (const customer of tx.select().from(customers).all()) {
+    for (const customer of tx.select().from(customers).where(eq(customers.companyId, companyId)).all()) {
       const reference = SAMPLE_BUYER_REFERENCE[customer.name];
       if (reference && !customer.buyerReference.trim()) {
         tx.update(customers).set({ buyerReference: reference }).where(eq(customers.id, customer.id)).run();
       }
     }
-    const customerNames = new Map(tx.select().from(customers).all().map((customer) => [customer.id, customer.name]));
-    for (const invoice of tx.select().from(invoices).all()) {
+    const customerNames = new Map(tx.select().from(customers).where(eq(customers.companyId, companyId)).all().map((customer) => [customer.id, customer.name]));
+    const invoiceIds = new Set(tx.select({ id: invoices.id }).from(invoices).where(eq(invoices.companyId, companyId)).all().map((invoice) => invoice.id));
+    for (const invoice of tx.select().from(invoices).where(eq(invoices.companyId, companyId)).all()) {
       if (invoice.buyerReference.trim()) continue;
       const reference = SAMPLE_BUYER_REFERENCE[customerNames.get(invoice.customerId) ?? ""];
       if (!reference) continue;
       tx.update(invoices).set({ buyerReference: reference }).where(eq(invoices.id, invoice.id)).run();
     }
     for (const line of tx.select().from(invoiceLines).all()) {
+      if (!invoiceIds.has(line.invoiceId)) continue;
       const description = samplePhrase(line.description);
       if (description) tx.update(invoiceLines).set({ description }).where(eq(invoiceLines.id, line.id)).run();
     }
-    for (const person of tx.select().from(employees).all()) {
+    const employeeIds = new Set(tx.select({ id: employees.id }).from(employees).where(eq(employees.companyId, companyId)).all().map((person) => person.id));
+    for (const person of tx.select().from(employees).where(eq(employees.companyId, companyId)).all()) {
       const role = samplePhrase(person.role);
       const notes = samplePhrase(person.notes);
       const healthInsuranceName = samplePhrase(person.healthInsuranceName);
@@ -426,33 +435,34 @@ export function localizeSample(db: DB) {
       }
     }
     for (const absence of tx.select().from(absences).all()) {
+      if (!employeeIds.has(absence.employeeId)) continue;
       const notes = samplePhrase(absence.notes);
       if (notes) tx.update(absences).set({ notes }).where(eq(absences.id, absence.id)).run();
     }
-    for (const policy of tx.select().from(policies).all()) {
+    for (const policy of tx.select().from(policies).where(eq(policies.companyId, companyId)).all()) {
       const label = samplePhrase(policy.label);
       const notes = samplePhrase(policy.notes);
       if (label || notes) tx.update(policies).set({ ...(label ? { label } : {}), ...(notes ? { notes } : {}) }).where(eq(policies.id, policy.id)).run();
     }
-    for (const task of tx.select().from(tasks).all()) {
+    for (const task of tx.select().from(tasks).where(eq(tasks.companyId, companyId)).all()) {
       const title = samplePhrase(task.title);
       const notes = samplePhrase(task.notes);
       if (title || notes) tx.update(tasks).set({ ...(title ? { title } : {}), ...(notes ? { notes } : {}) }).where(eq(tasks.id, task.id)).run();
     }
-    for (const entry of tx.select().from(timeEntries).all()) {
+    for (const entry of tx.select().from(timeEntries).where(eq(timeEntries.companyId, companyId)).all()) {
       const memo = samplePhrase(entry.memo);
       if (memo) tx.update(timeEntries).set({ memo }).where(eq(timeEntries.id, entry.id)).run();
     }
-    for (const state of tx.select().from(obligationStates).all()) {
+    for (const state of tx.select().from(obligationStates).where(eq(obligationStates.companyId, companyId)).all()) {
       const note = samplePhrase(state.note);
-      if (note) tx.update(obligationStates).set({ note }).where(eq(obligationStates.key, state.key)).run();
+      if (note) tx.update(obligationStates).set({ note }).where(and(eq(obligationStates.companyId, companyId), eq(obligationStates.key, state.key))).run();
     }
-    for (const deadline of tx.select().from(customDeadlines).all()) {
+    for (const deadline of tx.select().from(customDeadlines).where(eq(customDeadlines.companyId, companyId)).all()) {
       const title = samplePhrase(deadline.title);
       const notes = samplePhrase(deadline.notes);
       if (title || notes) tx.update(customDeadlines).set({ ...(title ? { title } : {}), ...(notes ? { notes } : {}) }).where(eq(customDeadlines.id, deadline.id)).run();
     }
-    for (const resolution of tx.select().from(resolutions).all()) {
+    for (const resolution of tx.select().from(resolutions).where(eq(resolutions.companyId, companyId)).all()) {
       const title = samplePhrase(resolution.title);
       const summary = samplePhrase(resolution.summary);
       const known = Boolean(title) || resolution.title === "Gründung" || resolution.title.startsWith("Feststellung des Jahresabschlusses");
@@ -465,15 +475,15 @@ export function localizeSample(db: DB) {
         }).where(eq(resolutions.id, resolution.id)).run();
       }
     }
-    for (const item of tx.select().from(complianceItems).all()) {
+    for (const item of tx.select().from(complianceItems).where(eq(complianceItems.companyId, companyId)).all()) {
       const next = sampleChecklist[item.title];
       if (next) tx.update(complianceItems).set(next).where(eq(complianceItems.id, item.id)).run();
     }
-    for (const movement of tx.select().from(reserveMovements).all()) {
+    for (const movement of tx.select().from(reserveMovements).where(eq(reserveMovements.companyId, companyId)).all()) {
       const note = samplePhrase(movement.note);
       if (note) tx.update(reserveMovements).set({ note }).where(eq(reserveMovements.id, movement.id)).run();
     }
-    for (const document of tx.select().from(documents).all()) {
+    for (const document of tx.select().from(documents).where(eq(documents.companyId, companyId)).all()) {
       const title = samplePhrase(document.title);
       const notes = samplePhrase(document.notes);
       if (title || notes) tx.update(documents).set({ ...(title ? { title } : {}), ...(notes ? { notes } : {}) }).where(eq(documents.id, document.id)).run();
@@ -494,18 +504,19 @@ function insertId(result: { lastInsertRowid: number | bigint }): number {
   return Number(result.lastInsertRowid);
 }
 
-function post(db: DB, date: string, memo: string, source: string, sourceId: string | null, lines: { accountCode: string; debitCents: number; creditCents: number }[]) {
-  return postJournal(db, { date, memo, source, sourceId, lines });
+function post(db: DB, companyId: number, date: string, memo: string, source: string, sourceId: string | null, lines: { accountCode: string; debitCents: number; creditCents: number }[]) {
+  return postJournal(db, { companyId, date, memo, source, sourceId, lines });
 }
 
 function bookInvoice(
   db: DB,
-  input: { customerId: number; number: string | null; issue: string; due: string; paid?: string; description: string; unitNetCents: number; draft?: boolean; buyerReference: string },
+  input: { companyId: number; customerId: number; number: string | null; issue: string; due: string; paid?: string; description: string; unitNetCents: number; draft?: boolean; buyerReference: string },
 ) {
   const id = insertId(
     db
       .insert(invoices)
       .values({
+        companyId: input.companyId,
         customerId: input.customerId,
         number: input.number,
         status: input.draft ? "draft" : "issued",
@@ -523,11 +534,11 @@ function bookInvoice(
     .run();
   if (input.draft || !input.number) return;
   const totals = summarizeVat([{ netCents: lineNetCents(1000, input.unitNetCents), vatBps: 1900 }], false);
-  const entryId = post(db, input.issue, `Rechnung ${input.number}`, "invoice", String(id), buildSalesInvoice({ kleinunternehmer: false, byRate: totals.byRate }));
+  const entryId = post(db, input.companyId, input.issue, `Rechnung ${input.number}`, "invoice", String(id), buildSalesInvoice({ kleinunternehmer: false, byRate: totals.byRate }));
   db.update(invoices).set({ journalEntryId: entryId, status: input.paid ? "paid" : "issued" }).where(eq(invoices.id, id)).run();
   if (input.paid) {
     const paymentId = insertId(db.insert(payments).values({ invoiceId: id, paidOn: input.paid, amountCents: totals.grossCents }).run());
-    const paymentEntry = post(db, input.paid, `Zahlung ${input.number}`, "payment", String(paymentId), buildCustomerPayment(totals.grossCents));
+    const paymentEntry = post(db, input.companyId, input.paid, `Zahlung ${input.number}`, "payment", String(paymentId), buildCustomerPayment(totals.grossCents));
     db.update(payments).set({ journalEntryId: paymentEntry }).where(eq(payments.id, paymentId)).run();
   }
 }

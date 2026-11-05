@@ -5,7 +5,7 @@ sidebar_label: Überblick
 
 # managr
 
-Ein lokaler Schreibtisch für eine deutsche UG (haftungsbeschränkt). Diese Seiten sind die Notizen in diesem Repository. Auf der veröffentlichten Website liegen sie unter `/docs`. Die Startseite beschreibt den Schreibtisch kurz.
+Ein lokaler Schreibtisch für deutsche Unternehmen, auch die UG (haftungsbeschränkt) und ein Einzelunternehmen. Diese Seiten sind die Notizen in diesem Repository. Auf der veröffentlichten Website liegen sie unter `/docs`. Die Startseite beschreibt den Schreibtisch kurz.
 
 Der Schreibtisch reicht keine Steuererklärung ein, berechnet keine Lohnsteuer und entscheidet nicht über den Sozialversicherungsstatus.
 

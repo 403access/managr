@@ -4,15 +4,15 @@ slug: /roadmap
 
 # Roadmap
 
-managr ist ein lokaler Schreibtisch für eine deutsche UG (haftungsbeschränkt): Gesellschaftsdaten, Pflichten, Rechnungen, Bücher, Personen, Sozialversicherungsschätzungen, Zeit, Dokumente und rechtliche Unterlagen.
+managr ist ein lokaler Schreibtisch für deutsche Unternehmen: Gesellschaftsdaten, Pflichten, Rechnungen, Bücher, Personen, Sozialversicherungsschätzungen, Zeit, Dokumente und rechtliche Unterlagen. Jedes Unternehmen führt eigene Bücher; ein Umschalter wechselt den ganzen Schreibtisch.
 
 Entwicklungsregeln: `.grok/skills/managr-engineering/SKILL.md`.
 
 ## Version 1 — der Schreibtisch
 
-In diesem Repository ausgeliefert. Ein Benutzer, eine Gesellschaft, SQLite auf der Festplatte, kein Kontosystem.
+In diesem Repository ausgeliefert. Ein Benutzer, mehrere Unternehmen mit getrennten Büchern, SQLite auf der Festplatte, kein Kontosystem.
 
-- Stammdaten der Gesellschaft, Gesellschafter und die gesetzliche Rücklage (§5a GmbHG), einschließlich der Umwandlungslücke zum Stammkapital von 25.000 €.
+- Stammdaten für UG, GmbH, AG, OHG, KG, GbR, PartG, e.K. und Einzelunternehmen, mit Unternehmensumschalter und getrennten Büchern je Unternehmen.
 - Pflichtenkalender: Umsatzsteuer, Lohnsteuer, Gewerbesteuer, Körperschaftsteuer, Sozialversicherungserinnerungen, Offenlegung, IHK, Berufsgenossenschaft sowie eigene Fristen.
 - Kunden, Rechnungen mit den gesetzlichen Angaben, Ausstellung, Zahlung, Storno und eine druckbare Rechnung.
 - XRechnung 3.0.2 (UBL) zum Herunterladen für eine ausgestellte Rechnung. Die Datei ist eine E-Rechnung nach §14 UStG. Sie wird nicht übermittelt.
@@ -31,7 +31,7 @@ In diesem Repository ausgeliefert. Ein Benutzer, eine Gesellschaft, SQLite auf d
 
 Diese Punkte brauchen ein externes System oder eine andere Produktentscheidung. Sie werden nicht als funktionierend vorgetäuscht.
 
-- Anmeldung, Rollen und Bücher für mehrere Gesellschaften.
+- Anmeldung und Rollen.
 - ZUGFeRD und die Übermittlung einer E-Rechnung (Peppol, ein Portal oder E-Mail). Der KoSIT-Validator wird nicht ausgeführt.
 - DATEV-EXTF-Export und eine gesperrte DATEV-Kontenzuordnung.
 - Bank-CSV oder ein Bank-Feed.

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
-import { loadCompany, loadInvoice } from "@/server/queries";
+import { loadInvoice } from "@/server/queries";
 import { formatDate } from "@/domain/calendar";
+import { isCorporation, legalFormLabel } from "@/domain/company";
 import { isKleinunternehmerNote } from "@/domain/invoice";
 import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
 import { PrintButton } from "@/components/print-button";
@@ -11,7 +12,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
   if (!Number.isInteger(numeric) || numeric < 1) notFound();
   const loaded = loadInvoice(numeric);
   if (!loaded) notFound();
-  const company = loadCompany();
+  const company = loaded.company;
   const { invoice, customer, lines } = loaded;
   const kleinunternehmer = isKleinunternehmerNote(invoice.exemptionNote);
   const stamp = invoice.status === "void" ? "STORNIERT" : invoice.status === "draft" ? "ENTWURF" : "";
@@ -92,8 +93,17 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
           <p>{company.bic}</p>
         </div>
         <div>
-          <p>{company.registerCourt}, {company.registerNumber}</p>
-          <p>Geschäftsführer: {company.managingDirector}</p>
+          {isCorporation(company.legalForm) ? (
+            <>
+              <p>{company.registerCourt}, {company.registerNumber}</p>
+              <p>Geschäftsführer: {company.managingDirector}</p>
+            </>
+          ) : (
+            <>
+              <p>{legalFormLabel(company.legalForm)}</p>
+              {company.managingDirector ? <p>Inhaber: {company.managingDirector}</p> : null}
+            </>
+          )}
           <p>{company.taxNumber ? `Steuernummer ${company.taxNumber}` : ""}</p>
           <p>{company.vatId ? `USt-IdNr. ${company.vatId}` : ""}</p>
         </div>

@@ -1,3 +1,5 @@
+import { isCorporation, legalNameMatchesForm } from "./company";
+
 /** Printed in German on a Kleinunternehmer invoice. §14c UStG taxes a shown VAT amount. */
 export const KLEINUNTERNEHMER_NOTE = "Gemäß § 19 UStG wird keine Umsatzsteuer ausgewiesen.";
 
@@ -7,6 +9,7 @@ export function isKleinunternehmerNote(note: string): boolean {
 
 export type InvoiceReviewInput = {
   legalName: string;
+  legalForm?: string;
   supplierStreet: string;
   supplierPostalCode: string;
   supplierCity: string;
@@ -36,17 +39,23 @@ export function reviewInvoice(input: InvoiceReviewInput): { blockers: string[]; 
   const blockers: string[] = [];
   const warnings: string[] = [];
   const name = input.legalName.trim();
-  if (!/unternehmergesellschaft/i.test(name) && !/\bug\b/i.test(name)) {
-    blockers.push("The legal name must contain Unternehmergesellschaft (haftungsbeschränkt) or UG (haftungsbeschränkt).");
+  const form = input.legalForm ?? "ug";
+  if (!legalNameMatchesForm(name, form)) {
+    if (form === "ug") blockers.push("The legal name must contain Unternehmergesellschaft (haftungsbeschränkt) or UG (haftungsbeschränkt).");
+    else if (form === "gmbh") blockers.push("The legal name must contain GmbH or Gesellschaft mit beschränkter Haftung.");
+    else if (form === "ag") blockers.push("The legal name must contain AG or Aktiengesellschaft.");
+    else blockers.push("The legal name is missing.");
   }
   if (!input.supplierStreet.trim() || !input.supplierPostalCode.trim() || !input.supplierCity.trim()) {
     blockers.push("The company address is incomplete.");
   }
   if (!input.taxNumber.trim() && !input.vatId.trim()) blockers.push("Add a tax number or a VAT id.");
-  if (!input.registerCourt.trim() || !input.registerNumber.trim()) {
-    blockers.push("Business letters need the register court and the HRB number (§35a GmbHG).");
+  if (isCorporation(form)) {
+    if (!input.registerCourt.trim() || !input.registerNumber.trim()) {
+      blockers.push("Business letters need the register court and the HRB number (§35a GmbHG).");
+    }
+    if (!input.managingDirector.trim()) blockers.push("Name the managing director on the invoice (§35a GmbHG).");
   }
-  if (!input.managingDirector.trim()) blockers.push("Name the managing director on the invoice (§35a GmbHG).");
   if (!input.customerName.trim() || !input.customerStreet.trim() || !input.customerPostalCode.trim() || !input.customerCity.trim()) {
     blockers.push("The customer name and address are incomplete.");
   }

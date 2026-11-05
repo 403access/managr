@@ -98,7 +98,7 @@ function createCleanDatabase(destination: string, legalName: string): void {
 
   const sqlite = new Database(temporary);
   try {
-    sqlite.pragma("foreign_keys = ON");
+    sqlite.pragma("foreign_keys = OFF");
     migrate(sqlite);
 
     const insertAccount = sqlite.prepare(
@@ -112,9 +112,10 @@ function createCleanDatabase(destination: string, legalName: string): void {
 
     sqlite
       .prepare(
-        "INSERT INTO companies (legal_name, share_capital_cents, founding_date, is_sample) VALUES (?, 0, ?, 0)",
+        "INSERT INTO companies (legal_name, legal_form, share_capital_cents, founding_date, is_sample, is_active) VALUES (?, 'ug', 0, ?, 0, 1)",
       )
       .run(legalName, new Date().toISOString().slice(0, 10));
+    sqlite.pragma("foreign_keys = ON");
   } finally {
     sqlite.close();
   }

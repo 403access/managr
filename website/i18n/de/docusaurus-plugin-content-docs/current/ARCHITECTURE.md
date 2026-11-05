@@ -34,7 +34,9 @@ Gespeicherte Geldbeträge sind ganzzahlige Cent. Eine Euro-Eingabe wird von `par
 
 ## Datenbank
 
-`src/db/migrations/0001_init.sql` ist das Schema, das beim Start angewendet wird. `src/db/schema.ts` ist die Drizzle-Abbildung dieses SQL. Beides zusammen ändern.
+`src/db/migrations/0001_init.sql` ist das Startschema. `src/db/migrations/0003_multi_company.sql` ergänzt die Bücher je Unternehmen. `src/db/schema.ts` ist die Drizzle-Abbildung dieses SQL. Beides zusammen ändern.
+
+Jede Buchhaltungstabelle trägt `company_id`. Aktives Unternehmen ist die Zeile mit `companies.is_active = 1`; der Wechsel ist ein Datenbankschreibvorgang und gilt für den ganzen lokalen Schreibtisch. `accounts` ist ein gemeinsamer SKR03-Kontenrahmen; Journalzeilen, Rechnungen, Kunden, Personen, Zeit, Dokumente, Pflichten und rechtliche Unterlagen werden nach aktivem Unternehmen gefiltert. Rechnungsnummern und Buchungsquellen sind je Unternehmen eindeutig. Eine gedruckte oder heruntergeladene Rechnung verwendet das auf der Rechnung gespeicherte Unternehmen, nicht das gerade aktive.
 
 Beim ersten Start einer leeren Datenbank wird die Beispielgesellschaft Atelier Nordlicht UG geladen. Das Löschen von `data/managr.db` stellt sie wieder her. Benutzerdaten liegen nur in dieser Datei und in `data/uploads`.
 
@@ -46,7 +48,7 @@ Ein Bildschirm öffnet kein SQLite. `src/server/views.ts` baut das JSON für die
 
 Mutationen bleiben Server Actions in `src/server/actions.ts`. Nach einem Schreibvorgang rufen sie `revalidatePath` auf, und das Formular invalidiert den `view`-Query-Cache, damit der offene Bildschirm neu lädt. Ausgestellte Rechnungen, Zahlungen, Ausgaben, Lohn, Rücklagenbewegungen und Stornos laufen alle über einen Buchungs-Builder in `src/domain/postings.ts`. Die druckbare Rechnung bleibt ein Server-Render und ist keine Abfrage.
 
-`GET /invoices/[id]/xrechnung` erzeugt aus der aktuellen Gesellschaft, dem Kunden und der Rechnung ein XRechnung-3.0.2-UBL-Dokument. Die Regeln stehen in `src/domain/xrechnung.ts`. Das XML wird nicht gespeichert.
+`GET /invoices/[id]/xrechnung` erzeugt aus dem Unternehmen der Rechnung, dem Kunden und der Rechnung ein XRechnung-3.0.2-UBL-Dokument. Die Regeln stehen in `src/domain/xrechnung.ts`. Das XML wird nicht gespeichert.
 
 Die Prüfschaltfläche ruft die Server Action `checkInvoiceXRechnung` auf. `src/server/validator.ts` sendet das erzeugte XML an `VALIDATOR_URL` (den Compose-Validator oder `127.0.0.1:8090` bei `bun dev`). `src/server/validator-report.ts` macht aus dem KoSIT-Bericht ein Urteil und eine Meldungsliste. Es ist eine reine Funktion mit einem Test; der HTTP-Aufruf wird nicht gecacht, und es wird nichts in die Datenbank geschrieben.
 
