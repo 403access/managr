@@ -52,7 +52,7 @@ docker compose up --build
 
 That runs the same desk at [http://localhost:3000](http://localhost:3000) and the site at [http://localhost:3001/managr/](http://localhost:3001/managr/). The notes are at [http://localhost:3001/managr/docs](http://localhost:3001/managr/docs). Compose keeps the database and uploads in `data/` on this computer. It does not host the desk for anyone else.
 
-After code changes, the image has to be rebuilt. These scripts wrap the Compose commands:
+After code changes, the image has to be rebuilt. Docker reuses the cached dependency layers while `package.json` and `bun.lock` are unchanged; `docker:rebuild` forces a clean build only when the cache is suspect. These scripts wrap the Compose commands:
 
 ```bash
 bun run docker:restart        # rebuild and restart the desk and site
