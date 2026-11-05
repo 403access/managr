@@ -13,6 +13,25 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000). The first launch creates `data/managr.db` and loads the sample company Atelier Nordlicht UG. Delete that file to start over. Uploaded files live in `data/uploads`.
 
+## Demo and production books
+
+The desk always opens `data/managr.db`. Two saved copies sit beside it: `data/managr.demo.db` and `data/managr.production.db`. Stop the desk before switching, then:
+
+```bash
+bun run db:demo      # open the demo copy
+bun run db:prod      # open the production copy
+bun run db:status    # show the active copy and both saved files
+```
+
+Save the currently open books as either copy:
+
+```bash
+bun run db:demo:set
+bun run db:prod:set
+```
+
+When you switch away from a copy, the open database is saved back to that copy first, so edits are not lost. An open database that has not been saved as a copy is kept as `data/managr.unsaved-<timestamp>.db` before the first switch. `--from` imports another SQLite file into a copy, for example `bun run db:prod:set -- --from ~/backup/managr.db`. If the copy is already active, add `--force` to load the saved copy over the open one. Start the desk again after a switch because the running server keeps its open connection. Uploads in `data/uploads` are shared by both copies.
+
 ```bash
 docker compose up --build
 ```
