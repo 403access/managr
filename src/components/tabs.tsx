@@ -17,7 +17,7 @@ function tabItems(children: ReactNode): TabProps[] {
   return items;
 }
 
-export function Tabs({ label, children }: { label: string; children: ReactNode }) {
+export function Tabs({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   const items = tabItems(children);
   const signature = items.map((item) => item.id).join("|");
   const [selected, setSelected] = useState<string | null>(null);
@@ -72,7 +72,7 @@ export function Tabs({ label, children }: { label: string; children: ReactNode }
 
   return (
     <div ref={rootRef}>
-      <div className="sticky top-0 z-20 -mx-4 bg-paper/95 px-4 pt-2 pb-4 backdrop-blur md:-mx-8 md:px-8">
+      <div className={`sticky top-0 z-20 bg-paper/95 pt-2 pb-4 backdrop-blur ${className ?? "-mx-4 px-4 md:-mx-8 md:px-8"}`}>
         <div role="tablist" aria-label={label} aria-orientation="horizontal" onKeyDown={onKeyDown} className="flex gap-2 overflow-x-auto">
           {items.map((item) => {
             const on = item.id === active;

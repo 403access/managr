@@ -56,7 +56,9 @@ The check button calls the `checkInvoiceXRechnung` server action. `src/server/va
 
 `(app)/layout.tsx` hydrates the shell. The shell is a client component: sidebar from 768px up, bottom navigation below that. The invoice print route sits outside the shell. Screens, the mobile menu, invoice lines, and journal lines are client components. The page files stay server components so they can prefetch the view.
 
-Colors, type, and spacing are in `src/app/globals.css`. The layout is fluid; there is no separate mobile site.
+Colors, type, and spacing are in `src/app/globals.css`. The layout is fluid and fills the viewport; there is no separate mobile site.
+
+`invoices/layout.tsx` keeps the invoice list mounted while a nested route opens. From 1024px up the list is a sticky master pane and the selected invoice or invoice form fills the remaining width. Below that, a detail route hides the list and shows a back link, so the list and the detail never squeeze each other on a phone. Invoice forms and line rows use container queries rather than viewport breakpoints because the same component runs full width on a phone and in the narrow detail pane on a desktop.
 
 Screens that stack several independent sections use `Tabs` in `src/components/tabs.tsx`. The open section is stored in the URL hash. Summary figures, page titles, and controls that apply to the whole page stay above the tab bar. Without JavaScript every section stays visible.
 

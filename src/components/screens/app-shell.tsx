@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const company = query.data;
   return (
     <div className="min-h-dvh">
-      <div className="mx-auto flex max-w-6xl">
+      <div className="flex w-full">
         <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line px-4 py-6 md:flex">
           <p className="font-display text-2xl text-pine">managr</p>
           <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">{company?.legalName}</p>

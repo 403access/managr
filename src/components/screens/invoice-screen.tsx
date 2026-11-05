@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { deleteDraft, recordPayment, saveBuyerReference, voidInvoice } from "@/server/actions";
 import type { invoiceView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
@@ -13,7 +12,7 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { XRechnungCheck } from "@/components/xrechnung-check";
-import { buttonClass, Card, Disclaimer, Field, LinkButton, Money, PageHeader, Pill, textLinkClass, TextInput } from "@/components/ui";
+import { buttonClass, Card, Disclaimer, Field, LinkButton, Money, PageHeader, Pill, TextInput } from "@/components/ui";
 
 type Invoice = NonNullable<ReturnType<typeof invoiceView>>;
 
@@ -37,10 +36,10 @@ export function InvoiceScreen({ id }: { id: number }) {
                 </span>
               }
             />
-            <div className="grid gap-2">
+            <div className="@container grid gap-2">
               {lines.map((line) => (
-                <Card key={line.id} className={`grid gap-1 sm:items-center ${kleinunternehmer ? "sm:grid-cols-[1fr_auto_auto]" : "sm:grid-cols-[1fr_auto_auto_auto]"}`}>
-                  <p className="text-sm">{line.description || t("invoices.untitled")}</p>
+                <Card key={line.id} className={`grid gap-1 @[34rem]:items-center ${kleinunternehmer ? "@[34rem]:grid-cols-[minmax(0,1fr)_auto_auto]" : "@[34rem]:grid-cols-[minmax(0,1fr)_auto_auto_auto]"}`}>
+                  <p className="min-w-0 text-sm">{line.description || t("invoices.untitled")}</p>
                   <p className="text-sm text-muted">
                     {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
                   </p>
@@ -107,11 +106,11 @@ export function InvoiceScreen({ id }: { id: number }) {
               </div>
             ) : null}
             {invoice.status !== "draft" && invoice.status !== "void" && openCents > 0 ? (
-              <Card className="mt-6">
+              <Card className="@container mt-6">
                 <h2 className="mb-3 text-xl">{t("invoices.payment")}</h2>
                 <ActionForm action={recordPayment}>
                   <input type="hidden" name="invoiceId" value={invoice.id} />
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-3 @[26rem]:grid-cols-2">
                     <Field label={t("common.amount")} hint={t("invoices.openHint", { amount: formatEuro(openCents) })}>
                       <TextInput name="amount" inputMode="decimal" defaultValue={euroInput(openCents)} />
                     </Field>
@@ -140,11 +139,6 @@ export function InvoiceScreen({ id }: { id: number }) {
                 </ActionForm>
               </div>
             ) : null}
-            <p className="mt-6">
-              <Link href="/invoices" className={textLinkClass}>
-                {t("invoices.all")}
-              </Link>
-            </p>
             <div className="mt-6">
               <Disclaimer>{t("disclaimer.void")}</Disclaimer>
             </div>

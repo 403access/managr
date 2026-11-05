@@ -1,8 +1,3 @@
-import { queryKeys } from "@/client/query-keys";
-import { InvoicesScreen } from "@/components/screens/invoices-screen";
-import { Hydrate } from "@/server/hydrate";
-import { invoicesView } from "@/server/views";
-
 import { titled } from "@/server/locale";
 
 export function generateMetadata() {
@@ -10,9 +5,5 @@ export function generateMetadata() {
 }
 
 export default function InvoicesPage() {
-  return (
-    <Hydrate queryKey={queryKeys.invoices} data={invoicesView()}>
-      <InvoicesScreen />
-    </Hydrate>
-  );
+  return null;
 }

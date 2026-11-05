@@ -203,9 +203,9 @@ export function InvoiceForm({
   }
 
   return (
-    <ActionForm action={saveInvoice}>
+    <ActionForm action={saveInvoice} className="@container grid gap-4">
       <input type="hidden" name="payload" value={payload} />
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 @[30rem]:grid-cols-2">
         <Field label={t("invoices.customer")}>
           <select className={inputClass} value={mode === "new" ? "new" : String(customerId ?? "")} onChange={(event) => {
             if (event.target.value === "new") setMode("new");
@@ -225,7 +225,7 @@ export function InvoiceForm({
         </Field>
       </div>
       {mode === "new" ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 @[30rem]:grid-cols-2">
           <Field label={t("common.name")}><input className={inputClass} value={customer.name} onChange={(event) => setCustomer({ ...customer, name: event.target.value })} /></Field>
           <Field label={t("common.street")}><input className={inputClass} value={customer.street} onChange={(event) => setCustomer({ ...customer, street: event.target.value })} /></Field>
           <Field label={t("common.postal")}><input className={inputClass} value={customer.postalCode} onChange={(event) => setCustomer({ ...customer, postalCode: event.target.value })} /></Field>
@@ -237,28 +237,28 @@ export function InvoiceForm({
       <Field label={t("invoices.buyerReference")} hint={t("invoices.buyerReferenceHint")}>
         <input className={inputClass} value={buyerReference} maxLength={100} onChange={(event) => setBuyerReference(event.target.value)} />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 @[30rem]:grid-cols-3">
         <Field label={t("invoices.issueDate")}><input className={inputClass} type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} /></Field>
         <Field label={t("invoices.serviceDate")}><input className={inputClass} type="date" value={serviceDate} onChange={(event) => setServiceDate(event.target.value)} /></Field>
         <Field label={t("invoices.dueDate")}><input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></Field>
       </div>
       <div className="grid gap-3">
         {lines.map((line, index) => (
-          <div key={index} className="grid gap-3 rounded-2xl border border-line bg-white p-3 sm:grid-cols-12">
-            <label className={`grid gap-1 text-sm ${seller.kleinunternehmer ? "sm:col-span-6" : "sm:col-span-5"}`}>
+          <div key={index} className="grid gap-3 rounded-2xl border border-line bg-white p-3 @[34rem]:grid-cols-12">
+            <label className={`grid gap-1 text-sm ${seller.kleinunternehmer ? "@[34rem]:col-span-6" : "@[34rem]:col-span-5"}`}>
               <span className="font-medium">{t("invoices.description")}</span>
               <input className={inputClass} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} />
             </label>
-            <label className="grid gap-1 text-sm sm:col-span-2">
+            <label className="grid gap-1 text-sm @[34rem]:col-span-2">
               <span className="font-medium">{t("invoices.quantity")}</span>
               <input className={inputClass} inputMode="decimal" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} />
             </label>
-            <label className={`grid gap-1 text-sm ${seller.kleinunternehmer ? "sm:col-span-4" : "sm:col-span-3"}`}>
+            <label className={`grid gap-1 text-sm ${seller.kleinunternehmer ? "@[34rem]:col-span-4" : "@[34rem]:col-span-3"}`}>
               <span className="font-medium">{seller.kleinunternehmer ? t("invoices.unitAmount") : t("invoices.unitNet")}</span>
               <input className={inputClass} inputMode="decimal" value={line.unitNet} onChange={(event) => updateLine(index, { unitNet: event.target.value })} placeholder="0,00" />
             </label>
             {seller.kleinunternehmer ? null : (
-              <label className="grid gap-1 text-sm sm:col-span-2">
+              <label className="grid gap-1 text-sm @[34rem]:col-span-2">
                 <span className="font-medium">{t("common.vat")}</span>
                 <select className={inputClass} value={line.vatBps} onChange={(event) => updateLine(index, { vatBps: Number(event.target.value) })}>
                   <option value={0}>0%</option>
@@ -268,7 +268,7 @@ export function InvoiceForm({
               </label>
             )}
             {lines.length > 1 ? (
-              <button type="button" className={`${buttonClass("quiet")} sm:col-span-12`} onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}>
+              <button type="button" className={`${buttonClass("quiet")} @[34rem]:col-span-12`} onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}>
                 {t("invoices.removeLine")}
               </button>
             ) : null}
