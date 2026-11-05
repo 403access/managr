@@ -105,12 +105,50 @@ function timestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
+/** Returns null when the database has no company record, which the desk cannot open. */
+function isSampleDatabase(file: string): boolean | null {
+  const sqlite = new Database(file, { readonly: true });
+  try {
+    const row = sqlite.prepare("SELECT is_sample FROM companies LIMIT 1").get() as
+      | { is_sample: number }
+      | undefined;
+    return row ? row.is_sample !== 0 : null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new ScriptError(`Could not inspect ${relative(file)} as a managr database: ${message}`);
+  } finally {
+    sqlite.close();
+  }
+}
+
+function ensureProductionSource(source: string): void {
+  if (path.resolve(source) === path.resolve(slotPaths.demo)) {
+    throw new ScriptError(
+      'Refusing to use the demo database as production. Pass "--from <file>" with your production database.',
+    );
+  }
+
+  const sample = isSampleDatabase(source);
+  if (sample === null) {
+    throw new ScriptError(
+      `${relative(source)} has no company record. The desk would seed the sample company into it. Import your production database with "--from <file>".`,
+    );
+  }
+  if (sample) {
+    throw new ScriptError(
+      `${relative(source)} still contains the sample company. Production must start from your own books.`,
+    );
+  }
+}
+
 function use(slot: Slot, force: boolean): void {
   const target = slotPaths[slot];
   if (!fs.existsSync(target)) {
-    throw new ScriptError(
-      `There is no ${slot} database yet. Save one with "npm run ${setCommands[slot]}".`,
-    );
+    const hint =
+      slot === "production"
+        ? `Import one with "npm run ${setCommands[slot]} -- --from <file>".`
+        : `Save one with "npm run ${setCommands[slot]}".`;
+    throw new ScriptError(`There is no ${slot} database yet. ${hint}`);
   }
 
   const current = readActiveSlot();
@@ -138,7 +176,17 @@ function use(slot: Slot, force: boolean): void {
 }
 
 function set(slot: Slot, from: string | undefined): void {
+  const current = readActiveSlot();
   const source = from ? path.resolve(from) : activePath;
+
+  if (slot === "production" && !from && current !== "production") {
+    throw new ScriptError(
+      'Refusing to save the active database as production. Pass "--from <file>" with your production database, or switch to production first.',
+    );
+  }
+
+  if (slot === "production") ensureProductionSource(source);
+
   const savingActive = source === activePath;
 
   copyDatabase(source, slotPaths[slot]);
@@ -170,7 +218,9 @@ Commands:
   use demo|production     Open a saved copy as data/managr.db.
                          Add "--force" to reload it when it is already active.
   set demo|production     Save data/managr.db as a copy.
+                         Production needs "--from <file>" unless production is active.
                          Add "--from <file>" to save another SQLite file instead.
+                         A sample database is refused for production.
 
 The active database is saved back to its copy before switching, so edits are
 not lost. Stop the desk before switching; the running server keeps its open

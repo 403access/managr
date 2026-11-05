@@ -23,14 +23,21 @@ bun run db:prod      # open the production copy
 bun run db:status    # show the active copy and both saved files
 ```
 
-Save the currently open books as either copy:
+Save the currently open books as the demo copy:
 
 ```bash
 bun run db:demo:set
-bun run db:prod:set
 ```
 
-When you switch away from a copy, the open database is saved back to that copy first, so edits are not lost. An open database that has not been saved as a copy is kept as `data/managr.unsaved-<timestamp>.db` before the first switch. `--from` imports another SQLite file into a copy, for example `bun run db:prod:set -- --from ~/backup/managr.db`. If the copy is already active, add `--force` to load the saved copy over the open one. Start the desk again after a switch because the running server keeps its open connection. Uploads in `data/uploads` are shared by both copies.
+Production must start from your own books. Import it explicitly; the script refuses the demo copy and any database that still contains the sample company:
+
+```bash
+bun run db:prod:set -- --from ~/backup/managr.db
+```
+
+`db:prod:set` without `--from` only works while production is already the active copy, so saving production changes does not pull in demo data.
+
+When you switch away from a copy, the open database is saved back to that copy first, so edits are not lost. An open database that has not been saved as a copy is kept as `data/managr.unsaved-<timestamp>.db` before the first switch. If the copy is already active, add `--force` to load the saved copy over the open one. Start the desk again after a switch because the running server keeps its open connection. Uploads in `data/uploads` are shared by both copies.
 
 ```bash
 docker compose up --build
