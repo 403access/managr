@@ -1,10 +1,11 @@
-export type NavIcon = "desk" | "invoices" | "time" | "dates" | "company" | "ledger" | "people" | "documents" | "legal";
+export type NavIcon = "desk" | "invoices" | "customers" | "time" | "dates" | "company" | "ledger" | "people" | "documents" | "legal";
 
-export type NavItem = { href: string; labelKey: "nav.desk" | "nav.invoices" | "nav.time" | "nav.dates" | "nav.company" | "nav.ledger" | "nav.people" | "nav.documents" | "nav.legal"; icon: NavIcon };
+export type NavItem = { href: string; labelKey: "nav.desk" | "nav.invoices" | "nav.customers" | "nav.time" | "nav.dates" | "nav.company" | "nav.ledger" | "nav.people" | "nav.documents" | "nav.legal"; icon: NavIcon };
 
 export const primaryNav: NavItem[] = [
   { href: "/", labelKey: "nav.desk", icon: "desk" },
   { href: "/invoices", labelKey: "nav.invoices", icon: "invoices" },
+  { href: "/customers", labelKey: "nav.customers", icon: "customers" },
   { href: "/time", labelKey: "nav.time", icon: "time" },
   { href: "/obligations", labelKey: "nav.dates", icon: "dates" },
 ];

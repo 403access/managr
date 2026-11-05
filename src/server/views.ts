@@ -174,7 +174,11 @@ export function companyView() {
 }
 
 export function invoicesView() {
-  return { invoices: listInvoices(), customers: listCustomers() };
+  return { invoices: listInvoices() };
+}
+
+export function customersView() {
+  return { customers: listCustomers() };
 }
 
 export function invoiceView(id: number) {
@@ -402,6 +406,8 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return companyView();
     case "invoices":
       return invoicesView();
+    case "customers":
+      return customersView();
     case "invoice":
       return invoiceView(query.id!);
     case "invoice-new":

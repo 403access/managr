@@ -3,6 +3,7 @@ export const VIEW_NAMES = [
   "desk",
   "company",
   "invoices",
+  "customers",
   "invoice",
   "invoice-new",
   "invoice-edit",

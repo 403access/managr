@@ -17,6 +17,7 @@ function Icon({ name }: { name: NavIcon }) {
     <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
       {name === "desk" ? <path {...common} d="M4 10.5 12 4l8 6.5V20H4zM9 20v-6h6v6" /> : null}
       {name === "invoices" ? <path {...common} d="M7 3.5h7l5 5V20.5H7zM14 3.5V9h5.5M9 13h6M9 16.5h4" /> : null}
+      {name === "customers" ? <path {...common} d="M4 5.5h16V18.5H4zM8 8.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM5.8 15.5c.4-1.4 1.2-2 2.2-2s1.8.6 2.2 2M13 10h4M13 13.5h3" /> : null}
       {name === "time" ? <path {...common} d="M12 21a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17zM12 8v4.5l3 2" /> : null}
       {name === "dates" ? <path {...common} d="M5 5.5h14V20H5zM5 9.5h14M8 3.5v4M16 3.5v4" /> : null}
       {name === "company" ? <path {...common} d="M4 20.5h16M6 20.5V8l6-4 6 4v12.5M10 20.5v-4h4v4" /> : null}
@@ -82,7 +83,7 @@ export function AppNav({ variant }: { variant: "side" | "bottom" }) {
           </nav>
         </div>
       ) : null}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur" aria-label={t("nav.primary")}>
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur" aria-label={t("nav.primary")}>
         {primaryNav.map((item) => {
           const on = active(pathname, item.href);
           return (
