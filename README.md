@@ -55,9 +55,12 @@ That runs the same desk at [http://localhost:3000](http://localhost:3000) and th
 After code changes, the image has to be rebuilt. Docker reuses the cached dependency layers while `package.json` and `bun.lock` are unchanged; `docker:rebuild` forces a clean build only when the cache is suspect. These scripts wrap the Compose commands:
 
 ```bash
-bun run docker:restart        # rebuild and restart the desk and site
+bun run docker:restart        # rebuild and restart the whole stack
 bun run docker:restart:desk   # rebuild and restart only the desk
-bun run docker:rebuild        # clean rebuild of the desk without cache
+bun run docker:restart:site   # rebuild and restart only the site
+bun run docker:rebuild        # clean rebuild and restart of the whole stack
+bun run docker:rebuild:desk   # clean rebuild and restart of the desk only
+bun run docker:rebuild:site   # clean rebuild and restart of the site only
 bun run docker:status         # show container health
 bun run docker:logs           # follow the desk logs
 bun run docker:down           # stop and remove the containers
