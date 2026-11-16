@@ -133,6 +133,7 @@ export const payments = sqliteTable("payments", {
 export const employees = sqliteTable("employees", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  shareholderId: integer("shareholder_id").references(() => shareholders.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   role: text("role").notNull().default(""),
@@ -248,6 +249,7 @@ export const customDeadlines = sqliteTable("custom_deadlines", {
 export const resolutions = sqliteTable("resolutions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  employeeId: integer("employee_id").references(() => employees.id),
   resolvedOn: text("resolved_on").notNull(),
   title: text("title").notNull(),
   kind: text("kind").notNull(),

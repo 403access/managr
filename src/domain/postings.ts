@@ -83,6 +83,17 @@ export function buildReserveAllocation(amountCents: number): DraftLine[] {
   return checked([line(ACCOUNTS.retained, amountCents, 0), line(ACCOUNTS.reserve, 0, amountCents)]);
 }
 
+export function buildShareholderPayout(amountCents: number): DraftLine[] {
+  if (amountCents <= 0) throw new Error("Payout must be positive.");
+  return checked([line(ACCOUNTS.shareholdersPayable, amountCents, 0), line(ACCOUNTS.bank, 0, amountCents)]);
+}
+
+/** A profit distribution uses retained profit. It is not a salary and not an operating expense. */
+export function buildProfitDistribution(amountCents: number): DraftLine[] {
+  if (amountCents <= 0) throw new Error("Distribution must be positive.");
+  return checked([line(ACCOUNTS.retained, amountCents, 0), line(ACCOUNTS.bank, 0, amountCents)]);
+}
+
 export function buildReserveLossOffset(amountCents: number): DraftLine[] {
   if (amountCents <= 0) throw new Error("Offset must be positive.");
   return checked([line(ACCOUNTS.reserve, amountCents, 0), line(ACCOUNTS.lossCarry, 0, amountCents)]);
@@ -96,12 +107,14 @@ export function buildPayroll(input: {
   employerSocialCents: number;
   flatTaxCents: number;
   payNow: boolean;
+  /** A linked shareholder's net pay accrues to the shareholder payable instead of bank or wages payable. */
+  payableAccount?: string;
 }): DraftLine[] {
   const net = input.grossCents - input.withheldCents - input.wageTaxCents;
   if (net <= 0) throw new Error("Net pay must stay positive. Check the wage tax and the withheld contributions.");
   const wageAccount = input.minijob ? ACCOUNTS.minijobWages : ACCOUNTS.salaries;
   const socialExpense = input.minijob ? ACCOUNTS.minijobSocial : ACCOUNTS.socialExpense;
-  const creditPay = input.payNow ? ACCOUNTS.bank : ACCOUNTS.wagesPayable;
+  const creditPay = input.payableAccount ?? (input.payNow ? ACCOUNTS.bank : ACCOUNTS.wagesPayable);
   const lines = dropEmpty([
     line(wageAccount, input.grossCents, 0),
     line(creditPay, 0, net),

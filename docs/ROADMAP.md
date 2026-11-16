@@ -34,6 +34,7 @@ Shipped after the first version, in this order:
 1. Invoices state their amounts as net prices with VAT added or gross prices with VAT included, chosen per invoice.
 2. A payslip view on the person screen and in the payroll form shows every line: gross, each contribution per side, the entered wage tax, net pay, and employer cost.
 3. A salary history carries raises over time; the payroll form suggests the figure for the chosen month and still books the confirmed amount.
+4. A shareholder-director's salary accrues to a liability to the shareholder, the payout clears it, and a separate profit distribution uses retained profit. Salary agreements are shareholder resolutions, with reminders for the resolution and the appropriateness check.
 
 ## Not in version 1
 
@@ -55,12 +56,6 @@ These need an external system or a different product decision. They are not stub
 2. DATEV export once the chart is confirmed against the office's Kontenrahmen.
 3. A real Lohnsteuer function, or an explicit import of payroll results from a Lohnprogramm.
 4. Sign-in, only when the file is no longer a single local database.
-
-## Backlog
-
-Requested, not yet scheduled. Listed in the order they were raised; that is not a commitment.
-
-1. **Salary paid to a shareholder who works in the company.** A managing shareholder's salary as a payout with its own posting and paperwork: the shareholder resolution, the appropriateness check that keeps it clear of a hidden profit distribution, and the split between salary and profit distribution.
 
 ## Done
 

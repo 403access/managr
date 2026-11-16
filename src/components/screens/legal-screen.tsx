@@ -67,11 +67,20 @@ export function LegalScreen() {
                       <SelectInput name="kind" defaultValue="other">
                         <option value="formation">{label("formation")}</option>
                         <option value="profit">{label("profit")}</option>
+                        <option value="salary">{label("salary")}</option>
                         <option value="appointment">{label("appointment")}</option>
                         <option value="other">{label("other")}</option>
                       </SelectInput>
                     </Field>
                   </div>
+                  <Field label={t("legal.person")} hint={t("legal.personHint")}>
+                    <SelectInput name="employeeId" defaultValue="">
+                      <option value="">{t("legal.personNone")}</option>
+                      {data.people.map((person) => (
+                        <option key={person.id} value={person.id}>{person.firstName} {person.lastName}</option>
+                      ))}
+                    </SelectInput>
+                  </Field>
                   <Field label={t("common.title")}><TextInput name="title" /></Field>
                   <Field label={t("legal.summary")}><TextInput name="summary" /></Field>
                   <Field label={t("legal.wording")}><TextArea name="body" /></Field>

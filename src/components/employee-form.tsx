@@ -12,6 +12,7 @@ export type EmployeeValues = {
   lastName: string;
   role: string;
   kind: string;
+  shareholderId: number | null;
   svStatus: string;
   ownershipBps: number;
   street: string;
@@ -39,7 +40,7 @@ export type EmployeeValues = {
   notes: string;
 };
 
-export function EmployeeForm({ person, today }: { person?: EmployeeValues; today: string }) {
+export function EmployeeForm({ person, today, shareholders = [] }: { person?: EmployeeValues; today: string; shareholders?: { id: number; name: string }[] }) {
   const { t, label } = useI18n();
   return (
     <ActionForm action={saveEmployee}>
@@ -62,6 +63,14 @@ export function EmployeeForm({ person, today }: { person?: EmployeeValues; today
             <option value="automatic">{label("automatic")}</option>
             <option value="subject">{label("subject")}</option>
             <option value="exempt">{label("exempt")}</option>
+          </SelectInput>
+        </Field>
+        <Field label={t("people.shareholder")} hint={t("people.shareholderHint")}>
+          <SelectInput name="shareholderId" defaultValue={person?.shareholderId ?? ""}>
+            <option value="">{t("people.shareholderNone")}</option>
+            {shareholders.map((holder) => (
+              <option key={holder.id} value={holder.id}>{holder.name}</option>
+            ))}
           </SelectInput>
         </Field>
         <Field label={t("people.ownership")} hint={t("people.ownershipHint")}>

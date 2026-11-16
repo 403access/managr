@@ -64,7 +64,7 @@ Die Ausstellung folgt weiterhin nur §14 und §35a. Die zusätzlichen XRechnung-
 
 Das Journal ist doppelt geführt und nur anhängend. Jede Buchung wird in `src/domain/postings.ts` erzeugt und abgelehnt, wenn sie nicht ausgeglichen ist.
 
-Der Kontenrahmen ist ein SKR03-Arbeitskontenrahmen für eine Dienstleistungs-UG, kein zertifizierter DATEV-Export. Bekannte Konten (Bank 1200, Forderungen 1400, Umsatzsteuer 1776 / 1771, Vorsteuer 1576 / 1571, Erlöse 8400 / 8300 / 8192) folgen dem üblichen SKR03-Gebrauch. Der Gewinn vor Steuern ignoriert Konten mit `pnl: "tax"`, damit eine gebuchte Steuerzahlung nicht als Betriebsausgabe behandelt und dann erneut besteuert wird.
+Der Kontenrahmen ist ein SKR03-Arbeitskontenrahmen für eine Dienstleistungs-UG, kein zertifizierter DATEV-Export. Bekannte Konten (Bank 1200, Forderungen 1400, Umsatzsteuer 1776 / 1771, Vorsteuer 1576 / 1571, Verbindlichkeiten gegenüber Gesellschaftern 1700, Verbindlichkeiten aus Lohn und Gehalt 1740, Erlöse 8400 / 8300 / 8192) folgen dem üblichen SKR03-Gebrauch. Der Gewinn vor Steuern ignoriert Konten mit `pnl: "tax"`, damit eine gebuchte Steuerzahlung nicht als Betriebsausgabe behandelt und dann erneut besteuert wird.
 
 Körperschaft-, Solidaritäts- und Gewerbesteuer sind eine Planungsschätzung in `estimateCorporateTax`:
 
@@ -94,6 +94,20 @@ Die Obergrenzen, Sätze, die Minijob-Grenze und der Faktor F für 2026 sind die 
 Ein Gehalt kann sich über die Zeit ändern. `salary_periods` hält je Änderung eine Zeile: das Datum, ab dem sie gilt, und das Monatsbrutto. `salaryForMonth` liefert die letzte Änderung, die nicht nach dem Abrechnungsmonat liegt, sonst das Vertragsbrutto in `employees.gross_monthly_cents`. Eine Änderung mit Datum innerhalb eines Monats gilt für diesen ganzen Monat. Der Personenbildschirm zeigt den Verlauf und die nächste Änderung; das Lohnformular schlägt den Betrag des gewählten Monats vor, und eine Einmalzahlung, ein Bonus oder ein angebrochener Monat wird beim Buchen selbst als Brutto eingetragen. Gebucht wird, was bestätigt wurde, nicht was der Verlauf vorgeschlagen hat.
 
 Die Krankenversicherung einer geschäftsführenden Gesellschafterin oder eines geschäftsführenden Gesellschafters ist ein Policeneintrag (privat oder freiwillig gesetzlich), kein Lohnabzug. Verlängerungsdaten erscheinen als Erinnerungen.
+
+## Gehalt an den Gesellschafter-Geschäftsführer
+
+Eine Geschäftsführung, die auch Anteile hält, wird über die Lohnabrechnung bezahlt, aber das Geld bewegt sich anders. Ist die Person mit einem Gesellschaftereintrag verknüpft (`employees.shareholder_id`), bucht die Lohnabrechnung den Nettolohn auf `ACCOUNTS.shareholdersPayable` (1700) statt auf Bank oder Verbindlichkeiten aus Lohn und Gehalt. `buildShareholderPayout` tilgt diese Verbindlichkeit gegen die Bank. Die Auszahlung ist nicht das Gehalt: Das Gehalt ist bereits als Aufwand gebucht.
+
+`reviewDirectorSalary` ist eine Erinnerungsliste, keine Beurteilung:
+
+- Das Gehalt muss vorab durch Gesellschafterbeschluss vereinbart sein. Ein Beschluss, der nach Beginn des Gehalts datiert ist, gilt als rückwirkende Vereinbarung und kann eine verdeckte Gewinnausschüttung sein.
+- Das Gehalt muss angemessen sein. Der Teil, den eine fremde Geschäftsführung nicht bekäme, kann eine verdeckte Gewinnausschüttung sein und ist dann keine Betriebsausgabe.
+- Eine Geschäftsführung mit Anteilen sollte mit dem Gesellschaftereintrag verknüpft sein, damit Gehalt, Auszahlung und Beschluss zusammenbleiben.
+
+Ein Beschluss der Art `salary`, der die Person nennt (`resolutions.employee_id`), erfüllt die Erinnerung an die Unterlagen. managr entscheidet nicht, ob der Beschluss wirksam oder der Betrag angemessen ist, und blockiert keine Buchung.
+
+Eine Gewinnausschüttung läuft getrennt: `buildProfitDistribution` belastet den Gewinnvortrag (0860) und erkennt die Bank. Sie braucht einen Gesellschafterbeschluss und einen festgestellten Jahresabschluss und ist kein Gehalt und keine Betriebsausgabe. Der Schreibtisch hält die Bestätigung fest, nicht die rechtliche Wirkung.
 
 ## Pflichten
 

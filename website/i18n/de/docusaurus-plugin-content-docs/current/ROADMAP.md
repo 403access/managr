@@ -34,6 +34,7 @@ Nach der ersten Version ausgeliefert, in dieser Reihenfolge:
 1. Rechnungen weisen ihre Beträge als Nettopreise mit zusätzlicher Umsatzsteuer oder als Bruttopreise mit enthaltener Umsatzsteuer aus; die Wahl gilt je Rechnung.
 2. Eine Abrechnungsansicht im Personenbildschirm und im Lohnformular zeigt jede Zeile: Brutto, jeden Beitrag je Seite, die eingegebene Lohnsteuer, den Nettolohn und den Arbeitgeberaufwand.
 3. Ein Gehaltsverlauf trägt Erhöhungen über die Zeit; das Lohnformular schlägt den Betrag des gewählten Monats vor und bucht weiterhin den bestätigten Betrag.
+4. Das Gehalt eines Gesellschafter-Geschäftsführers sammelt sich als Verbindlichkeit gegenüber dem Gesellschafter, die Auszahlung tilgt sie, und eine getrennte Gewinnausschüttung verwendet den Gewinnvortrag. Gehaltsvereinbarungen sind Gesellschafterbeschlüsse, mit Erinnerungen an Beschluss und Angemessenheitsprüfung.
 
 ## Nicht in Version 1
 
@@ -55,12 +56,6 @@ Diese Punkte brauchen ein externes System oder eine andere Produktentscheidung. 
 2. DATEV-Export, sobald der Kontenrahmen gegen den Kontenrahmen der Kanzlei bestätigt ist.
 3. Eine echte Lohnsteuerfunktion oder ein ausdrücklicher Import von Lohnabrechnungsergebnissen aus einem Lohnprogramm.
 4. Anmeldung, erst wenn die Datei nicht mehr eine einzelne lokale Datenbank ist.
-
-## Backlog
-
-Gewünscht, noch nicht eingeplant. In der Reihenfolge, in der es aufkam; das ist keine Zusage.
-
-1. **Gehalt als Auszahlung an den selbst angestellten Gesellschafter.** Das Gehalt eines Gesellschafter-Geschäftsführers als Auszahlung mit eigener Buchung und Unterlagen: Gesellschafterbeschluss, Angemessenheitsprüfung, damit daraus keine verdeckte Gewinnausschüttung wird, und die Trennung zwischen Gehalt und Gewinnausschüttung.
 
 ## Fertig
 

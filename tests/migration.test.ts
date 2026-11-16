@@ -4,7 +4,7 @@ import path from "path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { openDatabase } from "@/db/client";
-import { companies, customers, invoices, journalEntries } from "@/db/schema";
+import { companies, accounts, customers, invoices, journalEntries } from "@/db/schema";
 
 const files: string[] = [];
 
@@ -54,6 +54,7 @@ describe("multi-company migration", () => {
         .values({ legalName: "Zweites Einzelunternehmen", legalForm: "einzelunternehmen", shareCapitalCents: 0, foundingDate: "2026-01-01", isActive: false })
         .run().lastInsertRowid,
     );
+    expect(db.select().from(accounts).all().some((account) => account.code === "1700")).toBe(true);
     const customerId = Number(db.insert(customers).values({ companyId: secondId, name: "Neukunde" }).run().lastInsertRowid);
     expect(() =>
       db

@@ -15,12 +15,14 @@ export function PayrollForm({
   person,
   company,
   salaryPeriods,
+  shareholderDirector = false,
   postedMonths,
   today,
 }: {
   person: SocialPerson & { id: number; grossMonthlyCents: number; firstName: string; lastName: string };
   company: { stateCode: string; additionalKvBps: number };
   salaryPeriods: SalaryPeriod[];
+  shareholderDirector?: boolean;
   postedMonths: string[];
   today: string;
 }) {
@@ -53,10 +55,14 @@ export function PayrollForm({
           </Field>
         )}
       </div>
-      <label className="flex min-h-11 items-center gap-3 text-sm">
-        <input type="checkbox" name="payNow" checked={payNow} onChange={(event) => setPayNow(event.target.checked)} className="size-5 accent-pine" />
-        {t("people.payNow")}
-      </label>
+      {shareholderDirector ? (
+        <p className="text-sm text-muted">{t("people.shareholderPayrollNote")}</p>
+      ) : (
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <input type="checkbox" name="payNow" checked={payNow} onChange={(event) => setPayNow(event.target.checked)} className="size-5 accent-pine" />
+          {t("people.payNow")}
+        </label>
+      )}
       {postedMonths.includes(month) ? <p className="text-sm text-clay">{t("people.alreadyPosted")}</p> : null}
       {gross.trim() && typedGross === null ? <p className="text-sm text-clay">{t("people.grossInvalid")}</p> : null}
       {estimate ? (

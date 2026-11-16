@@ -1,11 +1,12 @@
 "use client";
 
-import { addAbsence, deleteAbsence, deleteSalaryPeriod, saveSalaryPeriod } from "@/server/actions";
+import { addAbsence, deleteAbsence, deleteSalaryPeriod, payShareholder, saveSalaryPeriod } from "@/server/actions";
 import type { personView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
-import { formatEuro } from "@/domain/money";
+import { formatEuro, formatPercentBps } from "@/domain/money";
 import { payslip } from "@/domain/social";
 import { queryKeys, viewPath } from "@/client/query-keys";
+import { euroInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { EmployeeForm } from "@/components/employee-form";
 import { useI18n } from "@/components/locale-provider";
@@ -41,6 +42,38 @@ export function PersonScreen({ id }: { id: number }) {
                 ))}
                 <div className="mt-3">
                   <Disclaimer>{t("people.payslipNote")}</Disclaimer>
+                </div>
+              </Card>
+            ) : null}
+            {employee.kind === "managing_director" ? (
+              <Card className="mt-6">
+                <h2 className="text-xl">{t("people.shareholderDirector")}</h2>
+                {loaded.shareholder ? (
+                  <p className="mt-2 text-sm">
+                    {t("people.shareholderLinked", { name: loaded.shareholder.name, percent: formatPercentBps(loaded.shareholder.shareBps) })}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-muted">{t("people.shareholderUnlinked")}</p>
+                )}
+                {loaded.directorReview.warnings.map((warning) => (
+                  <p key={warning} className="mt-2 text-sm text-amber">{tx(warning)}</p>
+                ))}
+                <p className="mt-3 text-sm">{t("people.shareholderPayable", { amount: formatEuro(loaded.shareholderPayableCents) })}</p>
+                {loaded.shareholder && loaded.shareholderPayableCents > 0 ? (
+                  <ActionForm action={payShareholder} className="mt-3 grid gap-3">
+                    <input type="hidden" name="employeeId" value={employee.id} />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label={t("common.amount")}>
+                        <TextInput name="amount" inputMode="decimal" defaultValue={euroInput(loaded.shareholderPayableCents)} />
+                      </Field>
+                      <Field label={t("common.date")}><TextInput name="date" type="date" defaultValue={loaded.today} /></Field>
+                    </div>
+                    <Field label={t("common.memo")}><TextInput name="memo" /></Field>
+                    <SubmitButton>{t("people.shareholderPayout")}</SubmitButton>
+                  </ActionForm>
+                ) : null}
+                <div className="mt-3">
+                  <Disclaimer>{t("people.shareholderNote")}</Disclaimer>
                 </div>
               </Card>
             ) : null}
@@ -103,11 +136,11 @@ export function PersonScreen({ id }: { id: number }) {
               </div>
             </Tab>
             <Tab id="record" label={t("people.record")}>
-              <EmployeeForm person={employee} today={loaded.today} />
+              <EmployeeForm person={employee} today={loaded.today} shareholders={loaded.shareholders} />
             </Tab>
             <Tab id="payroll" label={t("people.payroll")}>
               <Card>
-                <PayrollForm person={employee} company={loaded.company} salaryPeriods={loaded.salaryPeriods} postedMonths={loaded.postedMonths} today={loaded.today} />
+                <PayrollForm person={employee} company={loaded.company} salaryPeriods={loaded.salaryPeriods} shareholderDirector={employee.kind === "managing_director" && employee.shareholderId !== null} postedMonths={loaded.postedMonths} today={loaded.today} />
                 {loaded.postedMonths.length > 0 ? <p className="mt-3 text-sm text-muted">{t("people.posted", { months: loaded.postedMonths.join(", ") })}</p> : null}
               </Card>
             </Tab>

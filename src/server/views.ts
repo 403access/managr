@@ -1,6 +1,7 @@
 import "server-only";
 import { CHART, ACCOUNTS, signedBalance } from "@/domain/accounts";
 import { addDays, fiscalYearContaining, todayIso } from "@/domain/calendar";
+import { reviewDirectorSalary } from "@/domain/director-salary";
 import { reviewInvoice } from "@/domain/invoice";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
 import { policyReminders } from "@/domain/obligations";
@@ -167,13 +168,16 @@ export function deskView() {
 export function companyView() {
   const company = loadCompany();
   const holders = loadShareholders();
-  const reserve = signedAccount(accountBalances(), ACCOUNTS.reserve);
+  const balances = accountBalances();
+  const reserve = signedAccount(balances, ACCOUNTS.reserve);
   return {
     company,
     holders,
     shareBps: holders.reduce((sum, holder) => sum + holder.shareBps, 0),
     companies: listCompanies().map((item) => ({ id: item.id, legalName: item.legalName, legalForm: item.legalForm, isActive: item.isActive })),
     reserve,
+    retained: signedAccount(balances, ACCOUNTS.retained),
+    shareholdersPayable: signedAccount(balances, ACCOUNTS.shareholdersPayable),
     gap: conversionGap(company.shareCapitalCents, reserve),
     duty: reserveDutyActive(company.shareCapitalCents),
     klein: kleinSnapshot(company),
@@ -326,6 +330,12 @@ export function personView(id: number) {
   const loaded = loadPerson(id);
   if (!loaded) return null;
   const { employee, estimate, estimateError, absences, postedMonths, vacationUsed, company, salaryPeriods, currentSalaryCents } = loaded;
+  const holders = loadShareholders();
+  const shareholder = employee.shareholderId === null ? null : holders.find((holder) => holder.id === employee.shareholderId) ?? null;
+  const salaryResolutionDate = listResolutions()
+    .filter((resolution) => resolution.kind === "salary" && resolution.employeeId === employee.id)
+    .map((resolution) => resolution.resolvedOn)
+    .sort()[0] ?? null;
   return {
     employee,
     company: { stateCode: company.stateCode, additionalKvBps: company.additionalKvBps },
@@ -339,6 +349,18 @@ export function personView(id: number) {
     salaryPeriods,
     currentSalaryCents,
     nextChange: nextSalaryChange(salaryPeriods, todayIso().slice(0, 7)),
+    shareholders: holders.map((holder) => ({ id: holder.id, name: holder.name, shareBps: holder.shareBps })),
+    shareholder,
+    salaryResolutionDate,
+    directorReview: reviewDirectorSalary({
+      kind: employee.kind,
+      ownershipBps: employee.ownershipBps,
+      shareholderLinked: shareholder !== null,
+      salaryResolutionDate,
+      startDate: employee.startDate,
+      grossMonthlyCents: currentSalaryCents,
+    }),
+    shareholderPayableCents: signedAccount(accountBalances(), ACCOUNTS.shareholdersPayable),
     today: todayIso(),
   };
 }
@@ -407,7 +429,12 @@ export function documentsView() {
 }
 
 export function legalView() {
-  return { items: listCompliance(), resolutions: listResolutions(), today: todayIso() };
+  return {
+    items: listCompliance(),
+    resolutions: listResolutions(),
+    people: listPeople().map(({ employee }) => ({ id: employee.id, firstName: employee.firstName, lastName: employee.lastName })),
+    today: todayIso(),
+  };
 }
 
 export function loadView(name: ViewName, params: URLSearchParams) {

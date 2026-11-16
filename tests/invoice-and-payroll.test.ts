@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import { journalImbalance } from "@/domain/accounts";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, isKleinunternehmerNote, reviewInvoice, type InvoiceReviewInput } from "@/domain/invoice";
 import { estimateContributions, payrollAmounts, payslip, type SocialInput } from "@/domain/social";
-import { buildExpense, buildPayroll, buildReserveAllocation, buildSalesInvoice, reverseLines } from "@/domain/postings";
+import { buildExpense, buildPayroll, buildProfitDistribution, buildReserveAllocation, buildSalesInvoice, buildShareholderPayout, reverseLines } from "@/domain/postings";
 import { summarizeVat } from "@/domain/vat";
 import { countWorkdays, durationMinutes, minimumVacationDays, timeWarnings, weekStart } from "@/domain/time";
+
+function side(lines: { accountCode: string; debitCents: number; creditCents: number }[], code: string, which: "debitCents" | "creditCents"): number {
+  return lines.filter((line) => line.accountCode === code).reduce((sum, line) => sum + line[which], 0);
+}
 
 const ready: InvoiceReviewInput = {
   legalName: "Atelier Nordlicht UG (haftungsbeschränkt)",
@@ -141,6 +145,34 @@ describe("payroll posting and working time", () => {
     expect(director.employer.totalCents).toBe(0);
     expect(director.netCents).toBe(270_000);
     expect(director.employerCostCents).toBe(320_000);
+  });
+
+  it("credits a shareholder-director's net pay to the shareholder payable", () => {
+    const lines = buildPayroll({
+      minijob: false,
+      grossCents: 320_000,
+      withheldCents: 0,
+      wageTaxCents: 50_000,
+      employerSocialCents: 0,
+      flatTaxCents: 0,
+      payNow: true,
+      payableAccount: "1700",
+    });
+    expect(journalImbalance(lines)).toBeNull();
+    expect(side(lines, "1700", "creditCents")).toBe(270_000);
+    expect(side(lines, "1200", "creditCents")).toBe(0);
+  });
+
+  it("clears a shareholder payable and uses retained profit for a distribution", () => {
+    const payout = buildShareholderPayout(270_000);
+    expect(journalImbalance(payout)).toBeNull();
+    expect(side(payout, "1700", "debitCents")).toBe(270_000);
+    expect(side(payout, "1200", "creditCents")).toBe(270_000);
+
+    const distribution = buildProfitDistribution(100_000);
+    expect(journalImbalance(distribution)).toBeNull();
+    expect(side(distribution, "0860", "debitCents")).toBe(100_000);
+    expect(side(distribution, "1200", "creditCents")).toBe(100_000);
   });
 
   it("warns on breaks and the 10-hour cap, and counts a Monday-Friday week", () => {

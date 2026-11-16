@@ -1,6 +1,6 @@
 "use client";
 
-import { addPolicy, addShareholder, createCompany, deletePolicy, deleteShareholder, offsetReserve, recordReserve, switchCompany, updateBank, updateIdentity, updateTaxProfile } from "@/server/actions";
+import { addPolicy, addShareholder, createCompany, deletePolicy, deleteShareholder, offsetReserve, payProfitDistribution, recordReserve, switchCompany, updateBank, updateIdentity, updateTaxProfile } from "@/server/actions";
 import type { companyView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { LEGAL_FORMS, legalFormLabel } from "@/domain/company";
@@ -222,6 +222,20 @@ export function CompanyScreen() {
                   </Card>
                 ))}
               </div>
+              <p className="mt-3 text-sm text-muted">{t("company.shareholdersPayable", { amount: formatEuro(data.shareholdersPayable) })}</p>
+              <Card className="mt-3">
+                <h2 className="text-xl">{t("company.distribution")}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted">{t("company.distributionBody", { amount: formatEuro(data.retained) })}</p>
+                <ActionForm action={payProfitDistribution}>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <Field label={t("common.amount")}><TextInput name="amount" inputMode="decimal" placeholder="0,00" /></Field>
+                    <Field label={t("common.date")}><TextInput name="date" type="date" defaultValue={data.today} /></Field>
+                  </div>
+                  <Field label={t("common.memo")}><TextInput name="memo" /></Field>
+                  <Check name="resolved" label={t("company.distributionResolved")} hint={t("company.distributionResolvedHint")} />
+                  <SubmitButton>{t("company.distributionPost")}</SubmitButton>
+                </ActionForm>
+              </Card>
               <Card className="mt-3">
                 <ActionForm action={addShareholder} resetOnSuccess>
                   <div className="grid gap-3 sm:grid-cols-2">

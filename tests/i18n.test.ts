@@ -75,6 +75,8 @@ describe("statutory phrases", () => {
     const ceiling = estimate.warnings.find((warning) => warning.includes("minijob ceiling"));
     expect(ceiling).toBeTruthy();
     expect(tx("de", ceiling ?? "")).toContain("Geringfügigkeitsgrenze");
+    expect(tx("de", "Check that the salary is arm's length. A salary an unrelated managing director would not get can be a hidden profit distribution to the extent of the excess, and that excess is not a business expense.")).toContain("Angemessenheit");
+    expect(tx("de", "The payout is larger than the shareholder payable.")).toContain("Gesellschafter");
   });
 });
 

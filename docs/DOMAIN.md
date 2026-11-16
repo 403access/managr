@@ -64,7 +64,7 @@ Issue still follows §14 and §35a only. The extra XRechnung fields do not block
 
 The ledger is double-entry and append-only. Every posting is built in `src/domain/postings.ts` and refused if it does not balance.
 
-The chart is a SKR03 working chart for a service UG, not a certified DATEV export. Well-known accounts (bank 1200, receivables 1400, VAT 1776 / 1771, input VAT 1576 / 1571, revenue 8400 / 8300 / 8192) follow common SKR03 usage. Profit before tax ignores accounts marked `pnl: "tax"` so a booked tax payment is not treated as an operating expense and then taxed again.
+The chart is a SKR03 working chart for a service UG, not a certified DATEV export. Well-known accounts (bank 1200, receivables 1400, VAT 1776 / 1771, input VAT 1576 / 1571, shareholders payable 1700, wages payable 1740, revenue 8400 / 8300 / 8192) follow common SKR03 usage. Profit before tax ignores accounts marked `pnl: "tax"` so a booked tax payment is not treated as an operating expense and then taxed again.
 
 Corporate, solidarity, and trade tax are a planning estimate in `estimateCorporateTax`:
 
@@ -94,6 +94,20 @@ Corporate, solidarity, and trade tax are a planning estimate in `estimateCorpora
 A salary can change over time. `salary_periods` holds one row per change: the date it applies from and the monthly gross. `salaryForMonth` returns the latest change not after the payroll month, or the contract gross in `employees.gross_monthly_cents` when there is none. A change dated inside a month applies to that whole month. The person screen shows the history and the next change; the payroll form suggests the figure for the chosen month, and a one-off payment, a bonus, or a partial month is typed as the gross on the posting itself. The posting books what was confirmed, not what the schedule suggested.
 
 Health insurance for a controlling shareholder-director is a policy record (private or voluntary statutory), not a payroll deduction. Renewal dates surface as reminders.
+
+## Shareholder-director salary
+
+A managing director who also holds shares is paid through payroll, but the money moves differently. When the person is linked to a shareholder record (`employees.shareholder_id`), the payroll credits the net pay to `ACCOUNTS.shareholdersPayable` (1700) instead of bank or wages payable. `buildShareholderPayout` then clears that liability against the bank. The payout is not the salary: the salary is already booked as an expense.
+
+`reviewDirectorSalary` is a reminder list, not an assessment:
+
+- The salary has to be agreed in advance by shareholder resolution. A resolution dated after the salary began is treated as a retroactive agreement, which can be a hidden profit distribution.
+- The salary has to be arm's length (Angemessenheit). The excess over what an unrelated managing director would get can be a verdeckte Gewinnausschüttung, and that excess is not a business expense.
+- A director with shares should be linked to the shareholder record, so salary, payout, and resolution stay together.
+
+A resolution of kind `salary` that names the person (`resolutions.employee_id`) satisfies the paperwork reminder. managr does not decide whether the resolution is valid or whether the amount is appropriate, and it does not block a posting.
+
+A profit distribution is separate: `buildProfitDistribution` debits retained profit (0860) and credits the bank. It needs a shareholder resolution and adopted annual accounts, and it is not a salary and not an operating expense. The desk records the confirmation, not the legal effect.
 
 ## Obligations
 

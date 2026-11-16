@@ -34,6 +34,7 @@ import {
   policies,
   reserveMovements,
   resolutions,
+  salaryPeriods,
   shareholders,
   tasks,
   timeEntries,
@@ -99,12 +100,15 @@ export function seedIfEmpty(db: DB) {
         .run(),
     );
 
-    tx.insert(shareholders)
-      .values({ companyId, name: "Mara Elling", street: "Sonnenallee 12", postalCode: "12045", city: "Berlin", shareBps: 10_000, nominalCents: 250_000 })
-      .run();
+    const maraShareholderId = insertId(
+      tx.insert(shareholders)
+        .values({ companyId, name: "Mara Elling", street: "Sonnenallee 12", postalCode: "12045", city: "Berlin", shareBps: 10_000, nominalCents: 250_000 })
+        .run(),
+    );
 
     tx.insert(accounts)
       .values(CHART.map((account) => ({ ...account, system: true })))
+      .onConflictDoNothing()
       .run();
 
     const lichtfeld = insertId(tx.insert(customers).values({ companyId, name: "Lichtfeld GmbH", street: "Torstraße 1", postalCode: "10119", city: "Berlin", email: "finance@lichtfeld.example", vatId: "DE111111111", buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"] }).run());
@@ -137,11 +141,12 @@ export function seedIfEmpty(db: DB) {
     post(tx, companyId, on(-75), "Beratung zum Gesellschaftsvertrag", "expense", null, buildExpense({ expenseAccount: "4950", netCents: 40_000, vatBps: 1900, paidNow: true }));
 
     const person = (values: Omit<typeof employees.$inferInsert, "companyId">) => insertId(tx.insert(employees).values({ ...values, companyId }).run());
-    person({
+    const maraId = person({
       firstName: "Mara",
       lastName: "Elling",
       role: "Geschäftsführerin",
       kind: "managing_director",
+      shareholderId: maraShareholderId,
       svStatus: "automatic",
       ownershipBps: 10_000,
       street: "Sonnenallee 12",
@@ -175,6 +180,9 @@ export function seedIfEmpty(db: DB) {
       healthInsuranceName: "TK",
       notes: "Teilzeit. Das Entgelt liegt im Übergangsbereich.",
     });
+    tx.insert(salaryPeriods)
+      .values({ employeeId: jonasId, validFrom: on(32), grossMonthlyCents: 170_000, note: "Beispiel: Erhöhung nach der Probezeit." })
+      .run();
     const aylinId = person({
       firstName: "Aylin",
       lastName: "Demir",
@@ -278,6 +286,7 @@ export function seedIfEmpty(db: DB) {
 
     tx.insert(resolutions).values([
       { companyId, resolvedOn: "2024-03-15", title: "Gründung", kind: "formation", body: "Gesellschafter", summary: "Gesellschaft errichtet. Mara Elling zur Geschäftsführerin bestellt. Stammkapital 2.500 € eingezahlt." },
+      { companyId, resolvedOn: "2024-03-15", employeeId: maraId, title: "Gehaltsvereinbarung Mara Elling", kind: "salary", body: "Gesellschafter", summary: "Beispielbeschluss. Monatliches Bruttogehalt 3.200 €. Die Angemessenheit ist mit einem Berater zu prüfen." },
       { companyId, resolvedOn: `${year}-01-15`, title: `Feststellung des Jahresabschlusses ${year - 1} und Einstellung in die Rücklage`, kind: "profit", body: "Gesellschafter", summary: "Beispielbeschluss. Ein Viertel des Jahresüberschusses, 1.600 €, wird in die gesetzliche Rücklage eingestellt." },
     ]).run();
 
@@ -433,6 +442,13 @@ export function localizeSample(db: DB) {
           ...(healthInsuranceName ? { healthInsuranceName } : {}),
         }).where(eq(employees.id, person.id)).run();
       }
+    }
+    // A sample person who is also a shareholder is linked, so the shareholder-director card has something to show.
+    const sampleHolders = tx.select().from(shareholders).where(eq(shareholders.companyId, companyId)).all();
+    for (const person of tx.select().from(employees).where(eq(employees.companyId, companyId)).all()) {
+      if (person.shareholderId !== null) continue;
+      const holder = sampleHolders.find((item) => item.name === `${person.firstName} ${person.lastName}`);
+      if (holder) tx.update(employees).set({ shareholderId: holder.id }).where(eq(employees.id, person.id)).run();
     }
     for (const absence of tx.select().from(absences).all()) {
       if (!employeeIds.has(absence.employeeId)) continue;

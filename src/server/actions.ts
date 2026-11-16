@@ -35,9 +35,11 @@ import {
   buildCustomerPayment,
   buildExpense,
   buildPayroll,
+  buildProfitDistribution,
   buildReserveAllocation,
   buildReserveLossOffset,
   buildSalesInvoice,
+  buildShareholderPayout,
   buildVatPrepayment,
   reverseLines,
 } from "@/domain/postings";
@@ -62,7 +64,7 @@ const TASK_STATUS = ["open", "doing", "done"] as const;
 const ABSENCE_KIND = ["vacation", "sick", "other"] as const;
 const ABSENCE_STATUS = ["approved", "requested", "rejected"] as const;
 const POLICY_KIND = ["health", "liability", "contents", "legal", "other"] as const;
-const RESOLUTION_KIND = ["formation", "profit", "appointment", "other"] as const;
+const RESOLUTION_KIND = ["formation", "profit", "salary", "appointment", "other"] as const;
 const DOCUMENT_CATEGORY = ["corporate", "tax", "invoice", "employment", "insurance", "other"] as const;
 
 function saved(message: string): ActionState {
@@ -771,11 +773,18 @@ export async function saveEmployee(_state: ActionState, formData: FormData): Pro
     const endRaw = text(formData, "endDate");
     const endDate = endRaw ? requireDate(endRaw, "The end") : null;
     if (endDate && endDate < startDate) throw new Error("The end date is before the start date.");
+    const db = getDb();
+    const company = requireCompany();
+    const shareholderId = optionalId(formData, "shareholderId");
+    if (shareholderId && !db.select().from(shareholders).where(and(eq(shareholders.id, shareholderId), eq(shareholders.companyId, company.id))).get()) {
+      throw new Error("Shareholder not found.");
+    }
     const values = {
       firstName,
       lastName,
       role: text(formData, "role"),
       kind: oneOf(text(formData, "kind"), KINDS, "Employment"),
+      shareholderId,
       svStatus: oneOf(text(formData, "svStatus"), SV, "Social-insurance status"),
       ownershipBps,
       street: text(formData, "street"),
@@ -802,8 +811,6 @@ export async function saveEmployee(_state: ActionState, formData: FormData): Pro
       flatTax: checked(formData, "flatTax"),
       notes: text(formData, "notes"),
     };
-    const db = getDb();
-    const company = requireCompany();
     const id = optionalId(formData);
     if (id) {
       const existing = db.select().from(employees).where(and(eq(employees.id, id), eq(employees.companyId, company.id))).get();
@@ -920,15 +927,63 @@ export async function postPayroll(_state: ActionState, formData: FormData): Prom
       wageTax = parsed;
     }
     const amounts = payrollAmounts(estimate, wageTax);
+    const payableAccount = employee.kind === "managing_director" && employee.shareholderId !== null ? ACCOUNTS.shareholdersPayable : undefined;
     postJournal(db, {
       companyId: company.id,
       date: payDate,
       memo: `Payroll ${employee.lastName} ${month}`,
       source: "payroll",
       sourceId,
-      lines: buildPayroll({ ...amounts, grossCents: gross, payNow: checked(formData, "payNow") }),
+      lines: buildPayroll({ ...amounts, grossCents: gross, payNow: checked(formData, "payNow"), payableAccount }),
     });
-    return saved(`Payroll for ${month} posted. Wage tax was entered, not calculated.`);
+    return saved(payableAccount
+      ? `Payroll for ${month} posted. The net pay is a liability to the shareholder until it is paid out. Wage tax was entered, not calculated.`
+      : `Payroll for ${month} posted. Wage tax was entered, not calculated.`);
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function payShareholder(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const employee = requireEmployee(formData);
+    if (employee.shareholderId === null) throw new Error("Link this person to a shareholder record first.");
+    const amountCents = euros(formData, "amount");
+    if (!amountCents) throw new Error("Enter the amount to pay out.");
+    const balance = signedAccount(accountBalances(), ACCOUNTS.shareholdersPayable);
+    if (amountCents > balance) throw new Error("The payout is larger than the shareholder payable.");
+    const db = getDb();
+    postJournal(db, {
+      companyId: requireCompany().id,
+      date: requireDate(text(formData, "date"), "The payout"),
+      memo: text(formData, "memo") || `Auszahlung an ${employee.firstName} ${employee.lastName}`,
+      source: "shareholder-payout",
+      sourceId: null,
+      lines: buildShareholderPayout(amountCents),
+    });
+    return saved("Payout posted. It clears the shareholder payable, not the salary expense.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function payProfitDistribution(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    if (!checked(formData, "resolved")) throw new Error("A profit distribution needs a shareholder resolution. Confirm that it is on file.");
+    const amountCents = euros(formData, "amount");
+    if (!amountCents) throw new Error("Enter the distribution amount.");
+    const retained = signedAccount(accountBalances(), ACCOUNTS.retained);
+    if (amountCents > retained) throw new Error("The distribution is larger than the retained profit.");
+    const db = getDb();
+    postJournal(db, {
+      companyId: requireCompany().id,
+      date: requireDate(text(formData, "date"), "The distribution"),
+      memo: text(formData, "memo") || "Gewinnausschüttung",
+      source: "distribution",
+      sourceId: null,
+      lines: buildProfitDistribution(amountCents),
+    });
+    return saved("Profit distribution posted as a use of retained profit. It is not a salary and not an operating expense.");
   } catch (error) {
     return failed(error);
   }
@@ -1155,10 +1210,16 @@ export async function saveResolution(_state: ActionState, formData: FormData): P
     const title = text(formData, "title");
     const body = text(formData, "body");
     if (!title || !body) throw new Error("A resolution needs a title and the decision.");
-    getDb()
-      .insert(resolutions)
+    const db = getDb();
+    const company = requireCompany();
+    const employeeId = optionalId(formData, "employeeId");
+    if (employeeId && !db.select().from(employees).where(and(eq(employees.id, employeeId), eq(employees.companyId, company.id))).get()) {
+      throw new Error("Person not found.");
+    }
+    db.insert(resolutions)
       .values({
-        companyId: requireCompany().id,
+        companyId: company.id,
+        employeeId,
         resolvedOn: requireDate(text(formData, "resolvedOn"), "The resolution"),
         title,
         kind: oneOf(text(formData, "kind") || "other", RESOLUTION_KIND, "Kind"),
