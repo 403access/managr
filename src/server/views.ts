@@ -233,6 +233,7 @@ export function invoiceNewView() {
     today: todayIso(),
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,
+    amountDisplay: "net" as const,
     draft: null,
   };
 }
@@ -257,6 +258,7 @@ export function invoiceEditView(id: number) {
       dueDate: loaded.invoice.dueDate,
       notes: loaded.invoice.notes,
       buyerReference: loaded.invoice.buyerReference,
+      amountDisplay: loaded.invoice.amountDisplay,
       lines: loaded.lines.map((line) => ({
         description: line.description,
         quantity: quantityInput(line.quantityMilli),

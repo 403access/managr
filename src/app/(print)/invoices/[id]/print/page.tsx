@@ -4,6 +4,7 @@ import { formatDate } from "@/domain/calendar";
 import { isCorporation, legalFormLabel } from "@/domain/company";
 import { isKleinunternehmerNote } from "@/domain/invoice";
 import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
+import { allocateLineVat } from "@/domain/vat";
 import { PrintButton } from "@/components/print-button";
 
 export default async function PrintInvoicePage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,6 +16,8 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
   const company = loaded.company;
   const { invoice, customer, lines } = loaded;
   const kleinunternehmer = isKleinunternehmerNote(invoice.exemptionNote);
+  const grossDisplay = invoice.amountDisplay === "gross" && !kleinunternehmer;
+  const lineAmounts = allocateLineVat(lines);
   const stamp = invoice.status === "void" ? "STORNIERT" : invoice.status === "draft" ? "ENTWURF" : "";
 
   return (
@@ -57,17 +60,17 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
             <th className="py-2 font-medium">Menge</th>
             <th className="py-2 text-right font-medium">Einzelpreis</th>
             {kleinunternehmer ? null : <th className="py-2 text-right font-medium">USt</th>}
-            <th className="py-2 text-right font-medium">{kleinunternehmer ? "Betrag" : "Netto"}</th>
+            <th className="py-2 text-right font-medium">{kleinunternehmer ? "Betrag" : grossDisplay ? "Betrag (brutto)" : "Netto"}</th>
           </tr>
         </thead>
         <tbody>
-          {lines.map((line) => (
+          {lines.map((line, index) => (
             <tr key={line.id} className="border-b border-line">
               <td className="py-2">{line.description}</td>
               <td className="py-2">{formatQuantity(line.quantityMilli)}</td>
               <td className="py-2 text-right font-mono">{formatEuro(line.unitNetCents)}</td>
               {kleinunternehmer ? null : <td className="py-2 text-right">{formatPercentBps(line.vatBps)}</td>}
-              <td className="py-2 text-right font-mono">{formatEuro(line.netCents)}</td>
+              <td className="py-2 text-right font-mono">{formatEuro(grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents)}</td>
             </tr>
           ))}
         </tbody>
@@ -75,6 +78,17 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
       <div className="mt-4 ml-auto grid max-w-xs gap-1 text-sm">
         {kleinunternehmer ? (
           <p className="flex justify-between text-base font-medium"><span>Rechnungsbetrag</span><span className="font-mono">{formatEuro(loaded.grossCents)}</span></p>
+        ) : grossDisplay ? (
+          <>
+            <p className="flex justify-between text-base font-medium"><span>Rechnungsbetrag (brutto)</span><span className="font-mono">{formatEuro(loaded.grossCents)}</span></p>
+            <p className="flex justify-between text-muted"><span>davon Netto</span><span className="font-mono">{formatEuro(loaded.netCents)}</span></p>
+            {loaded.byRate.filter((rate) => rate.vatCents > 0).map((rate) => (
+              <p key={rate.vatBps} className="flex justify-between text-muted">
+                <span>davon Umsatzsteuer {formatPercentBps(rate.vatBps)}</span>
+                <span className="font-mono">{formatEuro(rate.vatCents)}</span>
+              </p>
+            ))}
+          </>
         ) : (
           <>
             <p className="flex justify-between"><span>Netto</span><span className="font-mono">{formatEuro(loaded.netCents)}</span></p>

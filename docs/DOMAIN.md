@@ -40,6 +40,8 @@ The ceilings are the figures in force since 2025. The earlier prior-year ceiling
 
 Issue is blocked until the draft has the particulars needed for §14 UStG: both addresses, tax number or VAT id, dates, and at least one described line. For a corporation (UG, GmbH, AG), the business-letter particulars of §35a GmbHG are also required: register court, register number, and the managing director. An Einzelunternehmen or a partnership does not need those three fields. The app assigns a gap-free number `prefix + year + sequence` when the invoice is issued; the sequence is per company. Voiding posts a reversing journal entry and does not reuse the number.
 
+An invoice states its amounts as net prices with VAT added, or as gross prices with VAT included. The choice is stored per invoice in `invoices.amount_display` and changes the presentation only: the ledger and the e-invoice keep net amounts and VAT separate, and the tax amount stays on the document in either form. In the gross form the line amounts are the rate VAT from `summarizeVat` split across that rate's lines by largest remainder (`allocateLineVat`), so the column adds up to the invoice total cent for cent. A Kleinunternehmer invoice has no VAT and shows one amount.
+
 ## E-Rechnung (XRechnung)
 
 The e-invoice this desk writes is an XRechnung 3.0.2 file in UBL syntax. That is an EN 16931 invoice and therefore an e-invoice under §14 UStG. The specification is at <https://xeinkauf.de/xrechnung/>. The file is rendered on download. It is not stored and not sent. The invoice screen can check the rendered file with the KoSIT validator running on this computer; the check result is not stored. ZUGFeRD is not produced. A void invoice stays a reversing journal entry; the desk does not write a credit note.

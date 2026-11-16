@@ -27,6 +27,12 @@ Shipped in this repo. One user, several companies with separate books, SQLite on
 - Layout that works on a phone and on a desktop.
 - German interface by default, with English as a second language. Printed invoices stay German.
 
+## After version 1
+
+Shipped after the first version, in this order:
+
+1. Invoices state their amounts as net prices with VAT added or gross prices with VAT included, chosen per invoice.
+
 ## Not in version 1
 
 These need an external system or a different product decision. They are not stubbed as if they worked.
@@ -52,10 +58,9 @@ These need an external system or a different product decision. They are not stub
 
 Requested, not yet scheduled. Listed in the order they were raised; that is not a commitment.
 
-1. **Invoice issue: gross or net only.** A switch on the invoice and in the printed output, so it shows the gross amount with VAT or the net amount only. Net, VAT, and gross are already stored separately, so this is a presentation choice plus the wording §14 UStG requires for the chosen form.
-2. **Salary with a full breakdown.** Version 1 estimates the employee and employer shares of health, care, pension, unemployment, and insolvency per employment, and posts a payroll journal; wage tax is typed in. Extend this into a payslip view that shows every line — gross, each contribution per side, wage tax, net payout, employer cost — and marks what is estimated rather than calculated.
-3. **Dynamic salary.** A salary that changes over time or varies by month — a raise, a one-off payment, a bonus, a partial month — instead of one fixed monthly amount per employment, carried through the contribution estimate and the payroll journal.
-4. **Salary paid to a shareholder who works in the company.** A managing shareholder's salary as a payout with its own posting and paperwork: the shareholder resolution, the appropriateness check that keeps it clear of a hidden profit distribution, and the split between salary and profit distribution.
+1. **Salary with a full breakdown.** Version 1 estimates the employee and employer shares of health, care, pension, unemployment, and insolvency per employment, and posts a payroll journal; wage tax is typed in. Extend this into a payslip view that shows every line — gross, each contribution per side, wage tax, net payout, employer cost — and marks what is estimated rather than calculated.
+2. **Dynamic salary.** A salary that changes over time or varies by month — a raise, a one-off payment, a bonus, a partial month — instead of one fixed monthly amount per employment, carried through the contribution estimate and the payroll journal.
+3. **Salary paid to a shareholder who works in the company.** A managing shareholder's salary as a payout with its own posting and paperwork: the shareholder resolution, the appropriateness check that keeps it clear of a hidden profit distribution, and the split between salary and profit distribution.
 
 ## Done
 

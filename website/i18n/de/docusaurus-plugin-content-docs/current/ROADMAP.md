@@ -27,6 +27,12 @@ In diesem Repository ausgeliefert. Ein Benutzer, mehrere Unternehmen mit getrenn
 - Layout, das auf dem Telefon und auf dem Desktop funktioniert.
 - Oberfläche standardmäßig Deutsch, Englisch als zweite Sprache. Gedruckte Rechnungen bleiben Deutsch.
 
+## Nach Version 1
+
+Nach der ersten Version ausgeliefert, in dieser Reihenfolge:
+
+1. Rechnungen weisen ihre Beträge als Nettopreise mit zusätzlicher Umsatzsteuer oder als Bruttopreise mit enthaltener Umsatzsteuer aus; die Wahl gilt je Rechnung.
+
 ## Nicht in Version 1
 
 Diese Punkte brauchen ein externes System oder eine andere Produktentscheidung. Sie werden nicht als funktionierend vorgetäuscht.
@@ -52,10 +58,9 @@ Diese Punkte brauchen ein externes System oder eine andere Produktentscheidung. 
 
 Gewünscht, noch nicht eingeplant. In der Reihenfolge, in der es aufkam; das ist keine Zusage.
 
-1. **Rechnungsausstellung: Brutto oder nur Netto.** Ein Umschalter an der Rechnung und im Druck, sodass sie den Bruttobetrag mit Umsatzsteuer oder nur den Nettobetrag zeigt. Netto, Umsatzsteuer und Brutto werden bereits getrennt gespeichert; es ist also eine Frage der Darstellung plus der Formulierung, die §14 UStG für die gewählte Form verlangt.
-2. **Gehalt mit vollständiger Aufschlüsselung.** Version 1 schätzt je Anstellung die Arbeitnehmer- und Arbeitgeberanteile an Kranken, Pflege, Rente, Arbeitslosigkeit und Insolvenz und bucht ein Lohnjournal; die Lohnsteuer wird eingegeben. Daraus soll eine Abrechnungsansicht werden, die jede Zeile zeigt — Brutto, jeden Beitrag je Seite, Lohnsteuer, Nettoauszahlung, Arbeitgeberkosten — und kennzeichnet, was geschätzt und nicht berechnet ist.
-3. **Dynamisches Gehalt.** Ein Gehalt, das sich über die Zeit ändert oder monatlich schwankt — Erhöhung, Einmalzahlung, Bonus, angebrochener Monat — statt eines festen Monatsbetrags je Anstellung, durchgereicht bis in Beitragsschätzung und Lohnjournal.
-4. **Gehalt als Auszahlung an den selbst angestellten Gesellschafter.** Das Gehalt eines Gesellschafter-Geschäftsführers als Auszahlung mit eigener Buchung und Unterlagen: Gesellschafterbeschluss, Angemessenheitsprüfung, damit daraus keine verdeckte Gewinnausschüttung wird, und die Trennung zwischen Gehalt und Gewinnausschüttung.
+1. **Gehalt mit vollständiger Aufschlüsselung.** Version 1 schätzt je Anstellung die Arbeitnehmer- und Arbeitgeberanteile an Kranken, Pflege, Rente, Arbeitslosigkeit und Insolvenz und bucht ein Lohnjournal; die Lohnsteuer wird eingegeben. Daraus soll eine Abrechnungsansicht werden, die jede Zeile zeigt — Brutto, jeden Beitrag je Seite, Lohnsteuer, Nettoauszahlung, Arbeitgeberkosten — und kennzeichnet, was geschätzt und nicht berechnet ist.
+2. **Dynamisches Gehalt.** Ein Gehalt, das sich über die Zeit ändert oder monatlich schwankt — Erhöhung, Einmalzahlung, Bonus, angebrochener Monat — statt eines festen Monatsbetrags je Anstellung, durchgereicht bis in Beitragsschätzung und Lohnjournal.
+3. **Gehalt als Auszahlung an den selbst angestellten Gesellschafter.** Das Gehalt eines Gesellschafter-Geschäftsführers als Auszahlung mit eigener Buchung und Unterlagen: Gesellschafterbeschluss, Angemessenheitsprüfung, damit daraus keine verdeckte Gewinnausschüttung wird, und die Trennung zwischen Gehalt und Gewinnausschüttung.
 
 ## Fertig
 

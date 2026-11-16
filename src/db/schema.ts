@@ -108,6 +108,7 @@ export const invoices = sqliteTable("invoices", {
   notes: text("notes").notNull().default(""),
   exemptionNote: text("exemption_note").notNull().default(""),
   buyerReference: text("buyer_reference").notNull().default(""),
+  amountDisplay: text("amount_display").notNull().default("net"),
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
 }, (table) => [uniqueIndex("invoices_company_number_unique").on(table.companyId, table.number)]);
 

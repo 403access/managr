@@ -18,6 +18,7 @@ export const invoicePayloadSchema = z.object({
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().max(2000),
   buyerReference: z.string().trim().max(100).default(""),
+  amountDisplay: z.enum(["net", "gross"]).default("net"),
   lines: z
     .array(
       z.object({

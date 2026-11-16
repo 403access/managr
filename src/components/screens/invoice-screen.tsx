@@ -6,6 +6,7 @@ import { formatDate } from "@/domain/calendar";
 import { isKleinunternehmerNote } from "@/domain/invoice";
 import { xrechnungStatusBlocker } from "@/domain/xrechnung";
 import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
+import { allocateLineVat } from "@/domain/vat";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { euroInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -24,6 +25,8 @@ export function InvoiceScreen({ id }: { id: number }) {
       {(loaded) => {
         const { invoice, customer, lines, payments, grossCents, openCents, displayStatus: status } = loaded;
         const kleinunternehmer = isKleinunternehmerNote(invoice.exemptionNote);
+        const grossDisplay = invoice.amountDisplay === "gross";
+        const lineAmounts = allocateLineVat(lines);
         return (
           <>
             <PageHeader
@@ -37,21 +40,23 @@ export function InvoiceScreen({ id }: { id: number }) {
               }
             />
             <div className="@container grid gap-2">
-              {lines.map((line) => (
+              {lines.map((line, index) => (
                 <Card key={line.id} className={`grid gap-1 @[34rem]:items-center ${kleinunternehmer ? "@[34rem]:grid-cols-[minmax(0,1fr)_auto_auto]" : "@[34rem]:grid-cols-[minmax(0,1fr)_auto_auto_auto]"}`}>
                   <p className="min-w-0 text-sm">{line.description || t("invoices.untitled")}</p>
                   <p className="text-sm text-muted">
                     {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
                   </p>
                   {kleinunternehmer ? null : <p className="text-sm text-muted">{formatPercentBps(line.vatBps)}</p>}
-                  <Money cents={line.netCents} />
+                  <Money cents={grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents} />
                 </Card>
               ))}
             </div>
             <p className="mt-4 font-mono text-sm tabular-nums">
               {kleinunternehmer
                 ? t("invoices.totalsKlein", { gross: formatEuro(grossCents), open: formatEuro(openCents) })
-                : t("invoices.totals", { net: formatEuro(loaded.netCents), vat: formatEuro(loaded.vatCents), gross: formatEuro(grossCents), open: formatEuro(openCents) })}
+                : grossDisplay
+                  ? t("invoices.totalsGross", { gross: formatEuro(grossCents), net: formatEuro(loaded.netCents), vat: formatEuro(loaded.vatCents), open: formatEuro(openCents) })
+                  : t("invoices.totals", { net: formatEuro(loaded.netCents), vat: formatEuro(loaded.vatCents), gross: formatEuro(grossCents), open: formatEuro(openCents) })}
             </p>
             {invoice.exemptionNote ? <p className="mt-2 text-sm">{invoice.exemptionNote}</p> : null}
             {invoice.notes ? <p className="mt-2 text-sm text-muted">{invoice.notes}</p> : null}

@@ -3,7 +3,7 @@ import { ACCOUNTS, journalImbalance, type DraftLine } from "@/domain/accounts";
 import { KLEINUNTERNEHMER_NOTE, reviewInvoice, type InvoiceReviewInput } from "@/domain/invoice";
 import { buildCustomerPayment, buildSalesInvoice, reverseLines } from "@/domain/postings";
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
-import { lineNetCents, summarizeVat } from "@/domain/vat";
+import { lineNetCents, summarizeVat, allocateLineVat } from "@/domain/vat";
 import { displayStatus } from "@/server/queries";
 
 const ready: InvoiceReviewInput = {
@@ -141,6 +141,39 @@ describe("invoice amounts", () => {
 
   it("refuses a Kleinunternehmer line that carries a rate", () => {
     expect(() => summarizeVat([{ netCents: 10_000, vatBps: STANDARD_VAT_BPS }], true)).toThrow(/Kleinunternehmer/);
+  });
+});
+
+describe("gross display", () => {
+  it("allocates the rate VAT across lines so the gross column sums to the invoice total", () => {
+    const lines = [
+      { netCents: 33_33, vatBps: STANDARD_VAT_BPS },
+      { netCents: 66_67, vatBps: STANDARD_VAT_BPS },
+      { netCents: 5_000, vatBps: REDUCED_VAT_BPS },
+    ];
+    const allocated = allocateLineVat(lines);
+    const totals = summarizeVat(lines, false);
+    expect(allocated.reduce((sum, line) => sum + line.grossCents, 0)).toBe(totals.grossCents);
+    expect(allocated.reduce((sum, line) => sum + line.vatCents, 0)).toBe(totals.vatCents);
+    allocated.forEach((line, index) => {
+      expect(line.netCents).toBe(lines[index].netCents);
+      expect(line.grossCents).toBe(line.netCents + line.vatCents);
+    });
+  });
+
+  it("hands the rounded-up cent to one line of the rate", () => {
+    const allocated = allocateLineVat([
+      { netCents: 1, vatBps: STANDARD_VAT_BPS },
+      { netCents: 1, vatBps: STANDARD_VAT_BPS },
+      { netCents: 1, vatBps: STANDARD_VAT_BPS },
+    ]);
+    expect(allocated.map((line) => line.vatCents)).toEqual([1, 0, 0]);
+    expect(allocated.map((line) => line.grossCents)).toEqual([2, 1, 1]);
+  });
+
+  it("leaves an exempt or Kleinunternehmer-style line at its net amount", () => {
+    const allocated = allocateLineVat([{ netCents: 12_345, vatBps: 0 }]);
+    expect(allocated).toEqual([{ netCents: 12_345, vatCents: 0, grossCents: 12_345 }]);
   });
 });
 

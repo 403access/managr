@@ -10,7 +10,7 @@ import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung, type XRechnungInput } from "@/domain/xrechnung";
 import { useI18n } from "./locale-provider";
 import { ActionForm, SubmitButton } from "./action-form";
-import { buttonClass, Field, inputClass } from "./ui";
+import { buttonClass, Field, inputClass, SelectInput } from "./ui";
 
 export type CustomerOption = {
   id: number;
@@ -53,6 +53,7 @@ type Draft = {
   dueDate: string;
   notes: string;
   buyerReference: string;
+  amountDisplay: string;
   lines: Line[];
 };
 
@@ -82,6 +83,7 @@ export function InvoiceForm({
   const [dueDate, setDueDate] = useState(draft?.dueDate ?? addDays(today, termsDays));
   const [notes, setNotes] = useState(draft?.notes ?? "");
   const [buyerReference, setBuyerReference] = useState(draft ? draft.buyerReference : (customers[0]?.buyerReference ?? ""));
+  const [amountDisplay, setAmountDisplay] = useState<"net" | "gross">(draft?.amountDisplay === "gross" ? "gross" : "net");
   const [lines, setLines] = useState<Line[]>(draft?.lines ?? [{ description: "", quantity: "1", unitNet: "", vatBps: seller.kleinunternehmer ? 0 : defaultVatBps }]);
 
   const chosen = customers.find((item) => item.id === customerId) ?? null;
@@ -198,6 +200,7 @@ export function InvoiceForm({
     dueDate,
     notes,
     buyerReference,
+    amountDisplay,
     lines: lines.map((line) => ({ ...line, vatBps: seller.kleinunternehmer ? 0 : line.vatBps })),
   });
 
@@ -245,6 +248,14 @@ export function InvoiceForm({
         <Field label={t("invoices.serviceDate")}><input className={inputClass} type="date" value={serviceDate} onChange={(event) => setServiceDate(event.target.value)} /></Field>
         <Field label={t("invoices.dueDate")}><input className={inputClass} type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></Field>
       </div>
+      {seller.kleinunternehmer ? null : (
+        <Field label={t("invoices.amountDisplay")} hint={t("invoices.amountDisplayHint")}>
+          <SelectInput value={amountDisplay} onChange={(event) => setAmountDisplay(event.target.value === "gross" ? "gross" : "net")}>
+            <option value="net">{t("invoices.amountDisplayNet")}</option>
+            <option value="gross">{t("invoices.amountDisplayGross")}</option>
+          </SelectInput>
+        </Field>
+      )}
       <div className="grid gap-3">
         {lines.map((line, index) => (
           <div key={index} className="grid gap-3 rounded-2xl border border-line bg-white p-3 @[34rem]:grid-cols-12">
@@ -289,7 +300,9 @@ export function InvoiceForm({
         <p className="font-mono text-sm tabular-nums">
           {seller.kleinunternehmer
             ? t("invoices.previewKlein", { gross: formatEuro(preview.grossCents) })
-            : t("invoices.preview", { net: formatEuro(preview.netCents), vat: formatEuro(preview.vatCents), gross: formatEuro(preview.grossCents) })}
+            : amountDisplay === "gross"
+              ? t("invoices.previewGross", { net: formatEuro(preview.netCents), vat: formatEuro(preview.vatCents), gross: formatEuro(preview.grossCents) })
+              : t("invoices.preview", { net: formatEuro(preview.netCents), vat: formatEuro(preview.vatCents), gross: formatEuro(preview.grossCents) })}
         </p>
       ) : (
         <p className="text-sm text-muted">{seller.kleinunternehmer ? t("invoices.previewEmptyKlein") : t("invoices.previewEmpty")}</p>

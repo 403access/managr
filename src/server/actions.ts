@@ -505,6 +505,7 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
         notes: payload.notes.trim(),
         exemptionNote,
         buyerReference: payload.buyerReference,
+        amountDisplay: payload.amountDisplay,
       };
       let id = payload.invoiceId;
       if (id) {

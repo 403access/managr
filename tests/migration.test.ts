@@ -45,6 +45,7 @@ describe("multi-company migration", () => {
 
     const invoice = db.select().from(invoices).get();
     expect(invoice?.companyId).toBe(1);
+    expect(invoice?.amountDisplay).toBe("net");
     expect(db.select().from(journalEntries).get()?.companyId).toBe(1);
 
     const secondId = Number(

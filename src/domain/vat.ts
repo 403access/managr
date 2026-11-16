@@ -41,3 +41,39 @@ export function summarizeVat(
   const vatCents = byRate.reduce((sum, rate) => sum + rate.vatCents, 0);
   return { netCents, vatCents, grossCents: netCents + vatCents, byRate };
 }
+
+export type AllocatedVat = { netCents: number; vatCents: number; grossCents: number };
+
+/**
+ * Splits the VAT that `summarizeVat` rounded once per rate across that rate's lines.
+ * Largest remainder: the gross column therefore adds up to the invoice total, cent for cent.
+ */
+export function allocateLineVat(lines: { netCents: number; vatBps: number }[]): AllocatedVat[] {
+  const totals = summarizeVat(lines, false);
+  const groups = new Map<number, number[]>();
+  lines.forEach((line, index) => {
+    const group = groups.get(line.vatBps) ?? [];
+    group.push(index);
+    groups.set(line.vatBps, group);
+  });
+  const result = lines.map((line) => ({ netCents: line.netCents, vatCents: 0, grossCents: line.netCents }));
+  for (const [vatBps, indices] of groups) {
+    const rate = totals.byRate.find((item) => item.vatBps === vatBps);
+    if (!rate) throw new Error("VAT rate is missing from the summary.");
+    const parts = indices.map((index) => {
+      const numerator = lines[index].netCents * vatBps;
+      const base = Math.floor(numerator / 10_000);
+      return { index, vatCents: base, remainder: numerator - base * 10_000 };
+    });
+    let rest = rate.vatCents - parts.reduce((sum, part) => sum + part.vatCents, 0);
+    for (const part of [...parts].sort((a, b) => b.remainder - a.remainder || a.index - b.index)) {
+      if (rest <= 0) break;
+      part.vatCents += 1;
+      rest -= 1;
+    }
+    for (const part of parts) {
+      result[part.index] = { netCents: lines[part.index].netCents, vatCents: part.vatCents, grossCents: lines[part.index].netCents + part.vatCents };
+    }
+  }
+  return result;
+}

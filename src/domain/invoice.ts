@@ -7,6 +7,18 @@ export function isKleinunternehmerNote(note: string): boolean {
   return /§\s*19/.test(note) && /keine Umsatzsteuer/.test(note);
 }
 
+/**
+ * Net prices with the VAT added, or gross prices with the VAT included.
+ * Both keep the net amount and the tax amount on the document (§14 Abs. 4 UStG).
+ */
+export const AMOUNT_DISPLAYS = ["net", "gross"] as const;
+
+export type AmountDisplay = (typeof AMOUNT_DISPLAYS)[number];
+
+export function isAmountDisplay(value: string): value is AmountDisplay {
+  return (AMOUNT_DISPLAYS as readonly string[]).includes(value);
+}
+
 export type InvoiceReviewInput = {
   legalName: string;
   legalForm?: string;
