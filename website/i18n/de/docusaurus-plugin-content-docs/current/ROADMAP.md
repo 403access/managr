@@ -35,6 +35,7 @@ Nach der ersten Version ausgeliefert, in dieser Reihenfolge:
 2. Eine Abrechnungsansicht im Personenbildschirm und im Lohnformular zeigt jede Zeile: Brutto, jeden Beitrag je Seite, die eingegebene Lohnsteuer, den Nettolohn und den Arbeitgeberaufwand.
 3. Ein Gehaltsverlauf trägt Erhöhungen über die Zeit; das Lohnformular schlägt den Betrag des gewählten Monats vor und bucht weiterhin den bestätigten Betrag.
 4. Das Gehalt eines Gesellschafter-Geschäftsführers sammelt sich als Verbindlichkeit gegenüber dem Gesellschafter, die Auszahlung tilgt sie, und eine getrennte Gewinnausschüttung verwendet den Gewinnvortrag. Gehaltsvereinbarungen sind Gesellschafterbeschlüsse, mit Erinnerungen an Beschluss und Angemessenheitsprüfung.
+5. Ein Assistenten-Panel und ein MCP-Server stellen dieselben Werkzeuge bereit, die auch die Bildschirme nutzen, sodass eine Anfrage über Rechnungen, Bücher, Personen, Zeit und Fristen lesen und buchen kann. Es wird nichts versendet, und ein Cloud-Modell erhält das Gespräch nur, wenn es eingerichtet wurde.
 
 ## Nicht in Version 1
 

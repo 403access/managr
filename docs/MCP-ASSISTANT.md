@@ -11,6 +11,10 @@ managr gets one tool layer that drives the desk, reached from two places:
 
 Both surfaces use the same registry in `src/server/tools.ts`. There is no second set of business rules: each tool calls the domain builders in `src/domain` and the posting path in `src/server/posting.ts`. The screens and the assistant therefore produce the same numbers.
 
+## Status
+
+All four phases have shipped. The widget is in the app shell, the MCP endpoint answers at `/api/mcp`, and the registry has read tools, write tools, and four deterministic briefings. The phase headings below describe what each one added.
+
 ## Boundaries
 
 - The assistant is a caller, not an authority. It may not file, send, or decide a tax or legal question, and it must not invent a wage-tax figure or a social-insurance status.
@@ -78,7 +82,7 @@ Four deterministic helpers that need no model, usable from the widget and from M
 
 The assistant can already compose an invoice draft from free text by calling `create_invoice`, and record a payment by calling `record_invoice_payment`. Both keep the §14 UStG checks on issue.
 
-### Phase 4 — documentation and the site
+### Phase 4 — documentation and the site (shipped)
 
 - `docs/MCP-ASSISTANT.md` (this page), `docs/ARCHITECTURE.md`, and `docs/DOMAIN.md` name the tools, the boundary, and the configuration.
 - The README shows how to start the desk and point a client at `/api/mcp`.

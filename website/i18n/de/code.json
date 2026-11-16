@@ -75,6 +75,10 @@
     "message": "Zeitaufzeichnungen, Dokumente auf der Festplatte, eine rechtliche Checkliste und Gesellschafterbeschlüsse.",
     "description": "The records feature description"
   },
+  "home.area.assistant": {
+    "message": "Ein Chat-Panel, das mit denselben Werkzeugen wie die Bildschirme liest und bucht, dazu ein MCP-Endpunkt für andere Agenten. Mit einem lokalen Modell bleibt das Gespräch auf diesem Computer. Ein Cloud-Endpunkt erhält es.",
+    "description": "The assistant feature description"
+  },
   "home.split.aria": {
     "message": "Wie es läuft und was es nicht tut",
     "description": "The aria label for the runtime and limits section"
@@ -107,6 +111,10 @@
     "message": "Der Browser öffnet die Datenbank nie.",
     "description": "The runtime browser detail"
   },
+  "home.runs.assistant": {
+    "message": "Der Assistent nutzt dieselben Werkzeuge wie die Bildschirme. Mit einem lokalen Modell bleibt das Gespräch auf diesem Computer.",
+    "description": "The runtime assistant detail"
+  },
   "home.runs.caption.before": {
     "message": "Öffne dann",
     "description": "The text before the local URL"
@@ -138,6 +146,10 @@
   "home.refuses.contributions": {
     "message": "Beitragszahlen sind Schätzungen. Sie sind keine Statusfeststellung.",
     "description": "The contribution estimate limit"
+  },
+  "home.refuses.assistant": {
+    "message": "Der Assistent versendet, reicht nicht ein und entscheidet nicht. Er ruft dieselben Werkzeuge wie die Bildschirme auf.",
+    "description": "The assistant limit"
   },
   "home.refuses.domain": {
     "message": "Domänenregeln",

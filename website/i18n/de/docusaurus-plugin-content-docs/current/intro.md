@@ -14,6 +14,7 @@ Der Schreibtisch reicht keine Steuererklärung ein, berechnet keine Lohnsteuer u
 - [Architektur](./ARCHITECTURE.md) — wie die Next.js-Anwendung aufgebaut ist.
 - [Domänenregeln](./DOMAIN.md) — Gesellschaftsrecht, Steuern, Rechnungen und die Zahlen, mit denen der Code arbeitet.
 - [Roadmap](./ROADMAP.md) — was Version 1 enthält und was sie nicht vortäuscht.
+- [Assistent und MCP](./MCP-ASSISTANT.md) — die Werkzeugschicht, das Chat-Panel und der MCP-Endpunkt.
 
 ## Den Schreibtisch starten
 

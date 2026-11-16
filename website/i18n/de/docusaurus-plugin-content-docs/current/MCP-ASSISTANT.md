@@ -11,6 +11,10 @@ managr bekommt eine Werkzeugschicht, die den Schreibtisch steuert, erreichbar vo
 
 Beide Oberflächen verwenden dieselbe Registrierung in `src/server/tools.ts`. Es gibt keine zweite Sammlung von Geschäftsregeln: Jedes Werkzeug ruft die Domänenfunktionen in `src/domain` und den Buchungspfad in `src/server/posting.ts`. Bildschirme und Assistent erzeugen deshalb dieselben Zahlen.
 
+## Stand
+
+Alle vier Phasen sind ausgeliefert. Das Widget sitzt in der App-Hülle, der MCP-Endpunkt antwortet unter `/api/mcp`, und die Registrierung enthält Lese-Werkzeuge, Schreib-Werkzeuge und vier deterministische Briefings. Die Phasenüberschriften unten beschreiben, was jede Phase ergänzt hat.
+
 ## Grenzen
 
 - Der Assistent ist ein Aufrufer, keine Instanz. Er darf nichts einreichen, versenden oder steuerlich und rechtlich entscheiden und keine Lohnsteuer oder einen Sozialversicherungsstatus erfinden.
@@ -78,7 +82,7 @@ Vier deterministische Helfer, die kein Modell brauchen, nutzbar im Widget und ü
 
 Der Assistent kann bereits aus freiem Text einen Rechnungsentwurf bauen, indem er `create_invoice` aufruft, und eine Zahlung mit `record_invoice_payment` buchen. Die Prüfungen nach §14 UStG bleiben beim Stellen.
 
-### Phase 4 — Dokumentation und Website
+### Phase 4 — Dokumentation und Website (ausgeliefert)
 
 - `docs/MCP-ASSISTANT.md` (diese Seite), `docs/ARCHITECTURE.md` und `docs/DOMAIN.md` nennen die Werkzeuge, die Grenze und die Einrichtung.
 - Die README zeigt, wie der Schreibtisch startet und wie ein Client auf `/api/mcp` zeigt.

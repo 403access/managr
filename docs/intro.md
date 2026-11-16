@@ -14,6 +14,7 @@ The desk does not file a return, calculate wage tax, or decide social-insurance 
 - [Architecture](./ARCHITECTURE.md) — how the Next.js app is put together.
 - [Domain rules](./DOMAIN.md) — company law, tax, invoices, and the figures the code uses.
 - [Roadmap](./ROADMAP.md) — what version 1 includes, and what it refuses to pretend.
+- [Assistant and MCP](./MCP-ASSISTANT.md) — the tool layer, the chat panel, and the MCP endpoint.
 
 ## Run the desk
 

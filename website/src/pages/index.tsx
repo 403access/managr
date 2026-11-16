@@ -39,6 +39,11 @@ const areas: { id: string; term: string; text: string }[] = [
     term: "Akte",
     text: "Time records, documents on disk, a legal checklist, and shareholder resolutions.",
   },
+  {
+    id: "home.area.assistant",
+    term: "Assistent",
+    text: "A chat panel that reads and posts with the same tools as the screens, plus an MCP endpoint for other agents. With a local model the conversation stays on this computer. A cloud endpoint receives it.",
+  },
 ];
 
 export default function Home(): ReactNode {
@@ -156,6 +161,12 @@ export default function Home(): ReactNode {
                   )}
                 </li>
                 <li>{t("home.runs.browser", "The browser never opens the database.")}</li>
+                <li>
+                  {t(
+                    "home.runs.assistant",
+                    "The assistant uses the same tools as the screens. Point it at a local model to keep the conversation here.",
+                  )}
+                </li>
               </ul>
               <pre className={styles.command}>
                 <code>bun install{"\n"}bun run dev</code>
@@ -186,6 +197,12 @@ export default function Home(): ReactNode {
                   {t(
                     "home.refuses.contributions",
                     "Contribution figures are estimates. They are not a Statusfeststellung.",
+                  )}
+                </li>
+                <li>
+                  {t(
+                    "home.refuses.assistant",
+                    "The assistant does not send, file, or decide. It calls the same tools as the screens.",
                   )}
                 </li>
               </ul>
