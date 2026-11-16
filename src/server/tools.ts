@@ -59,6 +59,7 @@ import {
   loadCompany,
   loadInvoice,
   loadShareholders,
+  postedPayrollMonths,
   signedAccount,
   vatPayableCents,
 } from "./queries";
@@ -1483,6 +1484,73 @@ export const tools: DeskTool[] = [
           .map((task) => ({ id: task.id, title: task.title, dueDate: task.dueDate, status: task.status })),
         people: listPeople().length,
       };
+    },
+  }),
+  tool({
+    name: "vat_overview",
+    description: "Output VAT, input VAT, prepayments, and the payable or refund amount for a period, plus revenue. Defaults to the current year so far.",
+    input: {
+      from: z.string().optional().describe("YYYY-MM-DD. Defaults to 1 January of the current year."),
+      to: z.string().optional().describe("YYYY-MM-DD. Defaults to today."),
+    },
+    run: (input) => {
+      const today = todayIso();
+      const from = input.from ? date(input.from, "The start") : `${today.slice(0, 4)}-01-01`;
+      const to = input.to ? date(input.to, "The end") : today;
+      const rows = accountBalances(from, to);
+      const profit = summarizeProfit(rows);
+      return {
+        from,
+        to,
+        outputVatCents: signedAccount(rows, ACCOUNTS.vat19) + signedAccount(rows, ACCOUNTS.vat7),
+        inputVatCents: signedAccount(rows, ACCOUNTS.inputVat19) + signedAccount(rows, ACCOUNTS.inputVat7),
+        prepaymentsCents: signedAccount(rows, ACCOUNTS.vatPrepayments) + signedAccount(rows, ACCOUNTS.vatSpecialPrepayment),
+        payableCents: vatPayableCents(rows),
+        revenueCents: profit.revenueCents,
+        kleinunternehmer: requireCompany().kleinunternehmer,
+      };
+    },
+  }),
+  tool({
+    name: "monthly_close_checklist",
+    description: "Check a month before closing: company particulars, open draft invoices, payroll months that are not posted, and open obligations due in that month.",
+    input: { month: z.string().optional().describe("YYYY-MM. Defaults to the current month.") },
+    run: (input) => {
+      const target = input.month ? month(input.month) : todayIso().slice(0, 7);
+      const start = `${target}-01`;
+      const end = `${target}-31`;
+      const company = requireCompany();
+      const checks: { key: string; ok: boolean; detail: string }[] = [];
+      checks.push({
+        key: "company_particulars",
+        ok: Boolean(company.street && company.postalCode && company.city && (company.taxNumber || company.vatId)) &&
+          (!isCorporation(company.legalForm) || Boolean(company.registerCourt && company.registerNumber && company.managingDirector)),
+        detail: "Address, tax number or VAT id, and for a corporation the register court, HRB number, and managing director.",
+      });
+      const drafts = listInvoices().filter((invoice) => invoice.status === "draft");
+      checks.push({
+        key: "open_drafts",
+        ok: drafts.length === 0,
+        detail: drafts.length === 0 ? "No draft invoices." : `${drafts.length} draft(s): ${drafts.map((invoice) => invoice.customerName).join(", ")}.`,
+      });
+      const missing = listPeople()
+        .filter(({ employee }) => employee.startDate <= end && (!employee.endDate || employee.endDate >= start))
+        .filter(({ employee }) => !postedPayrollMonths(employee.id).includes(target))
+        .map(({ employee }) => `${employee.firstName} ${employee.lastName}`);
+      checks.push({
+        key: "payroll",
+        ok: missing.length === 0,
+        detail: missing.length === 0 ? "Payroll posted for every active person." : `No payroll yet for: ${missing.join(", ")}.`,
+      });
+      const due = listObligations(Number(target.slice(0, 4)))
+        .filter((item) => item.dueDate.slice(0, 7) === target && item.status === "open")
+        .map((item) => `${item.title} (${item.dueDate})`);
+      checks.push({
+        key: "obligations",
+        ok: due.length === 0,
+        detail: due.length === 0 ? "No open statutory obligation due in this month." : `Open: ${due.join("; ")}.`,
+      });
+      return { month: target, ready: checks.every((check) => check.ok), checks };
     },
   }),
   tool({

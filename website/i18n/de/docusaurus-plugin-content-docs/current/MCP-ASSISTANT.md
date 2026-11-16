@@ -31,7 +31,7 @@ Eine Loopback-Adresse gilt als lokal. Jeder andere Host gilt als extern, und das
 
 ## Phasen
 
-### Phase 1 — Werkzeugregistrierung und MCP-Server
+### Phase 1 — Werkzeugregistrierung und MCP-Server (ausgeliefert)
 
 Eine Registrierung mit Name, Beschreibung, Zod-Eingabeschema und Ausführungsfunktion je Werkzeug. Ein Ergebnis ist `{ ok, data }` oder `{ ok: false, error }`.
 
@@ -57,7 +57,7 @@ Schreib-Werkzeuge folgen den Server-Actions:
 
 Der MCP-Endpunkt nutzt den Streamable-HTTP-Transport des SDK im zustandslosen Modus mit JSON-Antworten. Er spricht den üblichen Ablauf `initialize`, `tools/list` und `tools/call`. Er ist nur erreichbar, solange der Schreibtisch läuft, und nur auf dem Rechner, auf dem er läuft.
 
-### Phase 2 — das Widget
+### Phase 2 — das Widget (ausgeliefert)
 
 Ein schwebender Knopf in der App-Hülle öffnet ein Panel. Der Browser schickt das Gespräch an `POST /api/assistant`; die Route führt eine Werkzeugschleife gegen einen OpenAI-kompatiblen Chat-Endpunkt aus und liefert die Antwort samt Liste der aufgerufenen Werkzeuge.
 
@@ -67,11 +67,13 @@ Ein schwebender Knopf in der App-Hülle öffnet ein Panel. Der Browser schickt d
 - Schnellaktionen starten eine übliche Anfrage: ein Briefing, die offenen Rechnungen, die nächsten Fristen.
 - Funktioniert bei 375 px Breite und in der Desktop-Seitenleiste.
 
-### Phase 3 — mehr als die Bildschirme
+### Phase 3 — mehr als die Bildschirme (ausgeliefert)
 
-Zwei deterministische Helfer, die kein Modell brauchen, nutzbar im Widget und über MCP:
+Vier deterministische Helfer, die kein Modell brauchen, nutzbar im Widget und über MCP:
 
 - `daily_briefing`: Bank, Forderungen, Gewinn vor Steuern, Umsatzsteuer-Zahllast, überfällige Rechnungen, Fristen der nächsten 14 Tage, offene Aufgaben.
+- `vat_overview`: Umsatzsteuer, Vorsteuer, Vorauszahlungen und Zahllast oder Erstattung für einen gewählten Zeitraum.
+- `monthly_close_checklist`: Stammdaten, offene Entwürfe, nicht gebuchte Lohnmonate und in dem Monat fällige Pflichten.
 - `draft_dunning_letter`: eine deutsche Zahlungserinnerung für eine überfällige Rechnung. Der Text ist ein Entwurf; der Schreibtisch versendet ihn nicht.
 
 Der Assistent kann bereits aus freiem Text einen Rechnungsentwurf bauen, indem er `create_invoice` aufruft, und eine Zahlung mit `record_invoice_payment` buchen. Die Prüfungen nach §14 UStG bleiben beim Stellen.

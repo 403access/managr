@@ -89,6 +89,7 @@ export function Assistant() {
     { key: "assistant.quickBriefing", prompt: t("assistant.promptBriefing") },
     { key: "assistant.quickInvoices", prompt: t("assistant.promptInvoices") },
     { key: "assistant.quickDeadlines", prompt: t("assistant.promptDeadlines") },
+    { key: "assistant.quickClose", prompt: t("assistant.promptClose") },
   ] as const;
 
   return (

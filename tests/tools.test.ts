@@ -119,6 +119,26 @@ describe("books", () => {
   });
 });
 
+describe("briefings", () => {
+  it("sums output VAT, input VAT, and the payable amount", async () => {
+    const vat = data<{ outputVatCents: number; inputVatCents: number; payableCents: number }>(await runTool("vat_overview", {}));
+    expect(vat.outputVatCents).toBeGreaterThan(0);
+    expect(vat.inputVatCents).toBeGreaterThan(0);
+    expect(typeof vat.payableCents).toBe("number");
+  });
+
+  it("names the people whose payroll month is not posted", async () => {
+    const close = data<{ month: string; ready: boolean; checks: { key: string; ok: boolean; detail: string }[] }>(
+      await runTool("monthly_close_checklist", { month: "2027-03" }),
+    );
+    expect(close.month).toBe("2027-03");
+    const payroll = close.checks.find((check) => check.key === "payroll");
+    expect(payroll?.ok).toBe(false);
+    expect(payroll?.detail).toContain("Elling");
+    expect(close.ready).toBe(false);
+  });
+});
+
 describe("payroll and the shareholder director", () => {
   it("uses the salary schedule for the month and moves the director's net pay to the shareholder liability", async () => {
     const people = data<{ people: { id: number; lastName: string }[] }>(await runTool("read_people", {}));

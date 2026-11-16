@@ -31,7 +31,7 @@ A loopback base URL counts as local. Any other host counts as remote, and the pa
 
 ## Phases
 
-### Phase 1 — tool registry and MCP server
+### Phase 1 — tool registry and MCP server (shipped)
 
 A single registry with a name, a description, a Zod input schema, and a run function per tool. A tool result is `{ ok, data }` or `{ ok: false, error }`.
 
@@ -57,7 +57,7 @@ Write tools follow the server actions:
 
 The MCP endpoint uses the SDK's Streamable HTTP transport in stateless mode with JSON responses. It speaks the standard `initialize`, `tools/list`, and `tools/call` flow. It is available only while the desk runs and only on the machine that runs it.
 
-### Phase 2 — the widget
+### Phase 2 — the widget (shipped)
 
 A floating button in the app shell opens a panel. The browser sends the conversation to `POST /api/assistant`; the route runs a tool-calling loop against an OpenAI-compatible chat endpoint and returns the answer plus a list of the tool calls it made.
 
@@ -67,11 +67,13 @@ A floating button in the app shell opens a panel. The browser sends the conversa
 - Quick actions start a common request: a briefing, the open invoices, the next deadlines.
 - Works at 375px width and on the desktop sidebar.
 
-### Phase 3 — more than the screens
+### Phase 3 — more than the screens (shipped)
 
-Two deterministic helpers that need no model, usable from the widget and from MCP:
+Four deterministic helpers that need no model, usable from the widget and from MCP:
 
 - `daily_briefing`: cash, receivables, profit before tax, VAT payable, overdue invoices, deadlines in the next 14 days, open tasks.
+- `vat_overview`: output VAT, input VAT, prepayments, and the payable or refund amount for a chosen period.
+- `monthly_close_checklist`: company particulars, open drafts, payroll months that are not posted, and obligations due in the month.
 - `draft_dunning_letter`: a German payment reminder for one overdue invoice. The text is a draft; the desk does not send it.
 
 The assistant can already compose an invoice draft from free text by calling `create_invoice`, and record a payment by calling `record_invoice_payment`. Both keep the §14 UStG checks on issue.
