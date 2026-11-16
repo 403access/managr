@@ -45,6 +45,14 @@ export MANAGR_AI_API_KEY=...                          # only for a remote endpoi
 
 Restart the desk after changing the variables; they are read per request but the running process needs them in its environment. A local model keeps the conversation on this computer. A cloud endpoint receives the conversation and the tool results. The panel shows which endpoint is in use and lists the tools behind each answer. Without a model the panel explains the setup and nothing is sent.
 
+## Time tracking test run
+
+`src/demo/time-tracking-2026.ts` holds the recorded days from October and November 2026. `tests/time-tracking.test.ts` runs them through the same duration, break, week, and §3/§4 ArbZG rules as the time screen: 32 entries on 9 days, 52 h 25 min, the recorded pauses as break minutes, and one watch on 13 November for a day over 8 hours.
+
+```bash
+bun run test tests/time-tracking.test.ts
+```
+
 ## Demo and production books
 
 The desk always opens `data/managr.db`. Two saved copies sit beside it: `data/managr.demo.db` and `data/managr.production.db`. Stop the desk before switching, then:
