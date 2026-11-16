@@ -1568,24 +1568,22 @@ export const tools: DeskTool[] = [
         invoiceId: loaded.invoice.id,
         subject: `Zahlungserinnerung ${loaded.invoice.number ?? ""}`.trim(),
         body: [
-          `Sehr geehrte Damen und Herren,`,
-          "",
+          "Sehr geehrte Damen und Herren,",
           `unsere Rechnung ${loaded.invoice.number ?? String(loaded.invoice.id)} vom ${loaded.invoice.issueDate} über ${formatEuro(loaded.grossCents)} ist am ${loaded.invoice.dueDate} fällig geworden. Offen sind noch ${formatEuro(loaded.openCents)}.`,
-          "",
           `Bitte überweisen Sie den offenen Betrag bis zum ${newDue} auf das unten genannte Konto. Sollte sich die Zahlung überschnitten haben, betrachten Sie dieses Schreiben als gegenstandslos.`,
-          "",
-          `Freundliche Grüße`,
-          company.legalName,
-          company.managingDirector,
-          "",
-          `Bank: ${company.bankName}`,
-          `IBAN: ${company.iban}`,
-          company.bic ? `BIC: ${company.bic}` : "",
-          `Steuernummer: ${company.taxNumber}`,
-        ]
-          .filter((line) => line !== "")
-          .join("\n")
-          .replace(/\n{3,}/g, "\n\n"),
+          [
+            "Freundliche Grüße",
+            company.legalName,
+            company.managingDirector,
+            "",
+            `Bank: ${company.bankName}`,
+            `IBAN: ${company.iban}`,
+            company.bic ? `BIC: ${company.bic}` : null,
+            `Steuernummer: ${company.taxNumber}`,
+          ]
+            .filter((line) => line !== null)
+            .join("\n"),
+        ].join("\n\n"),
       };
     },
   }),
@@ -1598,8 +1596,6 @@ function hoursToMinutes(raw: string): number {
   if (minutes < 60 || minutes > 80 * 60) throw new Error("Weekly hours look wrong.");
   return minutes;
 }
-
-type PersonValues = typeof employees.$inferInsert;
 
 type ReadyEmployee = {
   firstName: string;

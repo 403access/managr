@@ -49,7 +49,12 @@ function systemPrompt(): string {
 
 function toolContent(result: Awaited<ReturnType<typeof runTool>>): string {
   const text = JSON.stringify(result.ok ? result.data : { error: result.error });
-  return text.length > MAX_TOOL_CHARS ? `${text.slice(0, MAX_TOOL_CHARS)}… (truncated)` : text;
+  if (text.length <= MAX_TOOL_CHARS) return text;
+  return JSON.stringify({
+    truncated: true,
+    note: "The tool result was too large. Ask for a narrower range or a single record.",
+    preview: text.slice(0, MAX_TOOL_CHARS),
+  });
 }
 
 function parseArguments(raw: unknown): unknown {
@@ -75,6 +80,7 @@ export async function runAssistant(turns: AssistantTurn[]): Promise<{ reply: str
   const trace: ToolTrace[] = [];
 
   for (let step = 0; step < MAX_STEPS; step += 1) {
+    chat[0] = { role: "system", content: systemPrompt() };
     const response = await fetch(`${settings.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -115,7 +121,8 @@ export async function runAssistant(turns: AssistantTurn[]): Promise<{ reply: str
       continue;
     }
     const reply = (message.content ?? "").trim();
-    return { reply: reply || "Ich habe keine Antwort erzeugt. Formuliere die Frage bitte anders.", trace };
+    if (!reply) throw new Error("The model returned no message.");
+    return { reply, trace };
   }
   throw new Error("The assistant stopped after too many tool steps. Try a smaller request.");
 }
