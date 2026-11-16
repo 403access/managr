@@ -28,7 +28,10 @@ export function TimeScreen({ week }: { week: string }) {
             title={t("time.title")}
             lede={`${formatDate(data.start)} – ${formatDate(data.end)}`}
             action={
-              <span className="flex gap-2">
+              <span className="flex flex-wrap gap-2">
+                <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href="/time/playback">
+                  {t("time.playback")}
+                </Link>
                 <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={`/time?week=${data.previous}`}>
                   {t("common.previous")}
                 </Link>

@@ -72,6 +72,8 @@ Farben, Typografie und Abstände stehen in `src/app/globals.css`. Das Layout ist
 
 Bildschirme, die mehrere unabhängige Abschnitte stapeln, verwenden `Tabs` in `src/components/tabs.tsx`. Der offene Abschnitt wird im URL-Hash gespeichert. Summenzahlen, Seitentitel und Steuerelemente für die ganze Seite bleiben über der Tab-Leiste. Ohne JavaScript bleibt jeder Abschnitt sichtbar.
 
+`/time/playback` spielt `src/demo/time-tracking-2026.ts` Eintrag für Eintrag im Browser ab. Er ruft die Domänenfunktionen für Zeit auf und öffnet nie SQLite. Der Zeit-Bildschirm verlinkt ihn als Testlauf.
+
 ## Sprache
 
 Die Oberfläche ist standardmäßig Deutsch. Englisch ist die zweite Sprache. Das Cookie `managr-locale` speichert `de` oder `en`. Ein fehlender oder unbekannter Wert bedeutet Deutsch. `src/i18n/messages.ts` enthält die Chrome-Texte, und der deutsche Katalog ist die Quelle der Keys. Domänenfunktionen und Server Actions behalten ihre englischen Sätze, und `tx` übersetzt die bekannten, wenn die Locale Deutsch ist. Query-Keys enthalten die Locale nicht.

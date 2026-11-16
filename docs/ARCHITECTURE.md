@@ -72,6 +72,8 @@ Colors, type, and spacing are in `src/app/globals.css`. The layout is fluid and 
 
 Screens that stack several independent sections use `Tabs` in `src/components/tabs.tsx`. The open section is stored in the URL hash. Summary figures, page titles, and controls that apply to the whole page stay above the tab bar. Without JavaScript every section stays visible.
 
+`/time/playback` replays `src/demo/time-tracking-2026.ts` entry by entry in the browser. It calls the domain time functions and never opens SQLite. The Time screen links to it as a test run.
+
 ## Language
 
 The interface is German by default. English is the second language. The cookie `managr-locale` stores `de` or `en`. A missing or unknown value is German. `src/i18n/messages.ts` holds the chrome, and the German catalog is the source of the keys. Domain functions and server actions keep their English sentences, and `tx` translates the known ones when the locale is German. Query keys do not include the locale.
