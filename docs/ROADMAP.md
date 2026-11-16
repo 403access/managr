@@ -48,6 +48,15 @@ These need an external system or a different product decision. They are not stub
 3. A real Lohnsteuer function, or an explicit import of payroll results from a Lohnprogramm.
 4. Sign-in, only when the file is no longer a single local database.
 
+## Backlog
+
+Requested, not yet scheduled. Listed in the order they were raised; that is not a commitment.
+
+1. **Invoice issue: gross or net only.** A switch on the invoice and in the printed output, so it shows the gross amount with VAT or the net amount only. Net, VAT, and gross are already stored separately, so this is a presentation choice plus the wording §14 UStG requires for the chosen form.
+2. **Salary with a full breakdown.** Version 1 estimates the employee and employer shares of health, care, pension, unemployment, and insolvency per employment, and posts a payroll journal; wage tax is typed in. Extend this into a payslip view that shows every line — gross, each contribution per side, wage tax, net payout, employer cost — and marks what is estimated rather than calculated.
+3. **Dynamic salary.** A salary that changes over time or varies by month — a raise, a one-off payment, a bonus, a partial month — instead of one fixed monthly amount per employment, carried through the contribution estimate and the payroll journal.
+4. **Salary paid to a shareholder who works in the company.** A managing shareholder's salary as a payout with its own posting and paperwork: the shareholder resolution, the appropriateness check that keeps it clear of a hidden profit distribution, and the split between salary and profit distribution.
+
 ## Done
 
 A version is done when the domain tests pass, `bun run typecheck` and `bun run build` pass, the changed screens work at phone and desktop width, and the doc that owns the behavior was updated with the code.

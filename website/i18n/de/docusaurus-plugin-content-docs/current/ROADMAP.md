@@ -48,6 +48,15 @@ Diese Punkte brauchen ein externes System oder eine andere Produktentscheidung. 
 3. Eine echte Lohnsteuerfunktion oder ein ausdrücklicher Import von Lohnabrechnungsergebnissen aus einem Lohnprogramm.
 4. Anmeldung, erst wenn die Datei nicht mehr eine einzelne lokale Datenbank ist.
 
+## Backlog
+
+Gewünscht, noch nicht eingeplant. In der Reihenfolge, in der es aufkam; das ist keine Zusage.
+
+1. **Rechnungsausstellung: Brutto oder nur Netto.** Ein Umschalter an der Rechnung und im Druck, sodass sie den Bruttobetrag mit Umsatzsteuer oder nur den Nettobetrag zeigt. Netto, Umsatzsteuer und Brutto werden bereits getrennt gespeichert; es ist also eine Frage der Darstellung plus der Formulierung, die §14 UStG für die gewählte Form verlangt.
+2. **Gehalt mit vollständiger Aufschlüsselung.** Version 1 schätzt je Anstellung die Arbeitnehmer- und Arbeitgeberanteile an Kranken, Pflege, Rente, Arbeitslosigkeit und Insolvenz und bucht ein Lohnjournal; die Lohnsteuer wird eingegeben. Daraus soll eine Abrechnungsansicht werden, die jede Zeile zeigt — Brutto, jeden Beitrag je Seite, Lohnsteuer, Nettoauszahlung, Arbeitgeberkosten — und kennzeichnet, was geschätzt und nicht berechnet ist.
+3. **Dynamisches Gehalt.** Ein Gehalt, das sich über die Zeit ändert oder monatlich schwankt — Erhöhung, Einmalzahlung, Bonus, angebrochener Monat — statt eines festen Monatsbetrags je Anstellung, durchgereicht bis in Beitragsschätzung und Lohnjournal.
+4. **Gehalt als Auszahlung an den selbst angestellten Gesellschafter.** Das Gehalt eines Gesellschafter-Geschäftsführers als Auszahlung mit eigener Buchung und Unterlagen: Gesellschafterbeschluss, Angemessenheitsprüfung, damit daraus keine verdeckte Gewinnausschüttung wird, und die Trennung zwischen Gehalt und Gewinnausschüttung.
+
 ## Fertig
 
 Eine Version ist fertig, wenn die Domänentests bestehen, `bun run typecheck` und `bun run build` bestehen, die geänderten Bildschirme in Telefon- und Desktopbreite funktionieren und die Dokumentation, die das Verhalten beschreibt, zusammen mit dem Code aktualisiert wurde.
