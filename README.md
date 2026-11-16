@@ -17,6 +17,20 @@ Open [http://localhost:3000](http://localhost:3000). The first launch creates `d
 
 The desk can keep several companies in the same database, for example a UG and an Einzelunternehmen. On the company screen, open **Companies** and add another company. Each company has separate customers, invoices, invoice numbering, ledger, people, tasks, documents, deadlines, and legal records. The sidebar switcher changes the active company; existing data stays with the company that owned it.
 
+## MCP server
+
+The desk serves its tools as a Model Context Protocol server at `http://127.0.0.1:3000/api/mcp` while it runs. It uses the Streamable HTTP transport with JSON responses and no session state. Point a client at that URL, for example:
+
+```json
+{
+  "mcpServers": {
+    "managr": { "url": "http://127.0.0.1:3000/api/mcp" }
+  }
+}
+```
+
+The tools read the same views the screens read, and write through the same domain builders and the same journal. A client can list companies, invoices, people, and books, and it can create customers, draft and issue invoices, record payments, post expenses and payroll, record time and tasks, and maintain deadlines and resolutions. The endpoint has no sign-in and is reachable only on this computer while the desk runs. See [docs/MCP-ASSISTANT.md](docs/MCP-ASSISTANT.md).
+
 ## Demo and production books
 
 The desk always opens `data/managr.db`. Two saved copies sit beside it: `data/managr.demo.db` and `data/managr.production.db`. Stop the desk before switching, then:

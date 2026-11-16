@@ -54,6 +54,14 @@ The check button calls the `checkInvoiceXRechnung` server action. `src/server/va
 
 `src/server/payloads.ts` validates the invoice and manual-journal JSON. `src/server/people.ts` maps a person onto the social-insurance estimate. `src/server/files.ts` writes uploads under `data/uploads` and refuses a stored name that leaves that directory. `src/server/invoice-math.ts` is the only place that turns stored invoice lines into net, VAT, and open amounts.
 
+## Assistant and MCP
+
+`src/server/tools.ts` is the only tool registry. A tool has a name, a description, a Zod input schema, and a run function. Read tools call the view builders in `src/server/views.ts`, so the assistant sees the JSON a screen sees. Write tools call the same domain builders as the server actions and post through `src/server/posting.ts`; the books stay append-only and corrections stay reversals. `src/server/tools.ts` does not import Next.js and is tested on a temporary database.
+
+`src/app/api/mcp/route.ts` serves the registry as an MCP server. It uses the SDK's Streamable HTTP transport in stateless mode with JSON responses, one POST per request. It is a route in the same Next process, not a second server and not a second port. It is reachable only on this computer while the desk runs.
+
+The in-app assistant uses the same `runTool` from a server route. The widget never gets database access and never receives a tool schema to execute locally; it only shows the conversation and the tool log. See `docs/MCP-ASSISTANT.md`.
+
 ## UI
 
 `(app)/layout.tsx` hydrates the shell. The shell is a client component: sidebar from 768px up, bottom navigation below that. The invoice print route sits outside the shell. Screens, the mobile menu, invoice lines, and journal lines are client components. The page files stay server components so they can prefetch the view.

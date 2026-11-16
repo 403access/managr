@@ -54,6 +54,14 @@ Die Prüfschaltfläche ruft die Server Action `checkInvoiceXRechnung` auf. `src/
 
 `src/server/payloads.ts` validiert das Rechnungs- und das manuelle Journal-JSON. `src/server/people.ts` bildet eine Person auf die Sozialversicherungsschätzung ab. `src/server/files.ts` schreibt Uploads unter `data/uploads` und lehnt einen gespeicherten Namen ab, der dieses Verzeichnis verlässt. `src/server/invoice-math.ts` ist die einzige Stelle, die gespeicherte Rechnungszeilen in Netto-, Umsatzsteuer- und offene Beträge umwandelt.
 
+## Assistent und MCP
+
+`src/server/tools.ts` ist die einzige Werkzeugregistrierung. Ein Werkzeug hat einen Namen, eine Beschreibung, ein Zod-Eingabeschema und eine Ausführungsfunktion. Lese-Werkzeuge rufen die Ansichts-Funktionen in `src/server/views.ts` auf, damit der Assistent dasselbe JSON sieht wie ein Bildschirm. Schreib-Werkzeuge rufen dieselben Domänenfunktionen wie die Server-Actions auf und buchen über `src/server/posting.ts`; die Bücher bleiben fortgeschrieben, Korrekturen bleiben Stornobuchungen. `src/server/tools.ts` importiert kein Next.js und wird auf einer temporären Datenbank getestet.
+
+`src/app/api/mcp/route.ts` stellt die Registrierung als MCP-Server bereit. Er nutzt den Streamable-HTTP-Transport des SDK im zustandslosen Modus mit JSON-Antworten, ein POST je Anfrage. Es ist eine Route im selben Next-Prozess, kein zweiter Server und kein zweiter Port. Er ist nur auf diesem Computer erreichbar, solange der Schreibtisch läuft.
+
+Der Assistent in der App nutzt dasselbe `runTool` aus einer Server-Route. Das Widget bekommt keinen Datenbankzugriff und kein Werkzeugschema zur lokalen Ausführung; es zeigt nur das Gespräch und das Werkzeugprotokoll. Siehe `docs/MCP-ASSISTANT.md`.
+
 ## Oberfläche
 
 `(app)/layout.tsx` hydratisiert die Shell. Die Shell ist eine Client-Komponente: Seitenleiste ab 768px, untere Navigation darunter. Die Rechnungsdruck-Route liegt außerhalb der Shell. Bildschirme, das mobile Menü, Rechnungszeilen und Journalzeilen sind Client-Komponenten. Die Page-Dateien bleiben Server-Komponenten, damit sie die View vorab laden können.
