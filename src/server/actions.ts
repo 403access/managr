@@ -135,7 +135,7 @@ export async function dismissSample(): Promise<ActionState> {
 
 export async function switchCompany(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    const id = requiredId(formData);
+    const id = requiredId(formData, "companyId");
     const db = getDb();
     const company = db.select().from(companies).where(eq(companies.id, id)).get();
     if (!company) throw new Error("Company not found.");
