@@ -76,7 +76,7 @@
     "description": "The records feature description"
   },
   "home.area.assistant": {
-    "message": "Ein Chat-Panel, das mit denselben Werkzeugen wie die Bildschirme liest und bucht, dazu ein MCP-Endpunkt für andere Agenten. Mit einem lokalen Modell bleibt das Gespräch auf diesem Computer. Ein Cloud-Endpunkt erhält es.",
+    "message": "Ein Chat-Panel, das mit denselben Werkzeugen wie die Bildschirme liest und bucht, jeden Schritt zeigt und den angelegten Datensatz als Karte vorlegt. Dazu ein MCP-Endpunkt für andere Agenten. Mit einem lokalen Modell bleibt das Gespräch auf diesem Computer. Ein Cloud-Endpunkt erhält es.",
     "description": "The assistant feature description"
   },
   "home.split.aria": {

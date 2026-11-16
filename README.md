@@ -33,7 +33,9 @@ The tools read the same views the screens read, and write through the same domai
 
 ## Assistant
 
-The floating button opens a chat panel. It answers with the same tools, so a figure in the answer can be traced to a tool call. Configure an OpenAI-compatible chat endpoint that supports tool calling:
+The floating button opens a chat panel. It answers with the same tools, so a figure in the answer can be traced to a tool call. Each step streams into the panel while the model works: a spinner, then a check or the error. A created invoice appears as a card with its number, customer, lines, and totals, and a link to the invoice; payroll and other writes show their key figures and a link. The open screen refreshes after a write.
+
+Configure an OpenAI-compatible chat endpoint that supports tool calling:
 
 ```bash
 export MANAGR_AI_MODEL=qwen2.5:14b

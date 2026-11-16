@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { AssistantNotConfigured, assistantSettings, runAssistant } from "@/server/assistant";
+import { AssistantNotConfigured, assistantSettings, streamAssistant } from "@/server/assistant";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -45,22 +45,45 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
-  try {
-    const result = await runAssistant(parsed.data.messages);
-    return NextResponse.json({
-      ...result,
-      model: settings.model,
-      baseUrl: settings.baseUrl,
-      local: settings.local,
-    });
-  } catch (error) {
-    if (error instanceof AssistantNotConfigured) {
-      return NextResponse.json({ error: error.message, notConfigured: true }, { status: 503 });
-    }
-    console.error(error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "The assistant failed." },
-      { status: 502 },
-    );
-  }
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: unknown) => {
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          // The client went away; the loop stops when the request signal aborts.
+        }
+      };
+      send({ type: "model", model: settings.model, baseUrl: settings.baseUrl, local: settings.local });
+      try {
+        for await (const event of streamAssistant(parsed.data.messages, request.signal)) {
+          send(event);
+        }
+      } catch (error) {
+        if (!request.signal.aborted) {
+          console.error(error);
+          send({
+            type: "error",
+            message: error instanceof AssistantNotConfigured || error instanceof Error ? error.message : "The assistant failed.",
+          });
+        }
+      } finally {
+        try {
+          controller.close();
+        } catch {
+          // Already closed by the runtime.
+        }
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "content-type": "application/x-ndjson; charset=utf-8",
+      "cache-control": "no-store, no-transform",
+      "x-accel-buffering": "no",
+    },
+  });
 }

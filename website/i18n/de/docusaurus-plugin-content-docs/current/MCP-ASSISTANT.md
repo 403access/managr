@@ -63,12 +63,24 @@ Der MCP-Endpunkt nutzt den Streamable-HTTP-Transport des SDK im zustandslosen Mo
 
 ### Phase 2 — das Widget (ausgeliefert)
 
-Ein schwebender Knopf in der App-Hülle öffnet ein Panel. Der Browser schickt das Gespräch an `POST /api/assistant`; die Route führt eine Werkzeugschleife gegen einen OpenAI-kompatiblen Chat-Endpunkt aus und liefert die Antwort samt Liste der aufgerufenen Werkzeuge.
+Ein schwebender Knopf in der App-Hülle öffnet ein Panel. Der Browser schickt das Gespräch an `POST /api/assistant`. Die Route fragt das Modell mit `stream: true` und antwortet mit zeilengetrenntem JSON, ein Ereignis pro Zeile:
+
+- `model`: Endpunkt und Modell in Gebrauch.
+- `delta`: ein Textstück der Antwort.
+- `reset`: Der gestreamte Text war nur ein Vorspann zu einem Werkzeugaufruf und wird zurückgenommen.
+- `tool`: Ein Werkzeugaufruf beginnt, mit seiner Eingabe.
+- `tool_result`: Der Aufruf ist fertig, mit `ok`, einer Zusammenfassung und einer gekürzten Kopie der Daten.
+- `reply`: der endgültige Antworttext.
+- `error`: Der Lauf ist gescheitert, mit einer Meldung.
+
+Das Panel stellt jedes Ereignis sofort dar, sodass die Schritte erscheinen, während das Modell noch arbeitet:
 
 - Das Modell wird über `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL` und `MANAGR_AI_API_KEY` eingestellt. Ohne Modell erklärt das Panel die Einrichtung, statt eine Antwort vorzutäuschen.
-- Das Panel zeigt jeden Werkzeugaufruf mit Name und Ergebnis, damit eine Zahl in der Antwort auf ein Lesen zurückführbar ist.
-- Nach einem Schreibvorgang lädt der offene Bildschirm seine Ansicht neu.
-- Schnellaktionen starten eine übliche Anfrage: ein Briefing, die offenen Rechnungen, die nächsten Fristen.
+- Jeder Werkzeugaufruf zeigt einen Kreisel, dann ein Häkchen oder ein Kreuz mit dem Fehler. Ein Lesevorgang zeigt keine Karte; ein Schreibvorgang zeigt, was er angelegt hat.
+- Eine angelegte, gestellte, bezahlte oder stornierte Rechnung erscheint als Karte mit Nummer, Kunde, Positionen, Netto, Umsatzsteuer, Brutto und offenem Betrag sowie einem Link zur Rechnung. Eine Lohnbuchung zeigt Brutto, Lohnsteuer, Netto und Arbeitgeberanteil sowie einen Link zur Person. Andere Schreibvorgänge verlinken ihren Bildschirm.
+- Nach einem Schreibvorgang leert das Panel den Ansichtscache, sodass eine Liste hinter dem Panel im selben Moment aktualisiert wird.
+- Ein Stopp-Knopf bricht die Anfrage ab und behält die bereits gelaufenen Schritte.
+- Schnellaktionen starten eine übliche Anfrage: ein Briefing, die offenen Rechnungen, die nächsten Fristen, die Monatsabschlussprüfung.
 - Funktioniert bei 375 px Breite und in der Desktop-Seitenleiste.
 
 ### Phase 3 — mehr als die Bildschirme (ausgeliefert)

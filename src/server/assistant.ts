@@ -15,9 +15,19 @@ export type AssistantTurn = { role: "user" | "assistant"; content: string };
 
 export type ToolTrace = { name: string; input: unknown; ok: boolean; summary: string };
 
+export type AssistantEvent =
+  | { type: "delta"; text: string }
+  | { type: "reset" }
+  | { type: "tool"; name: string; input: unknown }
+  | { type: "tool_result"; name: string; input: unknown; ok: boolean; summary: string; data?: unknown }
+  | { type: "reply"; text: string };
+
 const MAX_STEPS = 8;
 const MAX_TOOL_CHARS = 12_000;
+const MAX_UI_CHARS = 4_000;
 const MAX_MESSAGES = 24;
+
+type PendingCall = { id: string; name: string; arguments: string };
 
 /** Read the model settings on every request, so a change does not need a rebuild. */
 export function assistantSettings(): AssistantSettings {
@@ -40,7 +50,7 @@ function systemPrompt(): string {
     "- The books are append-only. A correction is a reversing entry, never an edit.",
     "- Nothing is sent or filed. Never claim an e-invoice, an e-mail, or a tax return was transmitted.",
     "- When a tool returns ok:false, explain the error in plain words and propose the fix. Do not repeat the same call unchanged.",
-    "- After a write, name what was posted and where the user can see it.",
+    "- After a write, name what was posted and where the user can see it. The screen shows the created record next to your answer.",
     "- Keep the answer short and concrete. Use the German statutory term for German institutions. Answer in the language the user writes in.",
     "",
     "The conversation is local to this desk, but the model endpoint may be remote. The user configured it.",
@@ -57,6 +67,12 @@ function toolContent(result: Awaited<ReturnType<typeof runTool>>): string {
   });
 }
 
+function uiData(result: Awaited<ReturnType<typeof runTool>>): unknown {
+  if (!result.ok) return undefined;
+  const text = JSON.stringify(result.data);
+  return text.length <= MAX_UI_CHARS ? result.data : { truncated: true };
+}
+
 function parseArguments(raw: unknown): unknown {
   if (typeof raw !== "string") return raw ?? {};
   try {
@@ -66,9 +82,100 @@ function parseArguments(raw: unknown): unknown {
   }
 }
 
+function combinedSignal(signal: AbortSignal | undefined): AbortSignal {
+  const timeout = AbortSignal.timeout(120_000);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
 export class AssistantNotConfigured extends Error {}
 
-export async function runAssistant(turns: AssistantTurn[]): Promise<{ reply: string; trace: ToolTrace[] }> {
+type Completion = {
+  content: string;
+  calls: PendingCall[];
+  /** Content was already sent to the client, so a tool step has to reset it. */
+  streamed: boolean;
+};
+
+async function* readStream(
+  response: Response,
+  emit: (chunk: string) => AssistantEvent | null,
+): AsyncGenerator<AssistantEvent, Completion> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const payload = (await response.json()) as { choices?: { message?: { content?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[] };
+    const message = payload.choices?.[0]?.message;
+    if (!message) throw new Error("The model returned no message.");
+    const calls = (message.tool_calls ?? []).map((call) => ({ id: call.id, name: call.function.name, arguments: call.function.arguments }));
+    const content = message.content ?? "";
+    if (content) {
+      const event = emit(content);
+      if (event) yield event;
+      return { content, calls, streamed: true };
+    }
+    return { content: "", calls, streamed: false };
+  }
+
+  if (!response.body) throw new Error("The model returned no body.");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+  let streamed = false;
+  const calls: PendingCall[] = [];
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let newline = buffer.indexOf("\n");
+      while (newline !== -1) {
+        const line = buffer.slice(0, newline).replace(/\r$/, "").trim();
+        buffer = buffer.slice(newline + 1);
+        newline = buffer.indexOf("\n");
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        let chunk: {
+          choices?: { delta?: { content?: string | null; tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[] } }[];
+        };
+        try {
+          chunk = JSON.parse(data);
+        } catch {
+          continue;
+        }
+        const delta = chunk.choices?.[0]?.delta;
+        if (!delta) continue;
+        if (typeof delta.content === "string" && delta.content) {
+          content += delta.content;
+          if (calls.length === 0) {
+            streamed = true;
+            yield { type: "delta", text: delta.content };
+          }
+        }
+        for (const part of delta.tool_calls ?? []) {
+          const index = typeof part.index === "number" ? part.index : calls.length;
+          calls[index] ??= { id: "", name: "", arguments: "" };
+          if (part.id) calls[index].id = part.id;
+          if (part.function?.name) calls[index].name += part.function.name;
+          if (typeof part.function?.arguments === "string") calls[index].arguments += part.function.arguments;
+          if (calls.length > 0 && streamed) {
+            streamed = false;
+            yield { type: "reset" };
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return { content, calls, streamed };
+}
+
+/**
+ * Runs the tool loop and yields each step as it happens: text deltas, tool starts,
+ * tool results (with a capped copy for the UI), and the final reply.
+ */
+export async function* streamAssistant(turns: AssistantTurn[], signal?: AbortSignal): AsyncGenerator<AssistantEvent> {
   const settings = assistantSettings();
   if (!settings.model) {
     throw new AssistantNotConfigured("No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.");
@@ -77,7 +184,6 @@ export async function runAssistant(turns: AssistantTurn[]): Promise<{ reply: str
     { role: "system", content: systemPrompt() },
     ...turns.slice(-MAX_MESSAGES).map((turn) => ({ role: turn.role, content: turn.content })),
   ];
-  const trace: ToolTrace[] = [];
 
   for (let step = 0; step < MAX_STEPS; step += 1) {
     chat[0] = { role: "system", content: systemPrompt() };
@@ -93,36 +199,53 @@ export async function runAssistant(turns: AssistantTurn[]): Promise<{ reply: str
         tools: openAiTools(),
         tool_choice: "auto",
         temperature: 0.2,
+        stream: true,
       }),
-      signal: AbortSignal.timeout(120_000),
+      signal: combinedSignal(signal),
     });
     if (!response.ok) {
       const detail = (await response.text().catch(() => "")).slice(0, 400);
       throw new Error(`The model endpoint answered ${response.status}. ${detail}`.trim());
     }
-    const payload = (await response.json()) as {
-      choices?: { message?: { content?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[];
-    };
-    const message = payload.choices?.[0]?.message;
-    if (!message) throw new Error("The model returned no message.");
-    if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
-      chat.push({ role: "assistant", content: message.content ?? "", tool_calls: message.tool_calls });
-      for (const call of message.tool_calls) {
-        const input = parseArguments(call.function.arguments);
-        const result = await runTool(call.function.name, input);
-        trace.push({
-          name: call.function.name,
-          input,
-          ok: result.ok,
-          summary: result.ok ? "ok" : result.error,
-        });
-        chat.push({ role: "tool", tool_call_id: call.id, content: toolContent(result) });
+
+    const completion = yield* readStream(response, (chunk) => ({ type: "delta", text: chunk }));
+    const named = completion.calls.filter((call) => call.name);
+    if (completion.streamed && named.length > 0) {
+      yield { type: "reset" };
+    }
+    if (named.length > 0) {
+      const calls = named.map((call, index) => ({
+        id: call.id || `call_${step}_${index}`,
+        type: "function" as const,
+        function: { name: call.name, arguments: call.arguments || "{}" },
+      }));
+      chat.push({ role: "assistant", content: "", tool_calls: calls });
+      for (let index = 0; index < named.length; index += 1) {
+        const call = named[index];
+        const input = parseArguments(call.arguments);
+        yield { type: "tool", name: call.name, input };
+        const result = await runTool(call.name, input);
+        const summary = result.ok ? "ok" : result.error;
+        yield { type: "tool_result", name: call.name, input, ok: result.ok, summary, data: uiData(result) };
+        chat.push({ role: "tool", tool_call_id: calls[index].id, content: toolContent(result) });
       }
       continue;
     }
-    const reply = (message.content ?? "").trim();
+    const reply = completion.content.trim();
     if (!reply) throw new Error("The model returned no message.");
-    return { reply, trace };
+    yield { type: "reply", text: reply };
+    return;
   }
   throw new Error("The assistant stopped after too many tool steps. Try a smaller request.");
+}
+
+/** Non-streaming wrapper for callers and tests that only need the answer and the trace. */
+export async function runAssistant(turns: AssistantTurn[]): Promise<{ reply: string; trace: ToolTrace[] }> {
+  let reply = "";
+  const trace: ToolTrace[] = [];
+  for await (const event of streamAssistant(turns)) {
+    if (event.type === "reply") reply = event.text;
+    if (event.type === "tool_result") trace.push({ name: event.name, input: event.input, ok: event.ok, summary: event.summary });
+  }
+  return { reply, trace };
 }

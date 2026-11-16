@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { AssistantNotConfigured, assistantSettings, runAssistant } from "@/server/assistant";
+import { AssistantNotConfigured, assistantSettings, runAssistant, streamAssistant, type AssistantEvent } from "@/server/assistant";
 
 const repo = process.cwd();
 let dir = "";
@@ -27,6 +27,25 @@ afterEach(() => {
 
 function completion(message: unknown) {
   return new Response(JSON.stringify({ choices: [{ message }] }), { status: 200, headers: { "content-type": "application/json" } });
+}
+
+function eventStream(payload: string, slice = 17) {
+  const encoder = new TextEncoder();
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        for (let index = 0; index < payload.length; index += slice) {
+          controller.enqueue(encoder.encode(payload.slice(index, index + slice)));
+        }
+        controller.close();
+      },
+    }),
+    { status: 200, headers: { "content-type": "text/event-stream" } },
+  );
+}
+
+function chunk(delta: unknown): string {
+  return `data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`;
 }
 
 describe("assistant settings", () => {
@@ -96,5 +115,64 @@ describe("assistant loop", () => {
     vi.stubEnv("MANAGR_AI_MODEL", "test-model");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("nope", { status: 429 })));
     await expect(runAssistant([{ role: "user", content: "Hallo" }])).rejects.toThrow(/429/);
+  });
+
+  it("streams text deltas, a tool call, and the tool result in order", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const first = eventStream(
+      [
+        chunk({ content: "Ich schaue " }),
+        chunk({ tool_calls: [{ index: 0, id: "call-9", function: { name: "read_desk", arguments: "{}" } }] }),
+        "data: [DONE]\n\n",
+      ].join(""),
+    );
+    const second = eventStream([chunk({ content: "Die Bank " }), chunk({ content: "steht im Briefing." }), "data: [DONE]\n\n"].join(""));
+    const fetchMock = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const events: AssistantEvent[] = [];
+    for await (const event of streamAssistant([{ role: "user", content: "Wie hoch ist die Bank?" }])) {
+      events.push(event);
+    }
+
+    expect(events.map((event) => event.type)).toEqual(["delta", "reset", "tool", "tool_result", "delta", "delta", "reply"]);
+    expect(events[0]).toEqual({ type: "delta", text: "Ich schaue " });
+    expect(events[2]).toEqual({ type: "tool", name: "read_desk", input: {} });
+    expect(events[3]).toMatchObject({ type: "tool_result", name: "read_desk", ok: true });
+    expect(events[6]).toEqual({ type: "reply", text: "Die Bank steht im Briefing." });
+
+    const firstRequest = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(firstRequest.stream).toBe(true);
+    expect(firstRequest.tool_choice).toBe("auto");
+  });
+
+  it("streams a write result with the data the panel renders", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const { customers } = await import("@/db/schema");
+    const customer = getDb().select().from(customers).get();
+    expect(customer).toBeTruthy();
+    const args = JSON.stringify({
+      customerId: customer!.id,
+      issueDate: "2026-11-10",
+      lines: [{ description: "Streamed workshop", quantity: "1", unitNet: "100,00", vatBps: 1900 }],
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        completion({ role: "assistant", content: "", tool_calls: [{ id: "call-w1", type: "function", function: { name: "create_invoice", arguments: args } }] }),
+      )
+      .mockResolvedValueOnce(completion({ role: "assistant", content: "Die Rechnung ist als Entwurf angelegt." }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const events: AssistantEvent[] = [];
+    for await (const event of streamAssistant([{ role: "user", content: "Erstelle eine Rechnung über 100 Euro." }])) {
+      events.push(event);
+    }
+    const result = events.find((event) => event.type === "tool_result");
+    expect(result).toMatchObject({ type: "tool_result", name: "create_invoice", ok: true });
+    const data = result && result.type === "tool_result" ? (result.data as { invoiceId: number; grossCents: number }) : null;
+    expect(data?.invoiceId).toBeGreaterThan(0);
+    expect(data?.grossCents).toBe(11_900);
+    expect(events.some((event) => event.type === "reply" && event.text.includes("Entwurf"))).toBe(true);
   });
 });

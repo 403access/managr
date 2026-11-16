@@ -63,12 +63,24 @@ The MCP endpoint uses the SDK's Streamable HTTP transport in stateless mode with
 
 ### Phase 2 — the widget (shipped)
 
-A floating button in the app shell opens a panel. The browser sends the conversation to `POST /api/assistant`; the route runs a tool-calling loop against an OpenAI-compatible chat endpoint and returns the answer plus a list of the tool calls it made.
+A floating button in the app shell opens a panel. The browser sends the conversation to `POST /api/assistant`. The route asks the model with `stream: true` and answers with newline-delimited JSON, one event per line:
+
+- `model`: the endpoint and model in use.
+- `delta`: a text chunk of the answer.
+- `reset`: the streamed text was only a preamble to a tool call and is withdrawn.
+- `tool`: a tool call started, with its input.
+- `tool_result`: the call finished, with `ok`, a summary, and a capped copy of the data.
+- `reply`: the final answer text.
+- `error`: the run failed, with a message.
+
+The panel renders each event as it arrives, so the steps appear while the model is still working:
 
 - The model is configured with `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL`, and `MANAGR_AI_API_KEY`. Without a model the panel explains the setup instead of pretending to answer.
-- The panel shows each tool call with its name and result, so a figure in the answer can be traced to a read.
-- After a write the open screen refreshes its view.
-- Quick actions start a common request: a briefing, the open invoices, the next deadlines.
+- Each tool call shows a spinner, then a check or a cross with the error. A read shows no card; a write shows what it created.
+- A created, issued, paid, or voided invoice shows a card with number, customer, lines, net, VAT, gross, and open amount, plus a link to the invoice. A payroll posting shows gross, wage tax, net, and employer share, plus a link to the person. Other writes link to their screen.
+- After a write the panel invalidates the open view, so a list behind the panel updates at the same moment.
+- A Stop button aborts the request and keeps the steps that already ran.
+- Quick actions start a common request: a briefing, the open invoices, the next deadlines, the month-end check.
 - Works at 375px width and on the desktop sidebar.
 
 ### Phase 3 — more than the screens (shipped)

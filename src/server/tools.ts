@@ -1115,7 +1115,7 @@ export const tools: DeskTool[] = [
         .insert(salaryPeriods)
         .values({ employeeId: employee.id, validFrom, grossMonthlyCents: positiveCents(input.grossMonthly, "The monthly gross"), note: input.note ?? "" })
         .run();
-      return { id: Number(created.lastInsertRowid), validFrom };
+      return { id: Number(created.lastInsertRowid), personId: employee.id, validFrom };
     },
   }),
   tool({
@@ -1145,7 +1145,7 @@ export const tools: DeskTool[] = [
           notes: input.notes ?? "",
         })
         .run();
-      return { id: Number(created.lastInsertRowid) };
+      return { id: Number(created.lastInsertRowid), personId: employee.id };
     },
   }),
   tool({
@@ -1203,6 +1203,7 @@ export const tools: DeskTool[] = [
         lines: buildPayroll({ ...amounts, grossCents, payNow: input.payNow ?? true, payableAccount }),
       });
       return {
+        personId: employee.id,
         journalEntryId: entryId,
         grossCents,
         wageTaxCents,
@@ -1232,7 +1233,7 @@ export const tools: DeskTool[] = [
         sourceId: null,
         lines: buildShareholderPayout(amountCents),
       });
-      return { journalEntryId: entryId, amountCents };
+      return { journalEntryId: entryId, amountCents, personId: employee.id };
     },
   }),
 

@@ -42,7 +42,7 @@ const areas: { id: string; term: string; text: string }[] = [
   {
     id: "home.area.assistant",
     term: "Assistent",
-    text: "A chat panel that reads and posts with the same tools as the screens, plus an MCP endpoint for other agents. With a local model the conversation stays on this computer. A cloud endpoint receives it.",
+    text: "A chat panel that reads and posts with the same tools as the screens, shows each step as it happens, and puts the created record in front of you as a card. Plus an MCP endpoint for other agents. With a local model the conversation stays on this computer. A cloud endpoint receives it.",
   },
 ];
 
