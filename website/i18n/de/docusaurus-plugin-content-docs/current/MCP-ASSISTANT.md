@@ -19,6 +19,16 @@ Beide Oberflächen verwenden dieselbe Registrierung in `src/server/tools.ts`. Es
 - Datei-Uploads bleiben am Bildschirm. Ein Werkzeug darf Dokumente auflisten, aber keine Dateien schreiben oder löschen.
 - Der Assistent erreicht ein Modell nur unter der eingestellten Adresse. Mit einem lokalen Modell (Ollama oder ein lokaler OpenAI-kompatibler Server) bleiben die Daten auf diesem Computer; mit einem Cloud-Modell verlassen Gespräch und Werkzeugergebnisse ihn. Das Widget zeigt, welche Adresse gilt.
 
+## Einrichtung
+
+| Variable | Bedeutung |
+| --- | --- |
+| `MANAGR_AI_MODEL` | Der Modellname. Ohne ihn antworten Widget und Route nicht. |
+| `MANAGR_AI_BASE_URL` | Eine OpenAI-kompatible Basisadresse. Standard ist `http://127.0.0.1:11434/v1` (Ollama). |
+| `MANAGR_AI_API_KEY` | Wird als Bearer-Token gesendet, wenn gesetzt. Für einen lokalen Endpunkt nicht nötig. |
+
+Eine Loopback-Adresse gilt als lokal. Jeder andere Host gilt als extern, und das Panel sagt das. Das Widget liest die Einstellung über `GET /api/assistant`; der Schlüssel wird nie zurückgegeben. Über die Datenverarbeitung des Modells sagt der Schreibtisch nichts.
+
 ## Phasen
 
 ### Phase 1 — Werkzeugregistrierung und MCP-Server

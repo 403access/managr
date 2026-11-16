@@ -5,6 +5,7 @@ import { dismissSample } from "@/server/actions";
 import type { shellView } from "@/server/views";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { AppNav } from "@/components/app-nav";
+import { Assistant } from "@/components/assistant";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { CompanySwitcher } from "@/components/company-switcher";
 import { useI18n } from "@/components/locale-provider";
@@ -39,6 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
       <AppNav variant="bottom" />
+      <Assistant />
     </div>
   );
 }

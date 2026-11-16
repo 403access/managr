@@ -60,7 +60,7 @@ The check button calls the `checkInvoiceXRechnung` server action. `src/server/va
 
 `src/app/api/mcp/route.ts` serves the registry as an MCP server. It uses the SDK's Streamable HTTP transport in stateless mode with JSON responses, one POST per request. It is a route in the same Next process, not a second server and not a second port. It is reachable only on this computer while the desk runs.
 
-The in-app assistant uses the same `runTool` from a server route. The widget never gets database access and never receives a tool schema to execute locally; it only shows the conversation and the tool log. See `docs/MCP-ASSISTANT.md`.
+The in-app assistant uses the same `runTool` from a server route. `src/app/api/assistant/route.ts` validates the conversation, and `src/server/assistant.ts` reads `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL`, and `MANAGR_AI_API_KEY` on every request, sends the registry's schemas to an OpenAI-compatible chat endpoint, executes each tool call, and returns the reply with a trace. The widget in `src/components/assistant.tsx` never executes a tool itself; it shows the conversation and the tool log and invalidates the view cache after an answer that used a tool. A GET on the route reports whether a model is configured, without the key. See `docs/MCP-ASSISTANT.md`.
 
 ## UI
 

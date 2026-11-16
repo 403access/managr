@@ -31,6 +31,18 @@ The desk serves its tools as a Model Context Protocol server at `http://127.0.0.
 
 The tools read the same views the screens read, and write through the same domain builders and the same journal. A client can list companies, invoices, people, and books, and it can create customers, draft and issue invoices, record payments, post expenses and payroll, record time and tasks, and maintain deadlines and resolutions. The endpoint has no sign-in and is reachable only on this computer while the desk runs. See [docs/MCP-ASSISTANT.md](docs/MCP-ASSISTANT.md).
 
+## Assistant
+
+The floating button opens a chat panel. It answers with the same tools, so a figure in the answer can be traced to a tool call. Configure an OpenAI-compatible chat endpoint that supports tool calling:
+
+```bash
+export MANAGR_AI_MODEL=qwen2.5:14b
+export MANAGR_AI_BASE_URL=http://127.0.0.1:11434/v1   # the default, Ollama
+export MANAGR_AI_API_KEY=...                          # only for a remote endpoint
+```
+
+Restart the desk after changing the variables; they are read per request but the running process needs them in its environment. A local model keeps the conversation on this computer. A cloud endpoint receives the conversation and the tool results. The panel shows which endpoint is in use and lists the tools behind each answer. Without a model the panel explains the setup and nothing is sent.
+
 ## Demo and production books
 
 The desk always opens `data/managr.db`. Two saved copies sit beside it: `data/managr.demo.db` and `data/managr.production.db`. Stop the desk before switching, then:

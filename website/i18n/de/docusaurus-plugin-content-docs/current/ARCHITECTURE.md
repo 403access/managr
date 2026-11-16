@@ -60,7 +60,7 @@ Die Prüfschaltfläche ruft die Server Action `checkInvoiceXRechnung` auf. `src/
 
 `src/app/api/mcp/route.ts` stellt die Registrierung als MCP-Server bereit. Er nutzt den Streamable-HTTP-Transport des SDK im zustandslosen Modus mit JSON-Antworten, ein POST je Anfrage. Es ist eine Route im selben Next-Prozess, kein zweiter Server und kein zweiter Port. Er ist nur auf diesem Computer erreichbar, solange der Schreibtisch läuft.
 
-Der Assistent in der App nutzt dasselbe `runTool` aus einer Server-Route. Das Widget bekommt keinen Datenbankzugriff und kein Werkzeugschema zur lokalen Ausführung; es zeigt nur das Gespräch und das Werkzeugprotokoll. Siehe `docs/MCP-ASSISTANT.md`.
+Der Assistent in der App nutzt dasselbe `runTool` aus einer Server-Route. `src/app/api/assistant/route.ts` prüft das Gespräch, und `src/server/assistant.ts` liest `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL` und `MANAGR_AI_API_KEY` bei jeder Anfrage, schickt die Schemata der Registrierung an einen OpenAI-kompatiblen Chat-Endpunkt, führt jeden Werkzeugaufruf aus und liefert die Antwort mit einem Protokoll. Das Widget in `src/components/assistant.tsx` führt selbst kein Werkzeug aus; es zeigt Gespräch und Werkzeugprotokoll und leert nach einer Antwort mit Werkzeugaufruf den Ansichtscache. Ein GET auf der Route meldet, ob ein Modell eingestellt ist, ohne den Schlüssel. Siehe `docs/MCP-ASSISTANT.md`.
 
 ## Oberfläche
 

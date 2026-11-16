@@ -19,6 +19,16 @@ Both surfaces use the same registry in `src/server/tools.ts`. There is no second
 - File uploads stay on the screen. A tool may list documents, not write or delete files.
 - The assistant reaches a model only at the endpoint you configure. With a local model (Ollama or a local OpenAI-compatible server) the data stays on this computer; with a cloud model, the conversation and the tool results leave it. The widget says which endpoint is in use.
 
+## Configuration
+
+| Variable | Meaning |
+| --- | --- |
+| `MANAGR_AI_MODEL` | The model name. Without it the widget and the route refuse to answer. |
+| `MANAGR_AI_BASE_URL` | An OpenAI-compatible base URL. Defaults to `http://127.0.0.1:11434/v1` (Ollama). |
+| `MANAGR_AI_API_KEY` | Sent as a bearer token when set. Not needed for a local endpoint. |
+
+A loopback base URL counts as local. Any other host counts as remote, and the panel says so. The widget reads the setting from `GET /api/assistant`; the key is never returned. The desk says nothing about the model's own data handling.
+
 ## Phases
 
 ### Phase 1 — tool registry and MCP server
