@@ -4,6 +4,7 @@ import { useState } from "react";
 import { postPayroll } from "@/server/actions";
 import { formatEuro, parseEuroToCents } from "@/domain/money";
 import { estimateContributions, payslip } from "@/domain/social";
+import { isPayrollMonth, salaryForMonth, type SalaryPeriod } from "@/domain/salary";
 import { socialInput, type SocialPerson } from "@/server/people";
 import { useI18n } from "./locale-provider";
 import { ActionForm, SubmitButton } from "./action-form";
@@ -13,11 +14,13 @@ import { Disclaimer, Field, inputClass } from "./ui";
 export function PayrollForm({
   person,
   company,
+  salaryPeriods,
   postedMonths,
   today,
 }: {
   person: SocialPerson & { id: number; grossMonthlyCents: number; firstName: string; lastName: string };
   company: { stateCode: string; additionalKvBps: number };
+  salaryPeriods: SalaryPeriod[];
   postedMonths: string[];
   today: string;
 }) {
@@ -27,7 +30,8 @@ export function PayrollForm({
   const [gross, setGross] = useState("");
   const [wageTax, setWageTax] = useState("");
   const [payNow, setPayNow] = useState(true);
-  const typedGross = gross.trim() ? parseEuroToCents(gross) : person.grossMonthlyCents;
+  const scheduledGrossCents = isPayrollMonth(month) ? salaryForMonth(salaryPeriods, person.grossMonthlyCents, month) : person.grossMonthlyCents;
+  const typedGross = gross.trim() ? parseEuroToCents(gross) : scheduledGrossCents;
   const estimate = typedGross !== null && typedGross >= 0 ? estimateContributions(socialInput(person, company, typedGross)) : null;
   const wageTaxCents = !estimate || estimate.regime === "minijob" ? 0 : wageTax.trim() ? parseEuroToCents(wageTax) : 0;
   const slip = estimate && wageTaxCents !== null ? payslip(estimate, wageTaxCents) : null;
@@ -38,8 +42,8 @@ export function PayrollForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={t("people.month")}><input className={inputClass} type="month" name="month" value={month} onChange={(event) => setMonth(event.target.value)} /></Field>
         <Field label={t("people.payDate")}><input className={inputClass} type="date" name="payDate" value={payDate} onChange={(event) => setPayDate(event.target.value)} /></Field>
-        <Field label={t("people.grossMonth")} hint={t("people.grossHint")}>
-          <input className={inputClass} name="gross" inputMode="decimal" value={gross} onChange={(event) => setGross(event.target.value)} placeholder={t("people.contractGross")} />
+        <Field label={t("people.grossMonth")} hint={t("people.grossHint", { amount: formatEuro(scheduledGrossCents) })}>
+          <input className={inputClass} name="gross" inputMode="decimal" value={gross} onChange={(event) => setGross(event.target.value)} placeholder={formatEuro(scheduledGrossCents)} />
         </Field>
         {estimate?.regime === "minijob" ? (
           <p className="self-end text-sm text-muted">{t("people.miniFlat")}</p>

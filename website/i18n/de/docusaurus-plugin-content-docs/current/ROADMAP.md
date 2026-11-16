@@ -33,6 +33,7 @@ Nach der ersten Version ausgeliefert, in dieser Reihenfolge:
 
 1. Rechnungen weisen ihre Beträge als Nettopreise mit zusätzlicher Umsatzsteuer oder als Bruttopreise mit enthaltener Umsatzsteuer aus; die Wahl gilt je Rechnung.
 2. Eine Abrechnungsansicht im Personenbildschirm und im Lohnformular zeigt jede Zeile: Brutto, jeden Beitrag je Seite, die eingegebene Lohnsteuer, den Nettolohn und den Arbeitgeberaufwand.
+3. Ein Gehaltsverlauf trägt Erhöhungen über die Zeit; das Lohnformular schlägt den Betrag des gewählten Monats vor und bucht weiterhin den bestätigten Betrag.
 
 ## Nicht in Version 1
 
@@ -59,8 +60,7 @@ Diese Punkte brauchen ein externes System oder eine andere Produktentscheidung. 
 
 Gewünscht, noch nicht eingeplant. In der Reihenfolge, in der es aufkam; das ist keine Zusage.
 
-1. **Dynamisches Gehalt.** Ein Gehalt, das sich über die Zeit ändert oder monatlich schwankt — Erhöhung, Einmalzahlung, Bonus, angebrochener Monat — statt eines festen Monatsbetrags je Anstellung, durchgereicht bis in Beitragsschätzung und Lohnjournal.
-2. **Gehalt als Auszahlung an den selbst angestellten Gesellschafter.** Das Gehalt eines Gesellschafter-Geschäftsführers als Auszahlung mit eigener Buchung und Unterlagen: Gesellschafterbeschluss, Angemessenheitsprüfung, damit daraus keine verdeckte Gewinnausschüttung wird, und die Trennung zwischen Gehalt und Gewinnausschüttung.
+1. **Gehalt als Auszahlung an den selbst angestellten Gesellschafter.** Das Gehalt eines Gesellschafter-Geschäftsführers als Auszahlung mit eigener Buchung und Unterlagen: Gesellschafterbeschluss, Angemessenheitsprüfung, damit daraus keine verdeckte Gewinnausschüttung wird, und die Trennung zwischen Gehalt und Gewinnausschüttung.
 
 ## Fertig
 

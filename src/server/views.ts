@@ -4,6 +4,7 @@ import { addDays, fiscalYearContaining, todayIso } from "@/domain/calendar";
 import { reviewInvoice } from "@/domain/invoice";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
 import { policyReminders } from "@/domain/obligations";
+import { nextSalaryChange } from "@/domain/salary";
 import { conversionGap, reserveDutyActive } from "@/domain/reserve";
 import { balanceSheetTotals, summarizeProfit } from "@/domain/reporting";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
@@ -324,7 +325,7 @@ export function peopleView() {
 export function personView(id: number) {
   const loaded = loadPerson(id);
   if (!loaded) return null;
-  const { employee, estimate, estimateError, absences, postedMonths, vacationUsed, company } = loaded;
+  const { employee, estimate, estimateError, absences, postedMonths, vacationUsed, company, salaryPeriods, currentSalaryCents } = loaded;
   return {
     employee,
     company: { stateCode: company.stateCode, additionalKvBps: company.additionalKvBps },
@@ -335,6 +336,9 @@ export function personView(id: number) {
     vacationUsed,
     shortfall: vacationShortfall(employee.vacationDays, employee.workdaysPerWeek),
     minimumDays: minimumVacationDays(employee.workdaysPerWeek),
+    salaryPeriods,
+    currentSalaryCents,
+    nextChange: nextSalaryChange(salaryPeriods, todayIso().slice(0, 7)),
     today: todayIso(),
   };
 }

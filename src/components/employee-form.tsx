@@ -79,7 +79,7 @@ export function EmployeeForm({ person, today }: { person?: EmployeeValues; today
           <TextInput name="workdays" inputMode="numeric" defaultValue={person?.workdaysPerWeek ?? 5} />
         </Field>
         <Field label={t("people.vacationDays")}><TextInput name="vacationDays" inputMode="numeric" defaultValue={person?.vacationDays ?? 20} /></Field>
-        <Field label={t("people.monthlyGross")}><TextInput name="gross" inputMode="decimal" defaultValue={person ? euroInput(person.grossMonthlyCents) : ""} required /></Field>
+        <Field label={t("people.monthlyGross")} hint={t("people.monthlyGrossHint")}><TextInput name="gross" inputMode="decimal" defaultValue={person ? euroInput(person.grossMonthlyCents) : ""} required /></Field>
         <Field label={t("people.taxClass")} hint={t("people.taxClassHint")}><TextInput name="taxClass" defaultValue={person?.taxClass ?? ""} /></Field>
         <Field label={t("people.taxId")}><TextInput name="taxId" defaultValue={person?.taxId ?? ""} /></Field>
         <Field label={t("people.svNumber")}><TextInput name="svNumber" defaultValue={person?.svNumber ?? ""} /></Field>

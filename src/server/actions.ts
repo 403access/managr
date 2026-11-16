@@ -20,6 +20,7 @@ import {
   policies,
   reserveMovements,
   resolutions,
+  salaryPeriods,
   shareholders,
   tasks,
   timeEntries,
@@ -41,6 +42,7 @@ import {
   reverseLines,
 } from "@/domain/postings";
 import { reserveDutyActive } from "@/domain/reserve";
+import { salaryForMonth } from "@/domain/salary";
 import { estimateContributions, payrollAmounts } from "@/domain/social";
 import { isStateCode } from "@/domain/states";
 import { durationMinutes, timeWarnings } from "@/domain/time";
@@ -51,7 +53,7 @@ import { invoiceMoney } from "./invoice-math";
 import { invoicePayloadSchema, journalPayloadSchema, type InvoicePayload } from "./payloads";
 import { socialInput } from "./people";
 import { entryLines, payrollSourceId, postJournal } from "./posting";
-import { accountBalances, loadCompany, signedAccount } from "./queries";
+import { accountBalances, listSalaryPeriods, loadCompany, signedAccount } from "./queries";
 
 const KINDS = ["regular", "minijob", "midijob", "apprentice", "managing_director"] as const;
 const SV = ["automatic", "subject", "exempt"] as const;
@@ -816,6 +818,44 @@ export async function saveEmployee(_state: ActionState, formData: FormData): Pro
   }
 }
 
+function requireEmployee(formData: FormData) {
+  const employeeId = requiredId(formData, "employeeId");
+  const employee = getDb().select().from(employees).where(and(eq(employees.id, employeeId), eq(employees.companyId, requireCompany().id))).get();
+  if (!employee) throw new Error("Person not found.");
+  return employee;
+}
+
+export async function saveSalaryPeriod(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const employee = requireEmployee(formData);
+    const validFrom = requireDate(text(formData, "validFrom"), "The salary change");
+    const grossMonthlyCents = euros(formData, "gross");
+    if (!grossMonthlyCents) throw new Error("Enter the new monthly gross.");
+    const db = getDb();
+    const existing = db
+      .select()
+      .from(salaryPeriods)
+      .where(and(eq(salaryPeriods.employeeId, employee.id), eq(salaryPeriods.validFrom, validFrom)))
+      .get();
+    if (existing) throw new Error("There is already a salary change on that date.");
+    db.insert(salaryPeriods).values({ employeeId: employee.id, validFrom, grossMonthlyCents, note: text(formData, "note") }).run();
+    return saved("Salary change saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function deleteSalaryPeriod(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const employee = requireEmployee(formData);
+    const id = requiredId(formData);
+    getDb().delete(salaryPeriods).where(and(eq(salaryPeriods.id, id), eq(salaryPeriods.employeeId, employee.id))).run();
+    return saved("Salary change removed.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
 export async function addAbsence(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const employeeId = requiredId(formData, "employeeId");
@@ -866,7 +906,7 @@ export async function postPayroll(_state: ActionState, formData: FormData): Prom
     const month = text(formData, "month");
     if (!/^\d{4}-\d{2}$/.test(month)) throw new Error("Choose the payroll month.");
     const payDate = requireDate(text(formData, "payDate"), "The pay date");
-    const gross = text(formData, "gross") ? euros(formData, "gross") : employee.grossMonthlyCents;
+    const gross = text(formData, "gross") ? euros(formData, "gross") : salaryForMonth(listSalaryPeriods(employeeId), employee.grossMonthlyCents, month);
     if (!gross) throw new Error("Enter the monthly gross.");
     const sourceId = payrollSourceId(employeeId, month);
     const duplicate = db.select().from(journalEntries).where(and(eq(journalEntries.companyId, company.id), eq(journalEntries.source, "payroll"), eq(journalEntries.sourceId, sourceId))).get();

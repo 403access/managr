@@ -91,6 +91,8 @@ Die Obergrenzen, Sätze, die Minijob-Grenze und der Faktor F für 2026 sind die 
 
 `payslip` macht aus der Schätzung und der eingegebenen Lohnsteuer die Abrechnungsansicht: Brutto, jeden Arbeitnehmer- und Arbeitgeberanteil, die Lohnsteuer, den Nettolohn und den Arbeitgeberaufwand. Solange keine Lohnsteuer eingegeben ist, zeigt der Personenbildschirm diese Zeile als offen, weil die Lohnsteuer nie berechnet wird. Das Lohnformular zeigt dieselbe Tabelle mit dem eingegebenen Betrag; der Nettolohn entspricht der gebuchten Auszahlung.
 
+Ein Gehalt kann sich über die Zeit ändern. `salary_periods` hält je Änderung eine Zeile: das Datum, ab dem sie gilt, und das Monatsbrutto. `salaryForMonth` liefert die letzte Änderung, die nicht nach dem Abrechnungsmonat liegt, sonst das Vertragsbrutto in `employees.gross_monthly_cents`. Eine Änderung mit Datum innerhalb eines Monats gilt für diesen ganzen Monat. Der Personenbildschirm zeigt den Verlauf und die nächste Änderung; das Lohnformular schlägt den Betrag des gewählten Monats vor, und eine Einmalzahlung, ein Bonus oder ein angebrochener Monat wird beim Buchen selbst als Brutto eingetragen. Gebucht wird, was bestätigt wurde, nicht was der Verlauf vorgeschlagen hat.
+
 Die Krankenversicherung einer geschäftsführenden Gesellschafterin oder eines geschäftsführenden Gesellschafters ist ein Policeneintrag (privat oder freiwillig gesetzlich), kein Lohnabzug. Verlängerungsdaten erscheinen als Erinnerungen.
 
 ## Pflichten

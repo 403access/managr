@@ -19,6 +19,7 @@ import {
   policies,
   reserveMovements,
   resolutions,
+  salaryPeriods,
   shareholders,
   tasks,
   timeEntries,
@@ -27,6 +28,7 @@ import type { AccountType, PnlGroup } from "@/domain/accounts";
 import { ACCOUNTS, signedBalance } from "@/domain/accounts";
 import { addDays, todayIso } from "@/domain/calendar";
 import { statutoryObligations } from "@/domain/obligations";
+import { salaryForMonth, type SalaryPeriod } from "@/domain/salary";
 import { estimateContributions, type ContributionEstimate } from "@/domain/social";
 import { countWorkdays, weekStart } from "@/domain/time";
 import { lineNetCents, summarizeVat } from "@/domain/vat";
@@ -172,6 +174,8 @@ export function loadInvoice(id: number) {
 
 export function listPeople() {
   const company = loadCompany();
+  const month = todayIso().slice(0, 7);
+  const schedules = salaryPeriodsByEmployee();
   return getDb()
     .select()
     .from(employees)
@@ -179,13 +183,30 @@ export function listPeople() {
     .orderBy(asc(employees.lastName), asc(employees.firstName))
     .all()
     .map((employee) => {
+      const currentGrossCents = salaryForMonth(schedules.get(employee.id) ?? [], employee.grossMonthlyCents, month);
       try {
-        const estimate: ContributionEstimate | null = estimateContributions(socialInput(employee, company, employee.grossMonthlyCents));
-        return { employee, estimate, estimateError: "" };
+        const estimate: ContributionEstimate | null = estimateContributions(socialInput(employee, company, currentGrossCents));
+        return { employee: { ...employee, grossMonthlyCents: currentGrossCents }, estimate, estimateError: "" };
       } catch (error) {
-        return { employee, estimate: null, estimateError: error instanceof Error ? error.message : "Estimate unavailable." };
+        return { employee: { ...employee, grossMonthlyCents: currentGrossCents }, estimate: null, estimateError: error instanceof Error ? error.message : "Estimate unavailable." };
       }
     });
+}
+
+export function listSalaryPeriods(employeeId: number) {
+  return getDb().select().from(salaryPeriods).where(eq(salaryPeriods.employeeId, employeeId)).orderBy(desc(salaryPeriods.validFrom)).all();
+}
+
+/** Every salary change grouped by person, oldest first. Used for the current salary in lists. */
+export function salaryPeriodsByEmployee(): Map<number, SalaryPeriod[]> {
+  const rows = getDb().select().from(salaryPeriods).orderBy(asc(salaryPeriods.validFrom)).all();
+  const map = new Map<number, SalaryPeriod[]>();
+  for (const row of rows) {
+    const list = map.get(row.employeeId) ?? [];
+    list.push({ validFrom: row.validFrom, grossMonthlyCents: row.grossMonthlyCents });
+    map.set(row.employeeId, list);
+  }
+  return map;
 }
 
 export function postedPayrollMonths(employeeId: number): string[] {
@@ -205,10 +226,12 @@ export function loadPerson(id: number) {
   const employee = db.select().from(employees).where(and(eq(employees.id, id), eq(employees.companyId, company.id))).get();
   if (!employee) return null;
   const absenceRows = db.select().from(absences).where(eq(absences.employeeId, id)).orderBy(desc(absences.startDate)).all();
+  const periods = listSalaryPeriods(id);
+  const currentSalaryCents = salaryForMonth(periods, employee.grossMonthlyCents, todayIso().slice(0, 7));
   let estimate: ContributionEstimate | null = null;
   let estimateError = "";
   try {
-    estimate = estimateContributions(socialInput(employee, company, employee.grossMonthlyCents));
+    estimate = estimateContributions(socialInput(employee, company, currentSalaryCents));
   } catch (error) {
     estimateError = error instanceof Error ? error.message : "Estimate unavailable.";
   }
@@ -222,7 +245,7 @@ export function loadPerson(id: number) {
       const end = absence.endDate > yearEnd ? yearEnd : absence.endDate;
       return sum + countWorkdays(start, end, employee.workdaysPerWeek);
     }, 0);
-  return { employee, absences: absenceRows, postedMonths: postedPayrollMonths(id), estimate, estimateError, vacationUsed, company };
+  return { employee, absences: absenceRows, postedMonths: postedPayrollMonths(id), estimate, estimateError, vacationUsed, company, salaryPeriods: periods, currentSalaryCents };
 }
 
 export function payrollObligationsApply(): boolean {

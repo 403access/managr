@@ -164,6 +164,18 @@ export const employees = sqliteTable("employees", {
   notes: text("notes").notNull().default(""),
 });
 
+export const salaryPeriods = sqliteTable(
+  "salary_periods",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    employeeId: integer("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+    validFrom: text("valid_from").notNull(),
+    grossMonthlyCents: integer("gross_monthly_cents").notNull(),
+    note: text("note").notNull().default(""),
+  },
+  (table) => [uniqueIndex("salary_periods_employee_from_unique").on(table.employeeId, table.validFrom)],
+);
+
 export const absences = sqliteTable("absences", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   employeeId: integer("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),

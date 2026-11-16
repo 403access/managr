@@ -91,6 +91,8 @@ Corporate, solidarity, and trade tax are a planning estimate in `estimateCorpora
 
 `payslip` turns the estimate and the entered wage tax into the payslip view: gross, each employee and employer contribution, the wage tax, net pay, and the employer cost. Until wage tax is entered the person screen shows that row as open, because Lohnsteuer is never calculated. The payroll form renders the same table with the typed amount, and the net equals the posted net.
 
+A salary can change over time. `salary_periods` holds one row per change: the date it applies from and the monthly gross. `salaryForMonth` returns the latest change not after the payroll month, or the contract gross in `employees.gross_monthly_cents` when there is none. A change dated inside a month applies to that whole month. The person screen shows the history and the next change; the payroll form suggests the figure for the chosen month, and a one-off payment, a bonus, or a partial month is typed as the gross on the posting itself. The posting books what was confirmed, not what the schedule suggested.
+
 Health insurance for a controlling shareholder-director is a policy record (private or voluntary statutory), not a payroll deduction. Renewal dates surface as reminders.
 
 ## Obligations

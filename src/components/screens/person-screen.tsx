@@ -1,8 +1,9 @@
 "use client";
 
-import { addAbsence, deleteAbsence } from "@/server/actions";
+import { addAbsence, deleteAbsence, deleteSalaryPeriod, saveSalaryPeriod } from "@/server/actions";
 import type { personView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
+import { formatEuro } from "@/domain/money";
 import { payslip } from "@/domain/social";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -57,12 +58,56 @@ export function PersonScreen({ id }: { id: number }) {
                 <p className="mt-2 text-xs text-muted">{t("people.vacationNote", { days: employee.workdaysPerWeek })}</p>
               </Card>
             </Tab>
+            <Tab id="salary" label={t("people.salary")}>
+              <Card>
+                <p className="text-sm">{t("people.salaryCurrent", { amount: formatEuro(loaded.currentSalaryCents) })}</p>
+                {loaded.nextChange ? (
+                  <p className="mt-1 text-sm text-muted">
+                    {t("people.salaryNext", { amount: formatEuro(loaded.nextChange.grossMonthlyCents), date: formatDate(loaded.nextChange.validFrom) })}
+                  </p>
+                ) : null}
+                {loaded.salaryPeriods.length === 0 ? <p className="mt-2 text-sm text-muted">{t("people.salaryNone")}</p> : null}
+              </Card>
+              {loaded.salaryPeriods.length > 0 ? (
+                <div className="mt-3 grid gap-2">
+                  {loaded.salaryPeriods.map((period) => (
+                    <Card key={period.id} className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm">
+                        {formatDate(period.validFrom)} · {formatEuro(period.grossMonthlyCents)}
+                        {period.note ? ` · ${period.note}` : ""}
+                      </span>
+                      <ActionForm action={deleteSalaryPeriod} compact>
+                        <input type="hidden" name="employeeId" value={employee.id} />
+                        <input type="hidden" name="id" value={period.id} />
+                        <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
+                      </ActionForm>
+                    </Card>
+                  ))}
+                </div>
+              ) : null}
+              <Card className="mt-3">
+                <h2 className="text-xl">{t("people.salaryAdd")}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted">{t("people.salaryAddHint")}</p>
+                <ActionForm action={saveSalaryPeriod} resetOnSuccess>
+                  <input type="hidden" name="employeeId" value={employee.id} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label={t("people.salaryFrom")}><TextInput name="validFrom" type="date" defaultValue={loaded.today} /></Field>
+                    <Field label={t("people.salaryGross")}><TextInput name="gross" inputMode="decimal" placeholder={formatEuro(loaded.employee.grossMonthlyCents)} /></Field>
+                  </div>
+                  <Field label={t("common.notes")}><TextInput name="note" /></Field>
+                  <SubmitButton>{t("people.salarySave")}</SubmitButton>
+                </ActionForm>
+              </Card>
+              <div className="mt-3">
+                <Disclaimer>{t("people.salaryNote")}</Disclaimer>
+              </div>
+            </Tab>
             <Tab id="record" label={t("people.record")}>
               <EmployeeForm person={employee} today={loaded.today} />
             </Tab>
             <Tab id="payroll" label={t("people.payroll")}>
               <Card>
-                <PayrollForm person={employee} company={loaded.company} postedMonths={loaded.postedMonths} today={loaded.today} />
+                <PayrollForm person={employee} company={loaded.company} salaryPeriods={loaded.salaryPeriods} postedMonths={loaded.postedMonths} today={loaded.today} />
                 {loaded.postedMonths.length > 0 ? <p className="mt-3 text-sm text-muted">{t("people.posted", { months: loaded.postedMonths.join(", ") })}</p> : null}
               </Card>
             </Tab>
