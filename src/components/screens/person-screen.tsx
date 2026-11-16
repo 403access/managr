@@ -3,25 +3,16 @@
 import { addAbsence, deleteAbsence } from "@/server/actions";
 import type { personView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
-import { formatEuro } from "@/domain/money";
+import { payslip } from "@/domain/social";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { EmployeeForm } from "@/components/employee-form";
 import { useI18n } from "@/components/locale-provider";
 import { PayrollForm } from "@/components/payroll-form";
+import { PayslipTable } from "@/components/payslip-table";
 import { useView, ViewGate } from "@/components/use-view";
 import { Tab, Tabs } from "@/components/tabs";
 import { Card, Disclaimer, Field, PageHeader, Pill, SelectInput, TextInput } from "@/components/ui";
-
-const rows = [
-  ["people.health", "healthCents"],
-  ["people.additional", "additionalHealthCents"],
-  ["people.care", "careCents"],
-  ["people.pension", "pensionCents"],
-  ["people.unemployment", "unemploymentCents"],
-  ["people.insolvency", "insolvencyCents"],
-  ["people.flatTaxRow", "flatTaxCents"],
-] as const;
 
 type Person = NonNullable<ReturnType<typeof personView>>;
 
@@ -40,41 +31,15 @@ export function PersonScreen({ id }: { id: number }) {
             <Tab id="overview" label={t("people.overview")}>
             {estimate ? (
               <Card>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[22rem] text-sm">
-                    <thead>
-                      <tr className="border-b border-line text-left">
-                        <th className="py-2 font-medium">{t("people.contribution")}</th>
-                        <th className="py-2 text-right font-medium">{t("people.employee")}</th>
-                        <th className="py-2 text-right font-medium">{t("people.employer")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map(([key, field]) => (
-                        <tr key={field} className="border-b border-line">
-                          <td className="py-2">{t(key)}</td>
-                          <td className="py-2 text-right font-mono">{formatEuro(estimate.employee[field])}</td>
-                          <td className="py-2 text-right font-mono">{formatEuro(estimate.employer[field])}</td>
-                        </tr>
-                      ))}
-                      <tr>
-                        <td className="py-2 font-medium">{t("people.total")}</td>
-                        <td className="py-2 text-right font-mono">{formatEuro(estimate.employee.totalCents)}</td>
-                        <td className="py-2 text-right font-mono">{formatEuro(estimate.employer.totalCents)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <p className="mt-3 text-sm">
-                  {t("people.payout", { payout: formatEuro(estimate.payoutCents), cost: formatEuro(estimate.employerCashCents) })}
-                </p>
+                <PayslipTable payslip={payslip(estimate, 0)} wageTaxKnown={false} />
+                <p className="mt-3 text-sm text-muted">{t("people.payslipNoTax")}</p>
                 {estimate.warnings.map((warning) => (
                   <p key={warning} className="mt-2 text-sm text-amber">
                     {tx(warning)}
                   </p>
                 ))}
                 <div className="mt-3">
-                  <Disclaimer>{t("disclaimer.default")}</Disclaimer>
+                  <Disclaimer>{t("people.payslipNote")}</Disclaimer>
                 </div>
               </Card>
             ) : null}

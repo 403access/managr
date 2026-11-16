@@ -281,6 +281,35 @@ export function payrollAmounts(estimate: ContributionEstimate, wageTaxCents: num
   };
 }
 
+export type Payslip = {
+  regime: PayRegime;
+  grossCents: number;
+  employee: ContributionSide;
+  wageTaxCents: number;
+  netCents: number;
+  employer: ContributionSide;
+  employerCostCents: number;
+  minijob: boolean;
+};
+
+/**
+ * One payslip for display. Contributions stay estimates; the wage tax is the entered figure.
+ * `payrollAmounts` stays the posting path, so the shown net equals the posted net.
+ */
+export function payslip(estimate: ContributionEstimate, wageTaxCents: number): Payslip {
+  const amounts = payrollAmounts(estimate, wageTaxCents);
+  return {
+    regime: estimate.regime,
+    grossCents: estimate.grossCents,
+    employee: estimate.employee,
+    wageTaxCents: amounts.wageTaxCents,
+    netCents: estimate.grossCents - amounts.withheldCents - amounts.wageTaxCents,
+    employer: estimate.employer,
+    employerCostCents: estimate.grossCents + estimate.employer.totalCents,
+    minijob: amounts.minijob,
+  };
+}
+
 function minijobEstimate(input: SocialInput, warnings: string[]): ContributionEstimate {
   const employee = emptySide();
   const employer = emptySide();

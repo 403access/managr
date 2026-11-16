@@ -89,6 +89,8 @@ Die Obergrenzen, Sätze, die Minijob-Grenze und der Faktor F für 2026 sind die 
 - Lohnsteuer wird nie berechnet. Eine Lohnbuchung fragt danach.
 - `payrollAmounts` macht aus der Schätzung Buchungszahlen. Die Sozialversicherung des Beschäftigten wird einbehalten. Die Arbeitgeber-Sozialversicherung schließt die Minijob-Pauschalsteuer aus, die separat gebucht wird. Eine Minijob-Buchung ignoriert einen eingegebenen Lohnsteuerbetrag. Ein sozialversicherungsfreies Gehalt kann trotzdem Lohnsteuer tragen, weil der Lohnsteuerabzug von der Sozialversicherung getrennt ist.
 
+`payslip` macht aus der Schätzung und der eingegebenen Lohnsteuer die Abrechnungsansicht: Brutto, jeden Arbeitnehmer- und Arbeitgeberanteil, die Lohnsteuer, den Nettolohn und den Arbeitgeberaufwand. Solange keine Lohnsteuer eingegeben ist, zeigt der Personenbildschirm diese Zeile als offen, weil die Lohnsteuer nie berechnet wird. Das Lohnformular zeigt dieselbe Tabelle mit dem eingegebenen Betrag; der Nettolohn entspricht der gebuchten Auszahlung.
+
 Die Krankenversicherung einer geschäftsführenden Gesellschafterin oder eines geschäftsführenden Gesellschafters ist ein Policeneintrag (privat oder freiwillig gesetzlich), kein Lohnabzug. Verlängerungsdaten erscheinen als Erinnerungen.
 
 ## Pflichten

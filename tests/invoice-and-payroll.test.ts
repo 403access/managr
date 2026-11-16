@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { journalImbalance } from "@/domain/accounts";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, isKleinunternehmerNote, reviewInvoice, type InvoiceReviewInput } from "@/domain/invoice";
-import { estimateContributions, payrollAmounts, type SocialInput } from "@/domain/social";
+import { estimateContributions, payrollAmounts, payslip, type SocialInput } from "@/domain/social";
 import { buildExpense, buildPayroll, buildReserveAllocation, buildSalesInvoice, reverseLines } from "@/domain/postings";
 import { summarizeVat } from "@/domain/vat";
 import { countWorkdays, durationMinutes, minimumVacationDays, timeWarnings, weekStart } from "@/domain/time";
@@ -108,6 +108,39 @@ describe("payroll posting and working time", () => {
     );
     expect(director).toMatchObject({ withheldCents: 0, wageTaxCents: 50_000, employerSocialCents: 0, flatTaxCents: 0, minijob: false });
     expect(journalImbalance(buildPayroll({ ...director, grossCents: 320_000, payNow: true }))).toBeNull();
+  });
+
+  it("shows every line of a payslip and keeps the net equal to the posted net", () => {
+    const person: SocialInput = {
+      grossMonthlyCents: 160_000,
+      kind: "midijob",
+      ownershipBps: 0,
+      svStatus: "subject",
+      stateCode: "BE",
+      additionalKvBps: 290,
+      childlessSurcharge: false,
+      careDiscountSteps: 1,
+      minijobPublicHealth: true,
+      pensionOptOut: false,
+      flatTax: true,
+    };
+    const estimate = estimateContributions(person);
+    const slip = payslip(estimate, 8_000);
+    expect(slip.grossCents).toBe(160_000);
+    expect(slip.wageTaxCents).toBe(8_000);
+    expect(slip.netCents).toBe(160_000 - estimate.employee.totalCents - 8_000);
+    expect(slip.employerCostCents).toBe(160_000 + estimate.employer.totalCents);
+    expect(slip.employee.totalCents).toBeGreaterThan(0);
+
+    const mini = payslip(estimateContributions({ ...person, kind: "minijob", grossMonthlyCents: 45_000 }), 9_999);
+    expect(mini.wageTaxCents).toBe(0);
+    expect(mini.minijob).toBe(true);
+
+    const director = payslip(estimateContributions({ ...person, kind: "managing_director", svStatus: "automatic", ownershipBps: 10_000, grossMonthlyCents: 320_000 }), 50_000);
+    expect(director.employee.totalCents).toBe(0);
+    expect(director.employer.totalCents).toBe(0);
+    expect(director.netCents).toBe(270_000);
+    expect(director.employerCostCents).toBe(320_000);
   });
 
   it("warns on breaks and the 10-hour cap, and counts a Monday-Friday week", () => {

@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { postPayroll } from "@/server/actions";
 import { formatEuro, parseEuroToCents } from "@/domain/money";
-import { estimateContributions, payrollAmounts } from "@/domain/social";
+import { estimateContributions, payslip } from "@/domain/social";
 import { socialInput, type SocialPerson } from "@/server/people";
 import { useI18n } from "./locale-provider";
 import { ActionForm, SubmitButton } from "./action-form";
+import { PayslipTable } from "./payslip-table";
 import { Disclaimer, Field, inputClass } from "./ui";
 
 export function PayrollForm({
@@ -29,8 +30,7 @@ export function PayrollForm({
   const typedGross = gross.trim() ? parseEuroToCents(gross) : person.grossMonthlyCents;
   const estimate = typedGross !== null && typedGross >= 0 ? estimateContributions(socialInput(person, company, typedGross)) : null;
   const wageTaxCents = !estimate || estimate.regime === "minijob" ? 0 : wageTax.trim() ? parseEuroToCents(wageTax) : 0;
-  const amounts = estimate && wageTaxCents !== null ? payrollAmounts(estimate, wageTaxCents) : null;
-  const payout = estimate && amounts ? estimate.grossCents - amounts.withheldCents - amounts.wageTaxCents : null;
+  const slip = estimate && wageTaxCents !== null ? payslip(estimate, wageTaxCents) : null;
 
   return (
     <ActionForm action={postPayroll}>
@@ -56,12 +56,13 @@ export function PayrollForm({
       {postedMonths.includes(month) ? <p className="text-sm text-clay">{t("people.alreadyPosted")}</p> : null}
       {gross.trim() && typedGross === null ? <p className="text-sm text-clay">{t("people.grossInvalid")}</p> : null}
       {estimate ? (
-        <div className="grid gap-1 text-sm">
-          <p>{t("people.regimeLine", { regime: label(estimate.regime), payout: payout !== null ? formatEuro(payout) : "—", cost: formatEuro(estimate.employerCashCents) })}</p>
+        <div className="grid gap-2 text-sm">
+          <p>{t("people.regimeLine", { regime: label(estimate.regime), payout: slip ? formatEuro(slip.netCents) : "—", cost: formatEuro(estimate.employerCashCents) })}</p>
+          {slip ? <PayslipTable payslip={slip} /> : null}
           {estimate.warnings.map((warning) => <p key={warning} className="text-amber">{tx(warning)}</p>)}
         </div>
       ) : null}
-      {payout !== null && payout <= 0 ? <p className="text-sm text-clay">{t("people.netBlocked")}</p> : null}
+      {slip !== null && slip.netCents <= 0 ? <p className="text-sm text-clay">{t("people.netBlocked")}</p> : null}
       <Disclaimer>{t("disclaimer.default")}</Disclaimer>
       <SubmitButton>{t("people.postPayroll")}</SubmitButton>
     </ActionForm>
