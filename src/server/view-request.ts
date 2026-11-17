@@ -14,6 +14,8 @@ export const VIEW_NAMES = [
   "obligations",
   "documents",
   "legal",
+  "projects",
+  "analytics",
 ] as const;
 
 export type ViewName = (typeof VIEW_NAMES)[number];
@@ -23,6 +25,7 @@ export type ViewQuery = {
   year: number;
   week: string;
   all: boolean;
+  customer: number | null;
 };
 
 export function parseViewName(name: string): ViewName | null {
@@ -37,7 +40,9 @@ export function parseViewQuery(params: URLSearchParams, today: string): ViewQuer
   const year = Number.isInteger(requested) && requested >= 2000 && requested <= 2100 ? requested : current;
   const weekValue = params.get("week");
   const week = weekValue && /^\d{4}-\d{2}-\d{2}$/.test(weekValue) ? weekValue : today;
-  return { id, year, week, all: params.get("all") === "1" };
+  const customerValue = Number(params.get("customer"));
+  const customer = Number.isInteger(customerValue) && customerValue >= 1 ? customerValue : null;
+  return { id, year, week, all: params.get("all") === "1", customer };
 }
 
 export function viewIsReady(name: ViewName, query: Pick<ViewQuery, "id">): boolean {

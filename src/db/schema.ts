@@ -187,14 +187,29 @@ export const absences = sqliteTable("absences", {
   notes: text("notes").notNull().default(""),
 });
 
+export const projects = sqliteTable("projects", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  customerId: integer("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("active"),
+  startedOn: text("started_on").notNull(),
+  endedOn: text("ended_on"),
+  notes: text("notes").notNull().default(""),
+});
+
 export const tasks = sqliteTable("tasks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   notes: text("notes").notNull().default(""),
   dueDate: text("due_date"),
   status: text("status").notNull(),
   area: text("area").notNull().default("general"),
+  taskType: text("task_type").notNull().default("other"),
+  deliverable: integer("deliverable", { mode: "boolean" }).notNull().default(false),
+  completedAt: text("completed_at"),
 });
 
 export const timeEntries = sqliteTable("time_entries", {
@@ -206,8 +221,10 @@ export const timeEntries = sqliteTable("time_entries", {
   breakMinutes: integer("break_minutes").notNull().default(0),
   memo: text("memo").notNull().default(""),
   taskId: integer("task_id").references(() => tasks.id),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "set null" }),
   employeeId: integer("employee_id").references(() => employees.id),
   billable: integer("billable", { mode: "boolean" }).notNull().default(false),
+  taskType: text("task_type").notNull().default("other"),
 });
 
 export const documents = sqliteTable("documents", {

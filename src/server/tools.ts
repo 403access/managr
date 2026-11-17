@@ -15,6 +15,7 @@ import {
   obligationStates,
   payments,
   policies,
+  projects,
   reserveMovements,
   resolutions,
   salaryPeriods,
@@ -23,6 +24,7 @@ import {
   timeEntries,
 } from "@/db/schema";
 import { ACCOUNTS, CHART, type DraftLine } from "@/domain/accounts";
+import { TASK_TYPES } from "@/domain/analytics";
 import { addDays, nextDueDate, todayIso, type Recurrence } from "@/domain/calendar";
 import { DEFAULT_LEGAL_FORM, LEGAL_FORMS, isCorporation, isLegalForm } from "@/domain/company";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, isKleinunternehmerNote, reviewInvoice } from "@/domain/invoice";
@@ -75,6 +77,8 @@ import {
   ledgerView,
   peopleView,
   personView,
+  projectsView,
+  analyticsView,
   shellView,
   timeView,
   obligationsView,
@@ -83,6 +87,7 @@ import {
 const KINDS = ["regular", "minijob", "midijob", "apprentice", "managing_director"] as const;
 const SV = ["automatic", "subject", "exempt"] as const;
 const TASK_STATUS = ["open", "doing", "done"] as const;
+const PROJECT_STATUS = ["active", "done", "paused"] as const;
 const ABSENCE_KIND = ["vacation", "sick", "other"] as const;
 const ABSENCE_STATUS = ["approved", "requested", "rejected"] as const;
 const POLICY_KIND = ["health", "liability", "contents", "legal", "other"] as const;
@@ -157,6 +162,12 @@ function requireEmployee(id: number) {
 function requireTask(id: number) {
   const row = getDb().select().from(tasks).where(and(eq(tasks.id, id), eq(tasks.companyId, requireCompany().id))).get();
   if (!row) throw new Error("Task not found.");
+  return row;
+}
+
+function requireProject(id: number) {
+  const row = getDb().select().from(projects).where(and(eq(projects.id, id), eq(projects.companyId, requireCompany().id))).get();
+  if (!row) throw new Error("Project not found.");
   return row;
 }
 
@@ -329,6 +340,21 @@ export const tools: DeskTool[] = [
     description: "The legal checklist, recorded shareholder resolutions, and the people a resolution can name.",
     input: {},
     run: () => legalView(),
+  }),
+  tool({
+    name: "read_projects",
+    description: "Projects with customer, status, dates, booked time, tasks, and deliverables.",
+    input: {},
+    run: () => projectsView(),
+  }),
+  tool({
+    name: "read_analytics",
+    description: "Time booked per project, project starts and completions, task-type productivity, monthly trend, and the people and customers behind the work. The report has the same figures.",
+    input: {
+      year: z.number().int().min(2000).max(2100).optional().describe("Calendar year. Defaults to the current year."),
+      customerId: z.number().int().positive().optional().describe("Limit the report to one customer."),
+    },
+    run: (input) => analyticsView(input.year ?? Number(todayIso().slice(0, 4)), input.customerId ?? null),
   }),
 
   // ------------------------------------------------------------- companies
@@ -1249,6 +1275,8 @@ export const tools: DeskTool[] = [
       memo: z.string().trim().max(400).optional(),
       personId: z.number().int().positive().optional(),
       taskId: z.number().int().positive().optional(),
+      projectId: z.number().int().positive().optional(),
+      taskType: z.string().trim().optional().describe("development, design, planning, research, documentation, meeting, communication, admin, or other. Inherited from the task when omitted."),
       billable: z.boolean().optional(),
     },
     run: (input) => {
@@ -1259,7 +1287,10 @@ export const tools: DeskTool[] = [
       if (stop) throw new Error(stop.message);
       const db = getDb();
       if (input.personId) requireEmployee(input.personId);
-      if (input.taskId) requireTask(input.taskId);
+      const task = input.taskId ? requireTask(input.taskId) : null;
+      const projectId = task?.projectId ?? input.projectId ?? null;
+      if (projectId) requireProject(projectId);
+      const taskType = input.taskType ? oneOf(input.taskType, TASK_TYPES, "Task type") : task?.taskType ?? "other";
       const created = db
         .insert(timeEntries)
         .values({
@@ -1270,11 +1301,13 @@ export const tools: DeskTool[] = [
           breakMinutes,
           memo: input.memo ?? "",
           taskId: input.taskId ?? null,
+          projectId,
           employeeId: input.personId ?? null,
           billable: input.billable ?? false,
+          taskType,
         })
         .run();
-      return { id: Number(created.lastInsertRowid), minutes };
+      return { id: Number(created.lastInsertRowid), minutes, projectId, taskType };
     },
   }),
   tool({
@@ -1290,16 +1323,68 @@ export const tools: DeskTool[] = [
     },
   }),
   tool({
+    name: "save_project",
+    description: "Add or update a project with a customer, status, and dates. Started and completed counts come from these dates.",
+    input: {
+      projectId: z.number().int().positive().optional().describe("Omit to create; pass an id from read_projects to update."),
+      name: z.string().trim().min(1).max(200),
+      status: z.string().trim().optional().describe("active, done, or paused. Defaults to active."),
+      startedOn: z.string().optional().describe("Start date, YYYY-MM-DD. Defaults to today when creating."),
+      endedOn: z.string().optional().describe("End date, YYYY-MM-DD. A done project without one is ended today."),
+      customerId: z.number().int().positive().optional(),
+      notes: z.string().trim().max(2000).optional(),
+    },
+    run: (input) => {
+      const db = getDb();
+      const company = requireCompany();
+      if (input.customerId) {
+        const customer = db.select().from(customers).where(and(eq(customers.id, input.customerId), eq(customers.companyId, company.id))).get();
+        if (!customer) throw new Error("Customer not found.");
+      }
+      const status = oneOf(input.status ?? "active", PROJECT_STATUS, "Project status");
+      const startedOn = input.startedOn ? date(input.startedOn, "The project start") : todayIso();
+      const endedOn = status === "done" ? (input.endedOn ? date(input.endedOn, "The project end") : todayIso()) : input.endedOn ? date(input.endedOn, "The project end") : null;
+      if (endedOn && endedOn < startedOn) throw new Error("The project end is before its start.");
+      if (input.projectId) {
+        const existing = requireProject(input.projectId);
+        db.update(projects)
+          .set({ name: input.name, status, startedOn, endedOn, customerId: input.customerId ?? existing.customerId, notes: input.notes ?? existing.notes })
+          .where(eq(projects.id, existing.id))
+          .run();
+        return { id: existing.id, name: input.name, status };
+      }
+      const created = db.insert(projects)
+        .values({ companyId: company.id, name: input.name, status, startedOn, endedOn, customerId: input.customerId ?? null, notes: input.notes ?? "" })
+        .run();
+      return { id: Number(created.lastInsertRowid), name: input.name, status };
+    },
+  }),
+  tool({
+    name: "delete_project",
+    description: "Remove a project. Recorded time stays and is shown without a project.",
+    input: idInput,
+    run: (input) => {
+      const project = requireProject(input.id);
+      getDb().delete(projects).where(eq(projects.id, project.id)).run();
+      return { id: project.id, removed: true };
+    },
+  }),
+  tool({
     name: "add_task",
-    description: "Add a task with an optional due date.",
+    description: "Add a task with an optional due date, project, task type, and deliverable flag.",
     input: {
       title: z.string().trim().min(1).max(200),
       dueDate: z.string().optional(),
       notes: z.string().trim().max(2000).optional(),
       status: z.string().trim().optional().describe("open, doing, or done. Defaults to open."),
       area: z.string().trim().max(40).optional(),
+      projectId: z.number().int().positive().optional(),
+      taskType: z.string().trim().optional().describe("development, design, planning, research, documentation, meeting, communication, admin, or other. Defaults to other."),
+      deliverable: z.boolean().optional(),
     },
     run: (input) => {
+      if (input.projectId) requireProject(input.projectId);
+      const status = oneOf(input.status ?? "open", TASK_STATUS, "Status");
       const created = getDb()
         .insert(tasks)
         .values({
@@ -1307,8 +1392,12 @@ export const tools: DeskTool[] = [
           title: input.title,
           dueDate: input.dueDate ? date(input.dueDate, "The due date") : null,
           notes: input.notes ?? "",
-          status: oneOf(input.status ?? "open", TASK_STATUS, "Status"),
+          status,
           area: input.area || "general",
+          projectId: input.projectId ?? null,
+          taskType: oneOf(input.taskType ?? "other", TASK_TYPES, "Task type"),
+          deliverable: input.deliverable ?? false,
+          completedAt: status === "done" ? todayIso() : null,
         })
         .run();
       return { id: Number(created.lastInsertRowid), title: input.title };
@@ -1316,12 +1405,12 @@ export const tools: DeskTool[] = [
   }),
   tool({
     name: "set_task_status",
-    description: "Set a task to open, doing, or done.",
+    description: "Set a task to open, doing, or done. Marking it done records today as the completion date.",
     input: { taskId: z.number().int().positive(), status: z.string().trim() },
     run: (input) => {
       const task = requireTask(input.taskId);
       const status = oneOf(input.status, TASK_STATUS, "Status");
-      getDb().update(tasks).set({ status }).where(eq(tasks.id, task.id)).run();
+      getDb().update(tasks).set({ status, completedAt: status === "done" ? (task.completedAt ?? todayIso()) : null }).where(eq(tasks.id, task.id)).run();
       return { id: task.id, status };
     },
   }),

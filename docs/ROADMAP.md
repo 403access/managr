@@ -36,6 +36,7 @@ Shipped after the first version, in this order:
 3. A salary history carries raises over time; the payroll form suggests the figure for the chosen month and still books the confirmed amount.
 4. A shareholder-director's salary accrues to a liability to the shareholder, the payout clears it, and a separate profit distribution uses retained profit. Salary agreements are shareholder resolutions, with reminders for the resolution and the appropriateness check.
 5. An assistant panel and an MCP server expose the same tools the screens use, so a request can read and post across invoices, books, people, time, and deadlines. Nothing is sent, and a cloud model receives the conversation only if it was configured.
+6. Projects tie customers, tasks, deliverables, and time together. The analysis shows time per project, project starts and completions, the productive/unproductive task split, and the people and customers behind the work. A customer report prints from the same figures and is saved as a PDF through the browser print dialog.
 
 ## Not in version 1
 

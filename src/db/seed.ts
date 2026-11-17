@@ -32,6 +32,7 @@ import {
   obligationStates,
   payments,
   policies,
+  projects,
   reserveMovements,
   resolutions,
   salaryPeriods,
@@ -114,6 +115,11 @@ export function seedIfEmpty(db: DB) {
     const lichtfeld = insertId(tx.insert(customers).values({ companyId, name: "Lichtfeld GmbH", street: "Torstraße 1", postalCode: "10119", city: "Berlin", email: "finance@lichtfeld.example", vatId: "DE111111111", buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"] }).run());
     const kiez = insertId(tx.insert(customers).values({ companyId, name: "Kiezküche e.K.", street: "Weserstraße 40", postalCode: "12045", city: "Berlin", email: "hello@kiezkueche.example", buyerReference: SAMPLE_BUYER_REFERENCE["Kiezküche e.K."] }).run());
     const havel = insertId(tx.insert(customers).values({ companyId, name: "Havel & Sohn AG", street: "Havelchaussee 2", postalCode: "14193", city: "Berlin", email: "ap@havel.example", vatId: "DE222222222", buyerReference: SAMPLE_BUYER_REFERENCE["Havel & Sohn AG"] }).run());
+
+    const lichtfeldProject = insertId(tx.insert(projects).values({ companyId, customerId: lichtfeld, name: "Markenauftritt Lichtfeld", status: "active", startedOn: on(-150), notes: "Beispielprojekt: Strategie, Designsystem und Übergabe." }).run());
+    const havelProject = insertId(tx.insert(projects).values({ companyId, customerId: havel, name: "Pitchfilm Havel", status: "done", startedOn: on(-95), endedOn: on(-40), notes: "Beispielprojekt: Konzept, Produktion und Abgabe." }).run());
+    const kiezProject = insertId(tx.insert(projects).values({ companyId, customerId: kiez, name: "Websitebetreuung Kiezküche", status: "active", startedOn: on(-70), notes: "Laufende Betreuung mit monatlicher Abstimmung." }).run());
+    const studioProject = insertId(tx.insert(projects).values({ companyId, name: "Studio und Verwaltung", status: "active", startedOn: `${year}-01-05`, notes: "Interne Zeit ohne Kundenbezug." }).run());
 
     post(tx, companyId, "2024-03-15", "Gründung, Stammkapital eingezahlt", "opening", "capital", [
       { accountCode: "1200", debitCents: 250_000, creditCents: 0 },
@@ -255,19 +261,50 @@ export function seedIfEmpty(db: DB) {
       { companyId, label: "Betriebshaftpflicht", kind: "liability", provider: "Nordstern Versicherung", policyNumber: "BH-1882", monthlyPremiumCents: 3_500, renewalDate: on(26), notes: "Beispielpolice. Die echte Verlängerung prüfen." },
     ]).run();
 
-    tx.insert(tasks).values([
-      { companyId, title: "Überfällige Rechnung Havel nachfassen", notes: "Eine Erinnerung, dann eine zweite, bevor eine Mahnung in Betracht kommt.", dueDate: on(2), status: "open", area: "invoices" },
-      { companyId, title: "Umsatzsteuerzahlen für Oktober zusammenstellen", notes: "Umsatzsteuer, Vorsteuer und die Vorauszahlung.", dueDate: on(12), status: "open", area: "tax" },
-      { companyId, title: "Unterlagen für die Gesellschafter vorbereiten", notes: "Jahresabschluss, Vorschlag zur Rücklage und der Beschluss.", dueDate: on(21), status: "doing", area: "legal" },
-      { companyId, title: "Verlängerung der Studioversicherung einreichen", dueDate: on(20), status: "open", area: "cover" },
-    ]).run();
+    insertId(tx.insert(tasks).values({ companyId, title: "Überfällige Rechnung Havel nachfassen", notes: "Eine Erinnerung, dann eine zweite, bevor eine Mahnung in Betracht kommt.", dueDate: on(2), status: "open", area: "invoices", taskType: "communication" }).run());
+    insertId(tx.insert(tasks).values({ companyId, title: "Umsatzsteuerzahlen für Oktober zusammenstellen", notes: "Umsatzsteuer, Vorsteuer und die Vorauszahlung.", dueDate: on(12), status: "open", area: "tax", taskType: "admin" }).run());
+    insertId(tx.insert(tasks).values({ companyId, title: "Unterlagen für die Gesellschafter vorbereiten", notes: "Jahresabschluss, Vorschlag zur Rücklage und der Beschluss.", dueDate: on(21), status: "doing", area: "legal", taskType: "documentation", deliverable: true }).run());
+    insertId(tx.insert(tasks).values({ companyId, title: "Verlängerung der Studioversicherung einreichen", dueDate: on(20), status: "open", area: "cover", taskType: "admin" }).run());
+
+    const lichtfeldPlanning = insertId(tx.insert(tasks).values({ companyId, projectId: lichtfeldProject, title: "Konzept und Informationsarchitektur", dueDate: on(9), status: "doing", area: "general", taskType: "planning", deliverable: true }).run());
+    const lichtfeldDevelopment = insertId(tx.insert(tasks).values({ companyId, projectId: lichtfeldProject, title: "Designsystem und Komponenten", dueDate: on(18), status: "doing", area: "general", taskType: "development" }).run());
+    insertId(tx.insert(tasks).values({ companyId, projectId: lichtfeldProject, title: "Abstimmung mit Lichtfeld", status: "done", area: "general", taskType: "meeting", completedAt: on(-20) }).run());
+    insertId(tx.insert(tasks).values({ companyId, projectId: lichtfeldProject, title: "Übergabe dokumentieren", dueDate: on(28), status: "open", area: "general", taskType: "documentation", deliverable: true }).run());
+    insertId(tx.insert(tasks).values({ companyId, projectId: havelProject, title: "Schnitt und Dramaturgie planen", status: "done", area: "general", taskType: "planning", deliverable: true, completedAt: on(-50) }).run());
+    insertId(tx.insert(tasks).values({ companyId, projectId: havelProject, title: "Pitchfilm produzieren", status: "done", area: "general", taskType: "development", deliverable: true, completedAt: on(-42) }).run());
+    const kiezDevelopment = insertId(tx.insert(tasks).values({ companyId, projectId: kiezProject, title: "Website betreuen", status: "doing", area: "general", taskType: "development" }).run());
+    insertId(tx.insert(tasks).values({ companyId, projectId: kiezProject, title: "Monatsgespräch vorbereiten", dueDate: on(14), status: "open", area: "general", taskType: "communication" }).run());
+    const studioAdmin = insertId(tx.insert(tasks).values({ companyId, projectId: studioProject, title: "Rechnungen und Belege ablegen", status: "done", area: "invoices", taskType: "admin", completedAt: on(-8) }).run());
 
     const monday = weekStart(today);
     const tuesday = addDays(monday, 1);
     tx.insert(timeEntries).values([
-      { companyId, entryDate: monday, startedAt: "09:00", endedAt: "17:30", breakMinutes: 30, memo: "Kundenkorrekturen", billable: true },
-      { companyId, entryDate: tuesday <= today ? tuesday : monday, startedAt: "09:30", endedAt: "15:00", breakMinutes: 15, memo: "Studioverwaltung und Rechnungsentwurf", billable: false },
+      { companyId, entryDate: monday, startedAt: "09:00", endedAt: "17:30", breakMinutes: 30, memo: "Kundenkorrekturen", billable: true, employeeId: maraId, projectId: lichtfeldProject, taskId: lichtfeldDevelopment, taskType: "development" },
+      { companyId, entryDate: tuesday <= today ? tuesday : monday, startedAt: "09:30", endedAt: "15:00", breakMinutes: 15, memo: "Studioverwaltung und Rechnungsentwurf", billable: false, employeeId: maraId, projectId: studioProject, taskId: studioAdmin, taskType: "admin" },
     ]).run();
+
+    // A year of example project time so the analysis has more than one week to show.
+    const currentMonth = Number(today.slice(5, 7));
+    for (let month = 1; month <= currentMonth; month += 1) {
+      const mm = String(month).padStart(2, "0");
+      const planning = month <= 3;
+      const first = `${year}-${mm}-08`;
+      if (first <= today) {
+        tx.insert(timeEntries).values({ companyId, entryDate: first, startedAt: "09:00", endedAt: "16:30", breakMinutes: 30, memo: planning ? "Konzept und Architektur" : "Designsystem umsetzen", billable: true, employeeId: maraId, projectId: lichtfeldProject, taskId: planning ? lichtfeldPlanning : lichtfeldDevelopment, taskType: planning ? "planning" : "development" }).run();
+      }
+      const second = `${year}-${mm}-15`;
+      if (second <= today) {
+        tx.insert(timeEntries).values({ companyId, entryDate: second, startedAt: "10:00", endedAt: "15:00", breakMinutes: 30, memo: "Websitebetreuung", billable: true, employeeId: jonasId, projectId: kiezProject, taskId: kiezDevelopment, taskType: "development" }).run();
+      }
+      const third = `${year}-${mm}-22`;
+      if (third <= today) {
+        tx.insert(timeEntries).values({ companyId, entryDate: third, startedAt: "09:30", endedAt: "12:30", breakMinutes: 0, memo: month % 2 === 0 ? "Abstimmung und Notizen" : "Übergabe dokumentieren", billable: false, employeeId: aylinId, projectId: lichtfeldProject, taskType: month % 2 === 0 ? "meeting" : "documentation" }).run();
+      }
+    }
+    const havelDay = on(-55);
+    if (havelDay.startsWith(String(year))) {
+      tx.insert(timeEntries).values({ companyId, entryDate: havelDay, startedAt: "09:00", endedAt: "17:00", breakMinutes: 60, memo: "Pitchfilm produzieren", billable: true, employeeId: jonasId, projectId: havelProject, taskType: "development" }).run();
+    }
 
     const settings = { fiscalYearStartMonth: 1, vatPermanentExtension: false, usesTaxAdvisor: false };
     const doneBefore = addDays(today, -20);

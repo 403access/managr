@@ -58,8 +58,8 @@ export function Check({ name, label, defaultChecked, hint }: { name: string; lab
   );
 }
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-line bg-card p-4 ${className}`}>{children}</div>;
+export function Card({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
+  return <div id={id} className={`rounded-2xl border border-line bg-card p-4 ${className}`}>{children}</div>;
 }
 
 export function PageHeader({ title, lede, action }: { title: string; lede?: string; action?: ReactNode }) {
@@ -90,6 +90,8 @@ const pillTones: Record<string, string> = {
   overdue: "bg-clay/15 text-clay",
   paid: "bg-moss/15 text-moss",
   done: "bg-moss/15 text-moss",
+  active: "bg-pine/10 text-pine",
+  paused: "bg-ink/10 text-muted",
   draft: "bg-amber/15 text-amber",
   partial: "bg-amber/15 text-amber",
   doing: "bg-amber/15 text-amber",

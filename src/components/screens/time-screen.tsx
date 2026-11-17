@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { deleteTask, deleteTime, saveTask, saveTime, toggleTask } from "@/server/actions";
 import type { timeView } from "@/server/views";
+import { TASK_TYPES } from "@/domain/analytics";
 import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
@@ -22,13 +23,18 @@ export function TimeScreen({ week }: { week: string }) {
   const areaName = (code: string) => (code === "legal" ? t("nav.legal") : label(code));
   return (
     <ViewGate query={query}>
-      {(data) => (
+      {(data) => {
+        const projectName = (id: number | null) => (id === null ? "" : data.projects.find((project) => project.id === id)?.name ?? "");
+        return (
         <>
           <PageHeader
             title={t("time.title")}
             lede={`${formatDate(data.start)} – ${formatDate(data.end)}`}
             action={
               <span className="flex flex-wrap gap-2">
+                <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href="/projects">
+                  {t("nav.projects")}
+                </Link>
                 <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href="/time/playback">
                   {t("time.playback")}
                 </Link>
@@ -57,6 +63,8 @@ export function TimeScreen({ week }: { week: string }) {
                       <p className="text-sm text-muted">
                         {entry.memo || t("time.noMemo")}
                         {entry.firstName ? ` · ${entry.firstName}` : ""}
+                        {entry.projectId ? ` · ${projectName(entry.projectId)}` : ""}
+                        {entry.taskType !== "other" ? ` · ${label(entry.taskType)}` : ""}
                         {entry.billable ? ` · ${t("time.billable")}` : ""}
                       </p>
                       {entry.error ? <p className="text-sm text-clay">{tx(entry.error)}</p> : <p className="font-mono text-sm">{formatDuration(entry.minutes)}</p>}
@@ -95,6 +103,16 @@ export function TimeScreen({ week }: { week: string }) {
                   <Field label={t("common.start")}><TextInput name="startedAt" type="time" defaultValue="09:00" /></Field>
                   <Field label={t("common.end")}><TextInput name="endedAt" type="time" defaultValue="17:00" /></Field>
                   <Field label={t("time.break")}><TextInput name="breakMinutes" inputMode="numeric" defaultValue="30" /></Field>
+                  <Field label={t("time.project")}>
+                    <SelectInput name="projectId" defaultValue="">
+                      <option value="">{t("time.projectNone")}</option>
+                      {data.projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  </Field>
                   <Field label={t("time.task")}>
                     <SelectInput name="taskId" defaultValue="">
                       <option value="">{t("time.none")}</option>
@@ -102,6 +120,14 @@ export function TimeScreen({ week }: { week: string }) {
                         <option key={task.id} value={task.id}>
                           {task.title}
                         </option>
+                      ))}
+                    </SelectInput>
+                  </Field>
+                  <Field label={t("time.taskType")} hint={t("time.taskTypeHint")}>
+                    <SelectInput name="taskType" defaultValue="">
+                      <option value="">{t("time.taskTypeFromTask")}</option>
+                      {TASK_TYPES.map((type) => (
+                        <option key={type} value={type}>{label(type)}</option>
                       ))}
                     </SelectInput>
                   </Field>
@@ -119,6 +145,10 @@ export function TimeScreen({ week }: { week: string }) {
                   <span>
                     <span className="text-sm font-medium">{task.title}</span>
                     {task.dueDate ? <span className="mt-1 block text-xs text-muted">{t("time.taskDue", { date: formatDate(task.dueDate), area: areaName(task.area) })}</span> : null}
+                    <span className="mt-1 block text-xs text-muted">
+                      {task.projectId ? projectName(task.projectId) : t("time.projectNone")} · {label(task.taskType)}
+                      {task.deliverable ? ` · ${t("time.deliverable")}` : ""}
+                    </span>
                     {task.notes ? <span className="mt-1 block text-xs text-muted">{task.notes}</span> : null}
                   </span>
                   <span className="flex flex-wrap items-center gap-2">
@@ -147,6 +177,21 @@ export function TimeScreen({ week }: { week: string }) {
                       ))}
                     </SelectInput>
                   </Field>
+                  <Field label={t("time.project")}>
+                    <SelectInput name="projectId" defaultValue="">
+                      <option value="">{t("time.projectNone")}</option>
+                      {data.projects.map((project) => (
+                        <option key={project.id} value={project.id}>{project.name}</option>
+                      ))}
+                    </SelectInput>
+                  </Field>
+                  <Field label={t("time.taskType")}>
+                    <SelectInput name="taskType" defaultValue="other">
+                      {TASK_TYPES.map((type) => (
+                        <option key={type} value={type}>{label(type)}</option>
+                      ))}
+                    </SelectInput>
+                  </Field>
                   <Field label={t("common.status")}>
                     <SelectInput name="status" defaultValue="open">
                       <option value="open">{label("open")}</option>
@@ -155,6 +200,7 @@ export function TimeScreen({ week }: { week: string }) {
                     </SelectInput>
                   </Field>
                 </div>
+                <Check name="deliverable" label={t("time.deliverable")} hint={t("time.deliverableHint")} />
                 <Field label={t("common.notes")}><TextInput name="notes" /></Field>
                 <SubmitButton>{t("time.addTask")}</SubmitButton>
               </ActionForm>
@@ -162,7 +208,8 @@ export function TimeScreen({ week }: { week: string }) {
           </Tab>
           </Tabs>
         </>
-      )}
+        );
+      }}
     </ViewGate>
   );
 }

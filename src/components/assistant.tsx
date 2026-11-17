@@ -47,6 +47,10 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   read_obligations: "assistant.tool.read_obligations",
   read_documents: "assistant.tool.read_documents",
   read_legal: "assistant.tool.read_legal",
+  read_projects: "assistant.tool.read_projects",
+  read_analytics: "assistant.tool.read_analytics",
+  save_project: "assistant.tool.save_project",
+  delete_project: "assistant.tool.delete_project",
   switch_company: "assistant.tool.switch_company",
   create_company: "assistant.tool.create_company",
   update_company_identity: "assistant.tool.update_company_identity",
@@ -121,6 +125,9 @@ function recordHref(step: Step): string | null {
     case "add_task":
     case "set_task_status":
       return "/time";
+    case "save_project":
+    case "delete_project":
+      return "/projects";
     case "add_deadline":
     case "complete_deadline":
     case "set_obligation":

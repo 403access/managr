@@ -40,7 +40,7 @@ export function CustomersScreen() {
           {data.customers.length === 0 ? <Empty>{t("customers.empty")}</Empty> : null}
           <div className="grid gap-3 xl:grid-cols-2">
             {data.customers.map((customer) => (
-              <Card key={customer.id}>
+              <Card key={customer.id} id={`customer-${customer.id}`}>
                 <p className="font-medium">{customer.name}</p>
                 <p className="text-sm text-muted">
                   {customer.street}, {customer.postalCode} {customer.city}

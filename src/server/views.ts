@@ -8,6 +8,7 @@ import { policyReminders } from "@/domain/obligations";
 import { nextSalaryChange } from "@/domain/salary";
 import { conversionGap, reserveDutyActive } from "@/domain/reserve";
 import { balanceSheetTotals, summarizeProfit } from "@/domain/reporting";
+import { addWork, emptyWorkTotals, isProductiveTaskType, monthlyWork, projectCounts, sharePercent, taskTypeMinutes, workTotals, type WorkTotals } from "@/domain/analytics";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
 import { durationMinutes, minimumVacationDays, timeWarnings, vacationShortfall } from "@/domain/time";
 import { euroInput, quantityInput } from "@/components/amounts";
@@ -22,10 +23,12 @@ import {
   listObligations,
   listPeople,
   listPolicies,
+  listProjects,
   listReserveMovements,
   listResolutions,
   listTasks,
   listTime,
+  listTimeInRange,
   listCompanies,
   loadCompany,
   loadInvoice,
@@ -134,6 +137,7 @@ export function deskView() {
       return sum;
     }
   }, 0);
+  const analytics = analyticsView(yearNumber);
   return {
     legalName: company.legalName,
     today,
@@ -162,6 +166,16 @@ export function deskView() {
     weekStart: week.start,
     weekEnd: week.end,
     minutes,
+    analytics: {
+      minutes: analytics.totals.minutes,
+      productiveShare: analytics.productiveShare,
+      billableMinutes: analytics.totals.billableMinutes,
+      projectCounts: analytics.projectCounts,
+      projectRows: analytics.projectRows.filter((row) => !row.unassigned).slice(0, 3),
+      typeRows: analytics.typeRows.slice(0, 3),
+      deliverables: analytics.deliverables.length,
+      openDeliverables: analytics.openDeliverables.length,
+    },
   };
 }
 
@@ -365,6 +379,215 @@ export function personView(id: number) {
   };
 }
 
+export function projectsView() {
+  const company = loadCompany();
+  const projects = listProjects(company.id);
+  const tasks = listTasks();
+  const entries = listTimeInRange("0001-01-01", "9999-12-31");
+  const totalsByProject = new Map<number, WorkTotals>();
+  for (const entry of entries) {
+    if (entry.projectId === null) continue;
+    const totals = totalsByProject.get(entry.projectId) ?? emptyWorkTotals();
+    const minutes = timeEntryMinutes(entry);
+    if (minutes > 0) addWork(totals, minutes, entry.taskType, entry.billable);
+    totalsByProject.set(entry.projectId, totals);
+  }
+  return {
+    today: todayIso(),
+    projects: projects.map((project) => {
+      const projectTasks = tasks.filter((task) => task.projectId === project.id);
+      return {
+        ...project,
+        minutes: totalsByProject.get(project.id)?.minutes ?? 0,
+        taskCount: projectTasks.length,
+        openTasks: projectTasks.filter((task) => task.status !== "done").length,
+        deliverables: projectTasks.filter((task) => task.deliverable && task.status === "done").length,
+        openDeliverables: projectTasks.filter((task) => task.deliverable && task.status !== "done").length,
+      };
+    }),
+    customers: listCustomers(company.id).map((customer) => ({ id: customer.id, name: customer.name })),
+  };
+}
+
+function timeEntryMinutes(entry: { startedAt: string; endedAt: string; breakMinutes: number }): number {
+  try {
+    return durationMinutes(entry.startedAt, entry.endedAt, entry.breakMinutes);
+  } catch {
+    return 0;
+  }
+}
+
+export function analyticsView(year: number, customerId: number | null = null) {
+  const company = loadCompany();
+  const today = todayIso();
+  const allProjects = listProjects(company.id);
+  const allCustomers = listCustomers(company.id);
+  const tasks = listTasks();
+  const people = listPeople();
+  const projectById = new Map(allProjects.map((project) => [project.id, project]));
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const employeeById = new Map(people.map(({ employee }) => [employee.id, employee]));
+  const customer = customerId === null ? null : allCustomers.find((item) => item.id === customerId) ?? null;
+  const projects = customerId === null ? allProjects : allProjects.filter((project) => project.customerId === customerId);
+  const projectIdsInScope = new Set(projects.map((project) => project.id));
+  const invoices = listInvoices().filter((invoice) => invoice.issueDate.startsWith(`${year}-`) && invoice.status !== "void" && invoice.status !== "draft");
+
+  const work: { month: string; minutes: number; taskType: string; billable: boolean; projectId: number | null; employeeId: number | null }[] = [];
+  for (const entry of listTimeInRange(`${year}-01-01`, `${year}-12-31`)) {
+    const task = entry.taskId === null ? null : taskById.get(entry.taskId) ?? null;
+    const projectId = entry.projectId ?? task?.projectId ?? null;
+    const project = projectId === null ? null : projectById.get(projectId) ?? null;
+    if (customerId !== null && (!project || project.customerId !== customerId)) continue;
+    const taskType = entry.taskType !== "other" ? entry.taskType : task?.taskType ?? entry.taskType;
+    const minutes = timeEntryMinutes(entry);
+    if (minutes <= 0) continue;
+    work.push({
+      month: entry.entryDate.slice(0, 7),
+      minutes,
+      taskType,
+      billable: entry.billable,
+      projectId,
+      employeeId: entry.employeeId,
+    });
+  }
+
+  const projectWork = new Map<string, WorkTotals & { projectId: number | null; minutes: number }>();
+  const personWork = new Map<string, WorkTotals & { employeeId: number | null; projectIds: Set<number> }>();
+  const customerWork = new Map<number, WorkTotals>();
+  for (const row of work) {
+    const project = row.projectId === null ? null : projectById.get(row.projectId) ?? null;
+    const projectKey = String(row.projectId ?? "none");
+    const projectTotals = projectWork.get(projectKey) ?? { ...emptyWorkTotals(), projectId: row.projectId, minutes: 0 };
+    addWork(projectTotals, row.minutes, row.taskType, row.billable);
+    projectWork.set(projectKey, projectTotals);
+
+    const personKey = String(row.employeeId ?? "none");
+    const personTotals = personWork.get(personKey) ?? { ...emptyWorkTotals(), employeeId: row.employeeId, projectIds: new Set<number>() };
+    addWork(personTotals, row.minutes, row.taskType, row.billable);
+    if (row.projectId !== null) personTotals.projectIds.add(row.projectId);
+    personWork.set(personKey, personTotals);
+
+    if (project?.customerId !== null && project?.customerId !== undefined) {
+      const totals = customerWork.get(project.customerId) ?? emptyWorkTotals();
+      addWork(totals, row.minutes, row.taskType, row.billable);
+      customerWork.set(project.customerId, totals);
+    }
+  }
+
+  const projectRows = [...projectWork.values()]
+    .map((totals) => {
+      const project = totals.projectId === null ? null : projectById.get(totals.projectId) ?? null;
+      return {
+        ...totals,
+        name: project?.name ?? "",
+        customerId: project?.customerId ?? null,
+        customerName: project?.customerName ?? "",
+        status: project?.status ?? "",
+        unassigned: project === null,
+      };
+    })
+    .sort((a, b) => b.minutes - a.minutes);
+
+  const peopleRows = [...personWork.values()]
+    .map((totals) => {
+      const employee = totals.employeeId === null ? null : employeeById.get(totals.employeeId) ?? null;
+      return {
+        employeeId: totals.employeeId,
+        firstName: employee?.firstName ?? "",
+        lastName: employee?.lastName ?? "",
+        role: employee?.role ?? "",
+        projectCount: totals.projectIds.size,
+        minutes: totals.minutes,
+        productiveMinutes: totals.productiveMinutes,
+        unproductiveMinutes: totals.unproductiveMinutes,
+        billableMinutes: totals.billableMinutes,
+        productiveShare: sharePercent(totals.productiveMinutes, totals.minutes),
+      };
+    })
+    .sort((a, b) => b.minutes - a.minutes);
+
+  const customerRows = allCustomers
+    .filter((item) => customerId === null || item.id === customerId)
+    .map((item) => {
+      const totals = customerWork.get(item.id) ?? emptyWorkTotals();
+      const invoicedCents = invoices.filter((invoice) => invoice.customerId === item.id).reduce((sum, invoice) => sum + invoice.grossCents, 0);
+      return {
+        customerId: item.id,
+        name: item.name,
+        projectCount: allProjects.filter((project) => project.customerId === item.id).length,
+        minutes: totals.minutes,
+        billableMinutes: totals.billableMinutes,
+        productiveMinutes: totals.productiveMinutes,
+        invoicedCents,
+      };
+    })
+    .filter((row) => row.minutes > 0 || row.projectCount > 0 || row.invoicedCents > 0)
+    .sort((a, b) => b.minutes - a.minutes || a.name.localeCompare(b.name));
+
+  const taskCounts = new Map<string, number>();
+  const scopedTasks = tasks.filter((task) => customerId === null || (task.projectId !== null && projectIdsInScope.has(task.projectId)));
+  for (const task of scopedTasks) taskCounts.set(task.taskType, (taskCounts.get(task.taskType) ?? 0) + 1);
+  const typeMinutes = taskTypeMinutes(work);
+  const typeRows = [...new Set([...typeMinutes.map((row) => row.taskType), ...taskCounts.keys()])]
+    .map((taskType) => {
+      const found = typeMinutes.find((row) => row.taskType === taskType);
+      return {
+        taskType,
+        minutes: found?.minutes ?? 0,
+        productive: found?.productive ?? isProductiveTaskType(taskType),
+        taskCount: taskCounts.get(taskType) ?? 0,
+      };
+    })
+    .filter((row) => row.minutes > 0 || row.taskCount > 0)
+    .sort((a, b) => b.minutes - a.minutes || a.taskType.localeCompare(b.taskType));
+
+  const completionDate = (task: (typeof tasks)[number]) => task.completedAt ?? task.dueDate ?? "";
+  const describeTask = (task: (typeof tasks)[number]) => {
+    const project = task.projectId === null ? null : projectById.get(task.projectId) ?? null;
+    return {
+      id: task.id,
+      title: task.title,
+      taskType: task.taskType,
+      dueDate: task.dueDate,
+      completedAt: completionDate(task) || null,
+      projectId: project?.id ?? null,
+      projectName: project?.name ?? "",
+      customerId: project?.customerId ?? null,
+      customerName: project?.customerName ?? "",
+    };
+  };
+  const scopedDeliverables = scopedTasks.filter((task) => task.deliverable);
+  const deliverables = scopedDeliverables
+    .filter((task) => task.status === "done" && (completionDate(task) === "" || completionDate(task).startsWith(`${year}-`)))
+    .map(describeTask)
+    .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
+  const openDeliverables = scopedDeliverables
+    .filter((task) => task.status !== "done")
+    .map(describeTask)
+    .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
+
+  const totals = workTotals(work);
+  return {
+    year,
+    today,
+    company: { id: company.id, legalName: company.legalName, city: company.city },
+    customer: customer ? { id: customer.id, name: customer.name, email: customer.email, city: customer.city } : null,
+    totals,
+    productiveShare: sharePercent(totals.productiveMinutes, totals.minutes),
+    billableShare: sharePercent(totals.billableMinutes, totals.minutes),
+    projectCounts: projectCounts(projects, year),
+    projectRows,
+    months: monthlyWork(work, year),
+    typeRows,
+    peopleRows,
+    customerRows,
+    deliverables,
+    openDeliverables,
+    taskCount: scopedTasks.length,
+    openTaskCount: scopedTasks.filter((task) => task.status !== "done").length,
+  };
+}
+
 export function timeView(anchor: string) {
   const week = listTime(anchor);
   const people = listPeople();
@@ -388,12 +611,16 @@ export function timeView(anchor: string) {
       breakMinutes: entry.breakMinutes,
       memo: entry.memo,
       billable: entry.billable,
+      taskId: entry.taskId,
+      projectId: entry.projectId,
+      taskType: entry.taskType,
       firstName: person?.employee.firstName ?? "",
       minutes,
       warnings,
       error,
     };
   });
+  const projects = listProjects();
   return {
     anchor,
     start: week.start,
@@ -404,6 +631,7 @@ export function timeView(anchor: string) {
     total: entries.reduce((sum, entry) => sum + (entry.error ? 0 : entry.minutes), 0),
     people: people.map((item) => ({ id: item.employee.id, firstName: item.employee.firstName, lastName: item.employee.lastName })),
     tasks,
+    projects: projects.map((project) => ({ id: project.id, name: project.name, customerName: project.customerName })),
   };
 }
 
@@ -473,5 +701,9 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return documentsView();
     case "legal":
       return legalView();
+    case "projects":
+      return projectsView();
+    case "analytics":
+      return analyticsView(query.year, query.customer);
   }
 }

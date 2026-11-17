@@ -55,6 +55,14 @@ bun run test tests/time-tracking.test.ts
 
 The page at [http://localhost:3000/time/playback](http://localhost:3000/time/playback) replays the same data entry by entry, with a live day, week, and total, and the checks. It is read-only; nothing is written to the database. The Time screen links to it as **Testlauf**.
 
+## Projects and analysis
+
+Projects tie a customer, tasks, deliverables, and time together. Open **Projekte** under Mehr to add one; the Time screen books an entry to a project and a task type. A task type says what the work was: development, design, planning, research, documentation, meeting, communication, administration, or other. The first four count as productive in the analysis.
+
+**Auswertung** shows time per project, projects started and completed in a year, the active and paused projects, the monthly split between productive and unproductive time, task types, and the people and customers behind the work. The desk overview carries the same figures in a compact form. Deliverables are tasks marked as a deliverable; they appear once done and as open work before that.
+
+The **Report als PDF** button opens `/analytics/report` for the selected year. A customer report limits the same figures to one customer. The report is printed through the browser print dialog, where it is saved as a PDF, like an invoice. Nothing is sent.
+
 ## Demo and production books
 
 The desk always opens `data/managr.db`. Two saved copies sit beside it: `data/managr.demo.db` and `data/managr.production.db`. Stop the desk before switching, then:

@@ -14,6 +14,8 @@ export const queryKeys = {
   obligations: (year: number) => ["view", "obligations", year] as const,
   documents: ["view", "documents"] as const,
   legal: ["view", "legal"] as const,
+  projects: ["view", "projects"] as const,
+  analytics: (year: number, customer: number | null = null) => ["view", "analytics", year, customer ?? "all"] as const,
 };
 
 export const viewPath = {
@@ -32,4 +34,7 @@ export const viewPath = {
   obligations: (year: number) => `/api/views/obligations?year=${year}`,
   documents: "/api/views/documents",
   legal: "/api/views/legal",
+  projects: "/api/views/projects",
+  analytics: (year: number, customer: number | null = null) =>
+    `/api/views/analytics?year=${year}${customer === null ? "" : `&customer=${customer}`}`,
 };

@@ -51,6 +51,11 @@ describe("tool registry", () => {
     const briefing = data<{ overdueInvoices: unknown[]; company: { legalName: string } }>(await runTool("daily_briefing", {}));
     expect(briefing.company.legalName).toContain("UG");
     expect(briefing.overdueInvoices.length).toBeGreaterThan(0);
+    const projects = data<{ projects: { name: string }[] }>(await runTool("read_projects", {}));
+    expect(projects.projects.map((project) => project.name)).toContain("Markenauftritt Lichtfeld");
+    const analytics = data<{ totals: { minutes: number }; typeRows: unknown[] }>(await runTool("read_analytics", {}));
+    expect(analytics.totals.minutes).toBeGreaterThan(0);
+    expect(analytics.typeRows.length).toBeGreaterThan(0);
   });
 });
 

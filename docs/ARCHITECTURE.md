@@ -34,13 +34,21 @@ Persisted money is integer cents. A euro input is parsed by `parseEuroToCents` (
 
 ## Database
 
-`src/db/migrations/0001_init.sql` is the initial schema applied at startup. `src/db/migrations/0003_multi_company.sql` adds per-company books. `src/db/schema.ts` is the Drizzle map of that SQL. Change both together.
+`src/db/migrations/0001_init.sql` is the initial schema applied at startup. `src/db/migrations/0003_multi_company.sql` adds per-company books, and `0007_projects_analytics.sql` adds projects, task types, and the project link on tasks and time. `src/db/schema.ts` is the Drizzle map of that SQL. Change both together.
 
 Every bookkeeping table carries `company_id`. The active company is the row with `companies.is_active = 1`; switching is a database write, so it applies to the whole local desk. `accounts` is one shared SKR03 chart, while journal entries, invoices, customers, people, time, documents, obligations, and legal records are filtered by the active company. Invoice numbers and posting source keys are unique per company. A printed or downloaded invoice uses the company stored on that invoice, not whichever company is active.
 
 The first launch of an empty database loads the sample company Atelier Nordlicht UG. Deleting `data/managr.db` restores it. User data lives only in that file and in `data/uploads`.
 
 Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be swapped with the open `data/managr.db`. `bun run db:demo` and `bun run db:prod` load a copy; `bun run db:demo:set` and `bun run db:prod:set` save the open database into a copy. `bun run db:prod:init` creates a clean production database with the schema and chart of accounts but no sample books. Production only accepts `db:prod:set` without `--from` while it is already active, and the script refuses a demo or sample database, so production never starts from demo books. `data/managr.active` records which copy is open, and `bun run db:status` shows it. Switching copies the open database back to its saved copy first, so stop the desk before switching and start it again afterwards. Uploads are not copied and stay shared in `data/uploads`.
+
+## Projects and analysis
+
+`projects` is the one place that ties a customer, tasks, and booked time together. A project has a status (`active`, `paused`, `done`) and a start and end date. Tasks and time entries point at a project; a time entry also carries its own task type, so time without a task still lands in the analysis. A task type is the kind of work (`development`, `design`, `planning`, `research`, `documentation`, `meeting`, `communication`, `admin`, `other`). `src/domain/analytics.ts` classifies the first four as productive and the rest as unproductive; the bucket never changes what was booked.
+
+`/projects` maintains projects and shows the time, tasks, and deliverables on each one. `/analytics` reads `analyticsView` in `src/server/views.ts`: time per project, project starts and completions in the chosen year, the monthly productive/unproductive split, task types, the people and customers behind the time, and open and completed deliverables. Project starts and completions are events in the chosen year; "in progress" and "paused" are the state today. `read_analytics` and `read_projects` expose the same views to the assistant and MCP clients.
+
+`/analytics/report` is the printable customer report. It is a server render outside the app shell, like the invoice print route, and uses the same `analyticsView` with an optional `customer` filter. The **Als PDF drucken** button opens the browser print dialog, where the report is saved as a PDF. There is no server-side PDF file and nothing is sent to a customer.
 
 ## Request flow
 

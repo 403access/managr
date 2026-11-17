@@ -18,6 +18,7 @@ import {
   obligationStates,
   payments,
   policies,
+  projects,
   reserveMovements,
   resolutions,
   salaryPeriods,
@@ -26,6 +27,7 @@ import {
   timeEntries,
 } from "@/db/schema";
 import { ACCOUNTS, CHART, type DraftLine } from "@/domain/accounts";
+import { TASK_TYPES } from "@/domain/analytics";
 import { formatDate, nextDueDate, todayIso, type Recurrence } from "@/domain/calendar";
 import { DEFAULT_LEGAL_FORM, isCorporation, isLegalForm } from "@/domain/company";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, reviewInvoice } from "@/domain/invoice";
@@ -61,6 +63,7 @@ const KINDS = ["regular", "minijob", "midijob", "apprentice", "managing_director
 const SV = ["automatic", "subject", "exempt"] as const;
 const RECURRENCE = ["none", "monthly", "quarterly", "yearly"] as const;
 const TASK_STATUS = ["open", "doing", "done"] as const;
+const PROJECT_STATUS = ["active", "done", "paused"] as const;
 const ABSENCE_KIND = ["vacation", "sick", "other"] as const;
 const ABSENCE_STATUS = ["approved", "requested", "rejected"] as const;
 const POLICY_KIND = ["health", "liability", "contents", "legal", "other"] as const;
@@ -989,20 +992,69 @@ export async function payProfitDistribution(_state: ActionState, formData: FormD
   }
 }
 
+export async function saveProject(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const name = text(formData, "name");
+    if (!name) throw new Error("The project needs a name.");
+    const status = oneOf(text(formData, "status") || "active", PROJECT_STATUS, "Project status");
+    const startedOn = requireDate(text(formData, "startedOn"), "The project start");
+    const endedRaw = text(formData, "endedOn");
+    const endedOn = status === "done" ? endedRaw ? requireDate(endedRaw, "The project end") : todayIso() : endedRaw ? requireDate(endedRaw, "The project end") : null;
+    if (endedOn && endedOn < startedOn) throw new Error("The project end is before its start.");
+    const db = getDb();
+    const company = requireCompany();
+    const customerId = optionalId(formData, "customerId");
+    if (customerId && !db.select().from(customers).where(and(eq(customers.id, customerId), eq(customers.companyId, company.id))).get()) {
+      throw new Error("Customer not found.");
+    }
+    const values = { name, status, startedOn, endedOn, customerId, notes: text(formData, "notes") };
+    const id = optionalId(formData);
+    if (id) {
+      const existing = db.select().from(projects).where(and(eq(projects.id, id), eq(projects.companyId, company.id))).get();
+      if (!existing) throw new Error("Project not found.");
+      db.update(projects).set(values).where(eq(projects.id, id)).run();
+      return saved("Project saved.");
+    }
+    db.insert(projects).values({ ...values, companyId: company.id }).run();
+    return saved("Project added.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function deleteProject(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    getDb().delete(projects).where(and(eq(projects.id, requiredId(formData)), eq(projects.companyId, requireCompany().id))).run();
+    return saved("Project removed. Recorded time stays and is shown without a project.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
 export async function saveTask(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const title = text(formData, "title");
     if (!title) throw new Error("The task needs a title.");
     const dueRaw = text(formData, "dueDate");
-    getDb()
-      .insert(tasks)
+    const db = getDb();
+    const company = requireCompany();
+    const projectId = optionalId(formData, "projectId");
+    if (projectId && !db.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.companyId, company.id))).get()) {
+      throw new Error("Project not found.");
+    }
+    const status = oneOf(text(formData, "status") || "open", TASK_STATUS, "Status");
+    db.insert(tasks)
       .values({
-        companyId: requireCompany().id,
+        companyId: company.id,
         title,
         notes: text(formData, "notes"),
         dueDate: dueRaw ? requireDate(dueRaw, "The due date") : null,
-        status: oneOf(text(formData, "status") || "open", TASK_STATUS, "Status"),
+        status,
         area: text(formData, "area") || "general",
+        projectId,
+        taskType: oneOf(text(formData, "taskType") || "other", TASK_TYPES, "Task type"),
+        deliverable: checked(formData, "deliverable"),
+        completedAt: status === "done" ? todayIso() : null,
       })
       .run();
     return saved("Task added.");
@@ -1018,7 +1070,7 @@ export async function toggleTask(_state: ActionState, formData: FormData): Promi
     const task = db.select().from(tasks).where(and(eq(tasks.id, id), eq(tasks.companyId, requireCompany().id))).get();
     if (!task) throw new Error("Task not found.");
     const status = task.status === "open" ? "doing" : task.status === "doing" ? "done" : "open";
-    db.update(tasks).set({ status }).where(eq(tasks.id, id)).run();
+    db.update(tasks).set({ status, completedAt: status === "done" ? (task.completedAt ?? todayIso()) : null }).where(eq(tasks.id, id)).run();
     return saved("Task updated.");
   } catch (error) {
     return failed(error);
@@ -1049,7 +1101,11 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
     const employeeId = optionalId(formData, "employeeId");
     if (employeeId && !db.select().from(employees).where(and(eq(employees.id, employeeId), eq(employees.companyId, company.id))).get()) throw new Error("Person not found.");
     const taskId = optionalId(formData, "taskId");
-    if (taskId && !db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.companyId, company.id))).get()) throw new Error("Task not found.");
+    const task = taskId ? db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.companyId, company.id))).get() : null;
+    if (taskId && !task) throw new Error("Task not found.");
+    const projectId = task?.projectId ?? optionalId(formData, "projectId") ?? null;
+    if (projectId && !db.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.companyId, company.id))).get()) throw new Error("Project not found.");
+    const taskType = text(formData, "taskType") ? oneOf(text(formData, "taskType"), TASK_TYPES, "Task type") : task?.taskType ?? "other";
     db.insert(timeEntries)
       .values({
         companyId: company.id,
@@ -1059,8 +1115,10 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
         breakMinutes,
         memo: text(formData, "memo"),
         taskId,
+        projectId,
         employeeId,
         billable: checked(formData, "billable"),
+        taskType,
       })
       .run();
     const watch = warnings.map((warning) => warning.message).join(" ");

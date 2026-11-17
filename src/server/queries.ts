@@ -17,6 +17,7 @@ import {
   obligationStates,
   payments,
   policies,
+  projects,
   reserveMovements,
   resolutions,
   salaryPeriods,
@@ -62,6 +63,34 @@ export function loadShareholders() {
 
 export function listCustomers(companyId = loadCompany().id) {
   return getDb().select().from(customers).where(eq(customers.companyId, companyId)).orderBy(asc(customers.name)).all();
+}
+
+export function listProjects(companyId = loadCompany().id) {
+  return getDb()
+    .select({
+      id: projects.id,
+      customerId: projects.customerId,
+      customerName: customers.name,
+      name: projects.name,
+      status: projects.status,
+      startedOn: projects.startedOn,
+      endedOn: projects.endedOn,
+      notes: projects.notes,
+    })
+    .from(projects)
+    .leftJoin(customers, eq(customers.id, projects.customerId))
+    .where(eq(projects.companyId, companyId))
+    .orderBy(asc(projects.status), asc(projects.name))
+    .all();
+}
+
+export function listTimeInRange(from: string, to: string) {
+  return getDb()
+    .select()
+    .from(timeEntries)
+    .where(and(eq(timeEntries.companyId, loadCompany().id), gte(timeEntries.entryDate, from), lte(timeEntries.entryDate, to)))
+    .orderBy(asc(timeEntries.entryDate), asc(timeEntries.startedAt))
+    .all();
 }
 
 export function listPolicies() {

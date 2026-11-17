@@ -8,6 +8,7 @@ import { formatEuro } from "@/domain/money";
 import { GMBH_MINIMUM_CAPITAL_CENTS } from "@/domain/rates-2026";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
+import { TimeBarChart } from "@/components/charts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
@@ -120,6 +121,33 @@ export function DeskScreen() {
               </Card>
             </section>
           </div>
+          <section className="mt-8">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+              <h2 className="text-2xl">{t("analytics.title")}</h2>
+              <Link href="/analytics" className="inline-flex min-h-11 items-center text-sm font-medium text-pine">
+                {t("projects.analytics")}
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Stat label={t("analytics.totalTime")} value={formatDuration(data.analytics.minutes)} />
+              <Stat label={t("analytics.productive")} value={`${data.analytics.productiveShare} %`} />
+              <Stat label={t("analytics.projectsActive")} value={String(data.analytics.projectCounts.active)} hint={`${data.analytics.projectCounts.completed} ${t("analytics.projectsCompleted", { year: data.today.slice(0, 4) })}`} />
+              <Stat label={t("analytics.deliverables")} value={String(data.analytics.deliverables)} hint={t("projects.openDeliverables", { count: data.analytics.openDeliverables })} />
+            </div>
+            <Card className="mt-3">
+              <TimeBarChart
+                ariaLabel={t("analytics.projectTime")}
+                empty={t("analytics.noTime")}
+                rows={data.analytics.projectRows.map((row) => ({
+                  key: String(row.projectId ?? "none"),
+                  label: row.name,
+                  minutes: row.minutes,
+                  productiveMinutes: row.productiveMinutes,
+                  secondary: row.customerName || t("analytics.noCustomer"),
+                }))}
+              />
+            </Card>
+          </section>
           <div className="mt-8">
             <Disclaimer>{t("disclaimer.default")}</Disclaimer>
           </div>
