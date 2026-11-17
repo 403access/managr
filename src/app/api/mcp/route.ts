@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { runTool, tools } from "@/server/tools";
+import { enabledTools, runTool } from "@/server/tools";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ const VERSION = "1.0.0";
 
 function buildServer() {
   const server = new McpServer({ name: "managr", version: VERSION }, { capabilities: { tools: {} } });
-  for (const tool of tools) {
+  for (const tool of enabledTools()) {
     server.registerTool(
       tool.name,
       { description: tool.description, inputSchema: tool.schema.shape },

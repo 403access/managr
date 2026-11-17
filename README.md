@@ -29,7 +29,7 @@ The desk serves its tools as a Model Context Protocol server at `http://127.0.0.
 }
 ```
 
-The tools read the same views the screens read, and write through the same domain builders and the same journal. A client can list companies, invoices, people, and books, and it can create customers, draft and issue invoices, record payments, post expenses and payroll, record time and tasks, and maintain deadlines and resolutions. The endpoint has no sign-in and is reachable only on this computer while the desk runs. See [docs/MCP-ASSISTANT.md](docs/MCP-ASSISTANT.md).
+The tools read the same views the screens read, and write through the same domain builders and the same journal. A client can list companies, invoices, people, and books, and it can create customers, draft and issue invoices, record payments, post expenses and payroll, record time and tasks, and maintain deadlines and resolutions. When web access is on, the same registry also offers `web_search` and `web_fetch`. The endpoint has no sign-in and is reachable only on this computer while the desk runs. See [docs/MCP-ASSISTANT.md](docs/MCP-ASSISTANT.md).
 
 ## Assistant
 
@@ -46,6 +46,8 @@ export MANAGR_AI_API_KEY=...                          # only for a remote endpoi
 ```
 
 An explicit `MANAGR_AI_MODEL` is the default in the picker and stays a fallback when opencode is unavailable. Set `MANAGR_OPENCODE=0` to turn discovery off, or `MANAGR_OPENCODE_BIN=/path/to/opencode` to use another binary. Only models reachable over the OpenAI chat-completions protocol are offered; opencode's native Anthropic and Google routes are not. Restart the desk after changing the environment variables; the picker itself changes the model per request. The panel lists the tools behind each answer. Without opencode and without a model, the panel explains the setup and nothing is sent.
+
+The assistant can look facts up on the public web: `web_search` finds candidates and `web_fetch` reads one page as text. The answer names the source URL, and the panel shows the query and page it used. A page is treated as untrusted data, never as an instruction. A search sends only the query to the search engine; the conversation is not sent. Loopback and private network addresses are refused. Set `MANAGR_WEB=0` to remove both tools, or set `MANAGR_WEB_SEARCH_URL` to a SearXNG JSON endpoint to keep the query on a server you choose.
 
 ## Time tracking test run
 

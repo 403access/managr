@@ -22,7 +22,7 @@ type Step = {
 
 type Message = { id: number; role: "user" | "assistant"; content: string; steps: Step[] };
 
-type Settings = { configured: boolean; model: string; baseUrl: string; local: boolean };
+type Settings = { configured: boolean; model: string; baseUrl: string; local: boolean; web?: boolean };
 
 type Selection = { providerID: string; modelID: string };
 
@@ -118,12 +118,15 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   vat_overview: "assistant.tool.vat_overview",
   monthly_close_checklist: "assistant.tool.monthly_close_checklist",
   draft_dunning_letter: "assistant.tool.draft_dunning_letter",
+  web_search: "assistant.tool.web_search",
+  web_fetch: "assistant.tool.web_fetch",
 };
 
 const READ_ONLY = /^read_/;
+const NO_WRITE = new Set(["daily_briefing", "vat_overview", "monthly_close_checklist", "draft_dunning_letter", "web_search", "web_fetch"]);
 
 function writes(name: string): boolean {
-  return !READ_ONLY.test(name) && !["daily_briefing", "vat_overview", "monthly_close_checklist", "draft_dunning_letter"].includes(name);
+  return !READ_ONLY.test(name) && !NO_WRITE.has(name);
 }
 
 function recordHref(step: Step): string | null {
@@ -321,7 +324,13 @@ export function Assistant() {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         if (data.notConfigured) {
-          setSettings({ configured: false, model: data.model ?? "", baseUrl: data.baseUrl ?? "", local: true });
+          setSettings((current) => ({
+            configured: false,
+            model: data.model ?? "",
+            baseUrl: data.baseUrl ?? "",
+            local: true,
+            web: current?.web,
+          }));
         }
         errorText = typeof data.error === "string" ? data.error : t("assistant.failed");
       } else if (!response.body) {
@@ -501,6 +510,7 @@ export function Assistant() {
             {messages.length === 0 && !streaming ? (
               <div className="grid gap-3">
                 <p className="text-sm leading-relaxed text-muted">{t("assistant.intro")}</p>
+                {settings?.web ? <p className="text-[11px] leading-relaxed text-muted">{t("assistant.webNote")}</p> : null}
                 {showConfig ? (
                   <div className="rounded-xl border border-amber/40 bg-amber/10 p-3 text-sm">
                     <p className="font-medium">{t("assistant.configTitle")}</p>
@@ -628,6 +638,16 @@ function toolLabelFor(name: string, t: (key: MessageKey) => string): string {
 
 function StepCard({ step }: { step: Step }) {
   const { t } = useI18n();
+  if (step.name === "web_search") {
+    const query = (step.input as { query?: string } | undefined)?.query;
+    if (!query) return null;
+    const results = (step.data as { results?: unknown[] } | undefined)?.results;
+    return <p className="mt-1 truncate text-[11px] text-muted">{t("assistant.webResults", { count: results?.length ?? 0, query })}</p>;
+  }
+  if (step.name === "web_fetch") {
+    const url = (step.input as { url?: string } | undefined)?.url;
+    return url ? <p className="mt-1 truncate font-mono text-[10px] text-muted">{url}</p> : null;
+  }
   if (["create_invoice", "issue_invoice", "record_invoice_payment", "void_invoice"].includes(step.name)) {
     const invoiceId = (step.data as { invoiceId?: number } | undefined)?.invoiceId;
     if (typeof invoiceId === "number") return <InvoiceCard invoiceId={invoiceId} />;

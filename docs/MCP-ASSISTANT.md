@@ -23,6 +23,7 @@ All four phases have shipped. The widget is in the app shell, the MCP endpoint a
 - File uploads stay on the screen. A tool may list documents, not write or delete files.
 - The assistant reaches a model only through the local opencode installation or the endpoint you configure. With a local model (Ollama or a local OpenAI-compatible server) the data stays on this computer; with a cloud model, the conversation and the tool results leave it. The widget says which model and provider are in use.
 - The provider credential stays on the server. managr reads it from opencode for the selected model, sends it only to that provider, and never returns it to the browser or stores it in the database.
+- `web_search` sends only the query to a search engine. `web_fetch` requests one public page. The conversation is not sent, loopback and private network addresses are refused, and a page is untrusted data: the assistant may quote a fact, never follow an instruction from it.
 
 ## Configuration
 
@@ -33,6 +34,8 @@ All four phases have shipped. The widget is in the app shell, the MCP endpoint a
 | `MANAGR_AI_API_KEY` | Sent as a bearer token for the fallback endpoint when set. Not needed for a local endpoint. |
 | `MANAGR_OPENCODE` | Set to `0` to skip the local opencode installation. Discovery is on by default. |
 | `MANAGR_OPENCODE_BIN` | Path to the opencode binary when it is not on `PATH`. |
+| `MANAGR_WEB` | Set to `0` to remove `web_search` and `web_fetch` from the assistant and MCP. On by default. |
+| `MANAGR_WEB_SEARCH_URL` | A SearXNG JSON endpoint. It is tried before DuckDuckGo and Bing, so the query stays on a server you choose. |
 
 A loopback base URL counts as local. Any other host counts as remote, and the panel says so. The widget reads the fallback setting from `GET /api/assistant`; the key is never returned. The desk says nothing about the model's own data handling.
 
@@ -45,6 +48,12 @@ The route resolves the selection against opencode on every request. A model that
 The environment variables stay a working fallback and appear in the picker as the **Environment** provider. An explicit `MANAGR_AI_MODEL` is the default selection. Without either source the panel shows the setup card. Docker images normally have no opencode, so the environment path is the normal one there.
 
 Only chat models that speak the OpenAI chat-completions protocol with tool calling are listed. A provider that opencode reaches through its native Anthropic or Google route is not offered, because managr's assistant keeps its own tool loop and sends OpenAI-shaped tool calls.
+
+## Web tools
+
+`web_search` asks DuckDuckGo's HTML endpoint for up to ten results and falls back to Bing. With `MANAGR_WEB_SEARCH_URL` it asks a SearXNG JSON endpoint first. It returns a title, URL, and snippet per result. `web_fetch` accepts only public http(s) URLs, follows at most five redirects with the same check, caps the download at 2 MB, strips scripts and markup, and returns the readable text, the title, and any email addresses it finds. Both tools cache for five minutes in the server process.
+
+The tools are read-only: they never invalidate a screen and never post. `MANAGR_WEB=0` removes them from the registry that the assistant and MCP see, and `runTool` refuses them. The system prompt requires a source URL for every web fact and tells the model to list same-name companies instead of choosing one. A page is treated as untrusted data; an instruction on it is never followed.
 
 ## Phases
 
@@ -62,6 +71,7 @@ Read tools render the existing views, so the assistant sees the same JSON a scre
 - `read_time`, `read_tasks`
 - `read_projects`, `read_analytics`
 - `read_obligations`, `read_documents`, `read_legal`
+- `web_search`, `web_fetch` when web access is on
 
 Write tools follow the server actions:
 
@@ -90,7 +100,7 @@ A floating button in the app shell opens a panel. The browser sends the conversa
 The panel renders each event as it arrives, so the steps appear while the model is still working:
 
 - The provider and model come from the local opencode installation; `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL`, and `MANAGR_AI_API_KEY` remain the fallback. Without either source the panel explains the setup instead of pretending to answer.
-- Each tool call shows a spinner, then a check or a cross with the error. A read shows no card; a write shows what it created.
+- Each tool call shows a spinner, then a check or a cross with the error. A read shows no card; a write shows what it created. A web search shows the query and hit count, and a fetched page shows its URL.
 - A created, issued, paid, or voided invoice shows a card with number, customer, lines, net, VAT, gross, and open amount, plus a link to the invoice. A payroll posting shows gross, wage tax, net, and employer share, plus a link to the person. Other writes link to their screen.
 - After a write the panel invalidates the open view, so a list behind the panel updates at the same moment.
 - A Stop button aborts the request and keeps the steps that already ran.

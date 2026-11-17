@@ -8,6 +8,7 @@ import {
   streamAssistant,
   type ResolvedAssistantSettings,
 } from "@/server/assistant";
+import { webEnabled } from "@/server/web";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,6 +39,7 @@ export function GET() {
     model: settings.model,
     baseUrl: settings.baseUrl,
     local: settings.local,
+    web: webEnabled(),
   });
 }
 
