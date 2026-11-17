@@ -7,6 +7,7 @@ import { formatDate } from "@/domain/calendar";
 import { formatEuro } from "@/domain/money";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import type { MessageKey } from "@/i18n";
+import { Combobox } from "./combobox";
 import { useI18n } from "./locale-provider";
 import { buttonClass, inputClass, Pill } from "./ui";
 
@@ -23,8 +24,30 @@ type Message = { id: number; role: "user" | "assistant"; content: string; steps:
 
 type Settings = { configured: boolean; model: string; baseUrl: string; local: boolean };
 
+type Selection = { providerID: string; modelID: string };
+
+type CatalogProvider = { id: string; name: string };
+
+type CatalogModel = {
+  id: string;
+  providerID: string;
+  modelID: string;
+  name: string;
+  providerName: string;
+  local: boolean;
+  context?: number;
+};
+
+type Catalog = {
+  available: boolean;
+  error?: string;
+  providers: CatalogProvider[];
+  models: CatalogModel[];
+  default: Selection | null;
+};
+
 type StreamEvent =
-  | { type: "model"; model: string; baseUrl: string; local: boolean }
+  | { type: "model"; model: string; baseUrl: string; local: boolean; providerID?: string; modelID?: string }
   | { type: "delta"; text: string }
   | { type: "reset" }
   | { type: "tool"; name: string; input: unknown }
@@ -161,6 +184,35 @@ function recordHref(step: Step): string | null {
 
 let nextId = 1;
 
+const MODEL_STORAGE_KEY = "managr-assistant-model";
+
+function readStoredSelection(): Selection | null {
+  try {
+    const raw = window.localStorage.getItem(MODEL_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Selection>;
+    return typeof parsed.providerID === "string" && typeof parsed.modelID === "string"
+      ? { providerID: parsed.providerID, modelID: parsed.modelID }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeSelection(selection: Selection): void {
+  try {
+    window.localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(selection));
+  } catch {
+    // A private window may refuse storage; the choice then lasts for the session.
+  }
+}
+
+function contextHint(tokens?: number): string | undefined {
+  if (!tokens || tokens < 1_000) return undefined;
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(tokens % 1_000_000 === 0 ? 0 : 1)}M`;
+  return `${Math.round(tokens / 1_000)}k`;
+}
+
 export function Assistant() {
   const { t, tx, label } = useI18n();
   const queryClient = useQueryClient();
@@ -170,6 +222,8 @@ export function Assistant() {
   const [streaming, setStreaming] = useState<{ content: string; steps: Step[] } | null>(null);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -189,6 +243,41 @@ export function Assistant() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    fetch("/api/assistant/models")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: Catalog | null) => {
+        if (active) setCatalog(data ?? { available: false, providers: [], models: [], default: null });
+      })
+      .catch(() => {
+        if (active) setCatalog({ available: false, providers: [], models: [], default: null });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!catalog) return;
+    const valid = (candidate: Selection | null): Selection | null =>
+      candidate && catalog.models.some((model) => model.providerID === candidate.providerID && model.modelID === candidate.modelID)
+        ? candidate
+        : null;
+    if (valid(selection)) return;
+    const first = catalog.models[0];
+    const next =
+      valid(readStoredSelection()) ??
+      valid(catalog.default) ??
+      (first ? { providerID: first.providerID, modelID: first.modelID } : null);
+    if (next) {
+      setSelection(next);
+      storeSelection(next);
+    } else {
+      setSelection(null);
+    }
+  }, [catalog, selection]);
+
+  useEffect(() => {
     if (!open) return;
     inputRef.current?.focus();
   }, [open]);
@@ -196,6 +285,11 @@ export function Assistant() {
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages, streaming, error]);
+
+  function chooseSelection(next: Selection) {
+    setSelection(next);
+    storeSelection(next);
+  }
 
   async function send(raw: string) {
     const content = raw.trim();
@@ -218,7 +312,10 @@ export function Assistant() {
       const response = await fetch("/api/assistant", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: history.map(({ role, content: text }) => ({ role, content: text })) }),
+        body: JSON.stringify({
+          messages: history.map(({ role, content: text }) => ({ role, content: text })),
+          ...(selection ? { selection } : {}),
+        }),
         signal: controller.signal,
       });
       if (!response.ok) {
@@ -299,6 +396,41 @@ export function Assistant() {
     { key: "assistant.quickClose", prompt: t("assistant.promptClose") },
   ] as const;
 
+  const providerID = selection?.providerID ?? null;
+  const selectedModel = selection
+    ? (catalog?.models.find((model) => model.providerID === selection.providerID && model.modelID === selection.modelID) ?? null)
+    : null;
+  const providerModels = (catalog?.models ?? []).filter((model) => model.providerID === providerID);
+  const hasChoices = Boolean(catalog && catalog.providers.length > 0 && catalog.models.length > 0);
+  const showConfig = settings !== null && !settings.configured && !hasChoices;
+  const providerOptions = (catalog?.providers ?? []).map((provider) => ({
+    value: provider.id,
+    label: provider.id === "env" ? t("assistant.envProvider") : provider.name,
+  }));
+  const modelOptions = providerModels.map((model) => ({
+    value: model.modelID,
+    label: model.name,
+    hint: contextHint(model.context),
+  }));
+  const modelStatus = selectedModel
+    ? `${selectedModel.local ? t("assistant.local") : t("assistant.remote")} · ${
+        selectedModel.providerID === "env" ? t("assistant.envProvider") : t("assistant.opencode")
+      }`
+    : settings?.configured
+      ? `${settings.model} · ${settings.local ? t("assistant.local") : t("assistant.remote")}`
+      : t("assistant.subtitle");
+
+  function chooseProvider(nextProviderID: string) {
+    if (nextProviderID === providerID) return;
+    const first = catalog?.models.find((model) => model.providerID === nextProviderID);
+    if (first) chooseSelection({ providerID: first.providerID, modelID: first.modelID });
+  }
+
+  function chooseModel(nextModelID: string) {
+    if (!providerID) return;
+    chooseSelection({ providerID, modelID: nextModelID });
+  }
+
   return (
     <>
       <button
@@ -319,34 +451,57 @@ export function Assistant() {
           aria-label={t("assistant.title")}
           className="fixed inset-x-3 bottom-20 z-50 flex max-h-[78dvh] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl shadow-ink/25 md:inset-x-auto md:right-6 md:bottom-24 md:w-[27rem] md:max-h-[42rem]"
         >
-          <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
-            <div className="min-w-0">
-              <h2 className="text-lg leading-tight">{t("assistant.title")}</h2>
-              <p className="mt-0.5 truncate text-xs text-muted">
-                {settings?.configured
-                  ? `${settings.model} · ${settings.local ? t("assistant.local") : t("assistant.remote")}`
-                  : t("assistant.subtitle")}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              {messages.length > 0 ? (
-                <button type="button" className="rounded-full px-2 py-1 text-xs text-muted hover:text-ink" onClick={() => { setMessages([]); setError(""); }}>
-                  {t("assistant.newChat")}
+          <header className="border-b border-line px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-lg leading-tight">{t("assistant.title")}</h2>
+                <p className="mt-0.5 truncate text-xs text-muted">{modelStatus}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {messages.length > 0 ? (
+                  <button type="button" className="rounded-full px-2 py-1 text-xs text-muted hover:text-ink" onClick={() => { setMessages([]); setError(""); }}>
+                    {t("assistant.newChat")}
+                  </button>
+                ) : null}
+                <button type="button" className="grid size-9 place-items-center rounded-full text-muted hover:text-ink" onClick={() => setOpen(false)} aria-label={t("assistant.close")}>
+                  <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
                 </button>
-              ) : null}
-              <button type="button" className="grid size-9 place-items-center rounded-full text-muted hover:text-ink" onClick={() => setOpen(false)} aria-label={t("assistant.close")}>
-                <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                  <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </button>
+              </div>
             </div>
+            {catalog === null ? <p className="mt-2 text-[11px] text-muted">{t("assistant.modelsLoading")}</p> : null}
+            {hasChoices ? (
+              <div className="mt-3 grid grid-cols-[minmax(0,0.56fr)_minmax(0,1fr)] gap-2">
+                <Combobox
+                  label={t("assistant.provider")}
+                  value={providerID}
+                  options={providerOptions}
+                  onSelect={chooseProvider}
+                  placeholder={t("assistant.noProvider")}
+                  searchPlaceholder={t("assistant.searchProvider")}
+                  noResultsLabel={t("assistant.noResults")}
+                  disabled={pending}
+                />
+                <Combobox
+                  label={t("assistant.model")}
+                  value={selectedModel?.modelID ?? null}
+                  options={modelOptions}
+                  onSelect={chooseModel}
+                  placeholder={t("assistant.noModel")}
+                  searchPlaceholder={t("assistant.searchModel")}
+                  noResultsLabel={t("assistant.noResults")}
+                  disabled={pending || !providerID}
+                />
+              </div>
+            ) : null}
           </header>
 
           <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3" aria-live="polite">
             {messages.length === 0 && !streaming ? (
               <div className="grid gap-3">
                 <p className="text-sm leading-relaxed text-muted">{t("assistant.intro")}</p>
-                {settings && !settings.configured ? (
+                {showConfig ? (
                   <div className="rounded-xl border border-amber/40 bg-amber/10 p-3 text-sm">
                     <p className="font-medium">{t("assistant.configTitle")}</p>
                     <p className="mt-1 text-xs leading-relaxed">{t("assistant.configBody")}</p>

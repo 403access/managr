@@ -119,6 +119,8 @@ const exact: Record<string, string> = {
   "The message could not be read.": "Die Nachricht konnte nicht gelesen werden.",
   "The assistant stopped after too many tool steps. Try a smaller request.": "Der Assistent hat nach zu vielen Werkzeugschritten abgebrochen. Eine kleinere Anfrage stellen.",
   "The model returned no message.": "Das Modell hat keine Nachricht geliefert.",
+  "The selected model is not available in opencode.": "Das gewählte Modell ist in opencode nicht verfügbar.",
+  "opencode is not available. Start opencode or set MANAGR_AI_MODEL.": "opencode ist nicht erreichbar. opencode starten oder MANAGR_AI_MODEL setzen.",
   "The assistant failed.": "Der Assistent ist gescheitert.",
   "Absence saved.": "Abwesenheit gespeichert.",
   "Absence removed.": "Abwesenheit entfernt.",

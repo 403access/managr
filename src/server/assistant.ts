@@ -1,7 +1,17 @@
 import "server-only";
 import { todayIso } from "@/domain/calendar";
+import {
+  isLocalBaseUrl,
+  opencodeSnapshot,
+  resolveOpencodeModel,
+  type AssistantCatalog,
+  type AssistantSelection,
+  type ResolvedOpencodeModel,
+} from "./opencode";
 import { loadCompany } from "./queries";
 import { openAiTools, runTool } from "./tools";
+
+export type { AssistantCatalog, AssistantSelection } from "./opencode";
 
 export type AssistantSettings = {
   baseUrl: string;
@@ -9,6 +19,15 @@ export type AssistantSettings = {
   hasKey: boolean;
   /** A loopback endpoint keeps the conversation on this computer. */
   local: boolean;
+};
+
+export type ResolvedAssistantSettings = AssistantSettings & {
+  displayName: string;
+  source: "env" | "opencode";
+  providerID?: string;
+  modelID?: string;
+  apiKey?: string;
+  headers?: Record<string, string>;
 };
 
 export type AssistantTurn = { role: "user" | "assistant"; content: string };
@@ -33,8 +52,95 @@ type PendingCall = { id: string; name: string; arguments: string };
 export function assistantSettings(): AssistantSettings {
   const baseUrl = (process.env.MANAGR_AI_BASE_URL?.trim() || "http://127.0.0.1:11434/v1").replace(/\/+$/, "");
   const model = process.env.MANAGR_AI_MODEL?.trim() ?? "";
-  const local = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(?::|\/|$)/.test(baseUrl);
-  return { baseUrl, model, hasKey: Boolean(process.env.MANAGR_AI_API_KEY?.trim()), local };
+  return { baseUrl, model, hasKey: Boolean(process.env.MANAGR_AI_API_KEY?.trim()), local: isLocalBaseUrl(baseUrl) };
+}
+
+function envResolved(): ResolvedAssistantSettings | null {
+  const settings = assistantSettings();
+  if (!settings.model) return null;
+  return {
+    ...settings,
+    displayName: settings.model,
+    source: "env",
+    providerID: "env",
+    modelID: settings.model,
+    apiKey: process.env.MANAGR_AI_API_KEY?.trim() || undefined,
+  };
+}
+
+function fromOpencode(model: ResolvedOpencodeModel): ResolvedAssistantSettings {
+  return {
+    baseUrl: model.baseUrl,
+    model: model.modelID,
+    hasKey: Boolean(model.apiKey),
+    local: model.local,
+    displayName: model.name,
+    source: "opencode",
+    providerID: model.providerID,
+    modelID: model.modelID,
+    apiKey: model.apiKey,
+    headers: model.headers,
+  };
+}
+
+/**
+ * Prefer an explicit choice from the panel, then the environment, then the local
+ * opencode installation. The environment stays a working fallback when opencode
+ * is not installed, for example inside the Docker image.
+ */
+export async function resolveAssistantSettings(selection?: AssistantSelection): Promise<ResolvedAssistantSettings> {
+  if (selection?.providerID === "env") {
+    const env = envResolved();
+    if (env) return env;
+    throw new AssistantNotConfigured("No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.");
+  }
+
+  if (selection) {
+    const snapshot = await opencodeSnapshot();
+    const model = resolveOpencodeModel(snapshot.models, snapshot.providers, snapshot.credentials, selection);
+    if (!model) throw new AssistantModelNotFound("The selected model is not available in opencode.");
+    return fromOpencode(model);
+  }
+
+  const env = envResolved();
+  if (env) return env;
+
+  const snapshot = await opencodeSnapshot();
+  const fallback = snapshot.catalog.default;
+  if (fallback) {
+    const model = resolveOpencodeModel(snapshot.models, snapshot.providers, snapshot.credentials, fallback);
+    if (model) return fromOpencode(model);
+  }
+  if (!snapshot.available) {
+    throw new AssistantNotConfigured("opencode is not available. Start opencode or set MANAGR_AI_MODEL.");
+  }
+  throw new AssistantNotConfigured("No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.");
+}
+
+/** The catalog the panel shows. It never contains a credential. */
+export async function assistantCatalog(): Promise<AssistantCatalog> {
+  const snapshot = await opencodeSnapshot();
+  const env = envResolved();
+  const providers = [...snapshot.catalog.providers];
+  const models = [...snapshot.catalog.models];
+  if (env) {
+    providers.unshift({ id: "env", name: "MANAGR_AI_*" });
+    models.unshift({
+      id: `env/${env.model}`,
+      providerID: "env",
+      modelID: env.model,
+      name: env.model,
+      providerName: "MANAGR_AI_*",
+      local: env.local,
+    });
+  }
+  return {
+    available: snapshot.available || Boolean(env),
+    error: snapshot.available || env ? undefined : snapshot.error,
+    providers,
+    models,
+    default: env ? { providerID: "env", modelID: env.model } : snapshot.catalog.default,
+  };
 }
 
 function systemPrompt(): string {
@@ -88,6 +194,7 @@ function combinedSignal(signal: AbortSignal | undefined): AbortSignal {
 }
 
 export class AssistantNotConfigured extends Error {}
+export class AssistantModelNotFound extends Error {}
 
 type Completion = {
   content: string;
@@ -175,8 +282,12 @@ async function* readStream(
  * Runs the tool loop and yields each step as it happens: text deltas, tool starts,
  * tool results (with a capped copy for the UI), and the final reply.
  */
-export async function* streamAssistant(turns: AssistantTurn[], signal?: AbortSignal): AsyncGenerator<AssistantEvent> {
-  const settings = assistantSettings();
+export async function* streamAssistant(
+  turns: AssistantTurn[],
+  signal?: AbortSignal,
+  resolved?: ResolvedAssistantSettings,
+): AsyncGenerator<AssistantEvent> {
+  const settings = resolved ?? (await resolveAssistantSettings());
   if (!settings.model) {
     throw new AssistantNotConfigured("No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.");
   }
@@ -191,7 +302,8 @@ export async function* streamAssistant(turns: AssistantTurn[], signal?: AbortSig
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(settings.hasKey ? { authorization: `Bearer ${process.env.MANAGR_AI_API_KEY ?? ""}` } : {}),
+        ...(settings.apiKey ? { authorization: `Bearer ${settings.apiKey}` } : {}),
+        ...(settings.headers ?? {}),
       },
       body: JSON.stringify({
         model: settings.model,

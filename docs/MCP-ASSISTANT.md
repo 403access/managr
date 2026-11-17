@@ -21,17 +21,30 @@ All four phases have shipped. The widget is in the app shell, the MCP endpoint a
 - Books stay append-only. Corrections are reversing entries, exactly as on the screens.
 - Nothing is sent. No e-invoice, no e-mail, no ELSTER, no Peppol.
 - File uploads stay on the screen. A tool may list documents, not write or delete files.
-- The assistant reaches a model only at the endpoint you configure. With a local model (Ollama or a local OpenAI-compatible server) the data stays on this computer; with a cloud model, the conversation and the tool results leave it. The widget says which endpoint is in use.
+- The assistant reaches a model only through the local opencode installation or the endpoint you configure. With a local model (Ollama or a local OpenAI-compatible server) the data stays on this computer; with a cloud model, the conversation and the tool results leave it. The widget says which model and provider are in use.
+- The provider credential stays on the server. managr reads it from opencode for the selected model, sends it only to that provider, and never returns it to the browser or stores it in the database.
 
 ## Configuration
 
 | Variable | Meaning |
 | --- | --- |
-| `MANAGR_AI_MODEL` | The model name. Without it the widget and the route refuse to answer. |
-| `MANAGR_AI_BASE_URL` | An OpenAI-compatible base URL. Defaults to `http://127.0.0.1:11434/v1` (Ollama). |
-| `MANAGR_AI_API_KEY` | Sent as a bearer token when set. Not needed for a local endpoint. |
+| `MANAGR_AI_MODEL` | The fallback model name. Without opencode and without this value the widget and the route refuse to answer. |
+| `MANAGR_AI_BASE_URL` | The fallback OpenAI-compatible base URL. Defaults to `http://127.0.0.1:11434/v1` (Ollama). |
+| `MANAGR_AI_API_KEY` | Sent as a bearer token for the fallback endpoint when set. Not needed for a local endpoint. |
+| `MANAGR_OPENCODE` | Set to `0` to skip the local opencode installation. Discovery is on by default. |
+| `MANAGR_OPENCODE_BIN` | Path to the opencode binary when it is not on `PATH`. |
 
-A loopback base URL counts as local. Any other host counts as remote, and the panel says so. The widget reads the setting from `GET /api/assistant`; the key is never returned. The desk says nothing about the model's own data handling.
+A loopback base URL counts as local. Any other host counts as remote, and the panel says so. The widget reads the fallback setting from `GET /api/assistant`; the key is never returned. The desk says nothing about the model's own data handling.
+
+## Model choice
+
+When a local opencode installation is available, `GET /api/assistant/models` returns its providers and the models that support tool calling over an OpenAI-compatible endpoint. The panel renders two searchable fields, provider on the left and model on the right, and stores the choice in the browser. Each message carries `selection: { providerID, modelID }` to `POST /api/assistant`.
+
+The route resolves the selection against opencode on every request. A model that disappeared from opencode is refused with a 400 instead of being replaced silently. The provider's credential is read on the server from opencode's local credential store and is never part of the catalog response. The catalog is cached in the server process for a minute; a change in opencode appears after that or on the next request after the cache expires.
+
+The environment variables stay a working fallback and appear in the picker as the **Environment** provider. An explicit `MANAGR_AI_MODEL` is the default selection. Without either source the panel shows the setup card. Docker images normally have no opencode, so the environment path is the normal one there.
+
+Only chat models that speak the OpenAI chat-completions protocol with tool calling are listed. A provider that opencode reaches through its native Anthropic or Google route is not offered, because managr's assistant keeps its own tool loop and sends OpenAI-shaped tool calls.
 
 ## Phases
 
@@ -76,7 +89,7 @@ A floating button in the app shell opens a panel. The browser sends the conversa
 
 The panel renders each event as it arrives, so the steps appear while the model is still working:
 
-- The model is configured with `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL`, and `MANAGR_AI_API_KEY`. Without a model the panel explains the setup instead of pretending to answer.
+- The provider and model come from the local opencode installation; `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL`, and `MANAGR_AI_API_KEY` remain the fallback. Without either source the panel explains the setup instead of pretending to answer.
 - Each tool call shows a spinner, then a check or a cross with the error. A read shows no card; a write shows what it created.
 - A created, issued, paid, or voided invoice shows a card with number, customer, lines, net, VAT, gross, and open amount, plus a link to the invoice. A payroll posting shows gross, wage tax, net, and employer share, plus a link to the person. Other writes link to their screen.
 - After a write the panel invalidates the open view, so a list behind the panel updates at the same moment.

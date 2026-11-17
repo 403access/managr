@@ -1,9 +1,18 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { AssistantNotConfigured, assistantSettings, runAssistant, streamAssistant, type AssistantEvent } from "@/server/assistant";
+import {
+  AssistantModelNotFound,
+  AssistantNotConfigured,
+  assistantCatalog,
+  assistantSettings,
+  resolveAssistantSettings,
+  runAssistant,
+  streamAssistant,
+  type AssistantEvent,
+} from "@/server/assistant";
 
 const repo = process.cwd();
 let dir = "";
@@ -18,6 +27,11 @@ beforeAll(() => {
 afterAll(() => {
   process.chdir(repo);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+beforeEach(() => {
+  // The suite tests the environment fallback, not whichever opencode is installed.
+  vi.stubEnv("MANAGR_OPENCODE", "0");
 });
 
 afterEach(() => {
@@ -54,6 +68,30 @@ describe("assistant settings", () => {
     expect(assistantSettings()).toMatchObject({ model: "qwen2.5:14b", local: true, hasKey: false });
     vi.stubEnv("MANAGR_AI_BASE_URL", "https://api.example.com/v1/");
     expect(assistantSettings()).toMatchObject({ baseUrl: "https://api.example.com/v1", local: false });
+  });
+});
+
+describe("assistant model choice", () => {
+  it("offers the environment model when opencode is turned off", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const catalog = await assistantCatalog();
+    expect(catalog.providers).toEqual([{ id: "env", name: "MANAGR_AI_*" }]);
+    expect(catalog.models).toEqual([
+      expect.objectContaining({ providerID: "env", modelID: "test-model", name: "test-model", local: true }),
+    ]);
+    expect(catalog.default).toEqual({ providerID: "env", modelID: "test-model" });
+  });
+
+  it("resolves the environment provider and refuses an opencode model while discovery is off", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    await expect(resolveAssistantSettings({ providerID: "env", modelID: "test-model" })).resolves.toMatchObject({
+      model: "test-model",
+      source: "env",
+      local: true,
+    });
+    await expect(resolveAssistantSettings({ providerID: "qwen", modelID: "qwen-max" })).rejects.toBeInstanceOf(
+      AssistantModelNotFound,
+    );
   });
 });
 

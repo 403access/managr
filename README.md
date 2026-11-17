@@ -35,7 +35,9 @@ The tools read the same views the screens read, and write through the same domai
 
 The floating button opens a chat panel. It answers with the same tools, so a figure in the answer can be traced to a tool call. Each step streams into the panel while the model works: a spinner, then a check or the error. A created invoice appears as a card with its number, customer, lines, and totals, and a link to the invoice; payroll and other writes show their key figures and a link. The open screen refreshes after a write.
 
-Configure an OpenAI-compatible chat endpoint that supports tool calling:
+The panel can use the local [opencode](https://opencode.ai) installation. managr asks opencode for its providers and the models that support tool calling, then shows two searchable fields: **Anbieter** on the left and **Modell** on the right. The choice is kept in the browser. The selected provider's credential is read from opencode on the server, never sent to the browser, and not stored by managr. A local model keeps the conversation on this computer; a cloud provider receives the conversation and the tool results, and the panel marks the model as local or remote.
+
+opencode is discovered through its CLI. If it is not installed, for example inside the Docker image, configure an OpenAI-compatible chat endpoint that supports tool calling:
 
 ```bash
 export MANAGR_AI_MODEL=qwen2.5:14b
@@ -43,7 +45,7 @@ export MANAGR_AI_BASE_URL=http://127.0.0.1:11434/v1   # the default, Ollama
 export MANAGR_AI_API_KEY=...                          # only for a remote endpoint
 ```
 
-Restart the desk after changing the variables; they are read per request but the running process needs them in its environment. A local model keeps the conversation on this computer. A cloud endpoint receives the conversation and the tool results. The panel shows which endpoint is in use and lists the tools behind each answer. Without a model the panel explains the setup and nothing is sent.
+An explicit `MANAGR_AI_MODEL` is the default in the picker and stays a fallback when opencode is unavailable. Set `MANAGR_OPENCODE=0` to turn discovery off, or `MANAGR_OPENCODE_BIN=/path/to/opencode` to use another binary. Only models reachable over the OpenAI chat-completions protocol are offered; opencode's native Anthropic and Google routes are not. Restart the desk after changing the environment variables; the picker itself changes the model per request. The panel lists the tools behind each answer. Without opencode and without a model, the panel explains the setup and nothing is sent.
 
 ## Time tracking test run
 

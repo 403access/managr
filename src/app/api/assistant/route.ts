@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { AssistantNotConfigured, assistantSettings, streamAssistant } from "@/server/assistant";
+import {
+  AssistantModelNotFound,
+  AssistantNotConfigured,
+  assistantSettings,
+  resolveAssistantSettings,
+  streamAssistant,
+  type ResolvedAssistantSettings,
+} from "@/server/assistant";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,6 +22,12 @@ const bodySchema = z.object({
     )
     .min(1)
     .max(40),
+  selection: z
+    .object({
+      providerID: z.string().trim().min(1).max(200),
+      modelID: z.string().trim().min(1).max(300),
+    })
+    .optional(),
 });
 
 /** The widget asks for the model settings without sending a message. The API key is never returned. */
@@ -33,17 +46,22 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "The message could not be read." }, { status: 400 });
   }
-  const settings = assistantSettings();
-  if (!settings.model) {
-    return NextResponse.json(
-      {
-        error: "No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.",
-        notConfigured: true,
-        baseUrl: settings.baseUrl,
-        model: settings.model,
-      },
-      { status: 503 },
-    );
+  let settings: ResolvedAssistantSettings;
+  try {
+    settings = await resolveAssistantSettings(parsed.data.selection);
+  } catch (error) {
+    if (error instanceof AssistantNotConfigured) {
+      const env = assistantSettings();
+      return NextResponse.json(
+        { error: error.message, notConfigured: true, baseUrl: env.baseUrl, model: env.model },
+        { status: 503 },
+      );
+    }
+    if (error instanceof AssistantModelNotFound) {
+      return NextResponse.json({ error: error.message, notConfigured: false }, { status: 400 });
+    }
+    console.error(error);
+    return NextResponse.json({ error: "The assistant failed.", notConfigured: false }, { status: 503 });
   }
 
   const encoder = new TextEncoder();
@@ -56,9 +74,16 @@ export async function POST(request: Request) {
           // The client went away; the loop stops when the request signal aborts.
         }
       };
-      send({ type: "model", model: settings.model, baseUrl: settings.baseUrl, local: settings.local });
+      send({
+        type: "model",
+        model: settings.displayName,
+        baseUrl: settings.baseUrl,
+        local: settings.local,
+        providerID: settings.providerID,
+        modelID: settings.modelID,
+      });
       try {
-        for await (const event of streamAssistant(parsed.data.messages, request.signal)) {
+        for await (const event of streamAssistant(parsed.data.messages, request.signal, settings)) {
           send(event);
         }
       } catch (error) {
