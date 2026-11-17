@@ -16,10 +16,13 @@ jobs:
       run:
         working-directory: website
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      # Node is only needed to run the Docusaurus CLI; dependencies come from Bun.
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
+          # Bun's cache is handled by oven-sh/setup-bun.
+          package-manager-cache: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.4"

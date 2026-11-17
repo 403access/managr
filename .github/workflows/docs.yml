@@ -22,10 +22,13 @@ jobs:
       run:
         working-directory: website
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      # Node is only needed to run the Docusaurus CLI; dependencies come from Bun.
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
+          # Bun's cache is handled by oven-sh/setup-bun.
+          package-manager-cache: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.4"
@@ -34,7 +37,7 @@ jobs:
       - name: Build website
         run: bun run build
       - name: Upload build artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: website/build
 
@@ -51,4 +54,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
