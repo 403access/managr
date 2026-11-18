@@ -1,4 +1,4 @@
-import { integer, primaryKey, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 export const companies = sqliteTable("companies", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -369,6 +369,95 @@ export const milestoneCompanies = sqliteTable(
     companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   },
   (table) => [primaryKey({ columns: [table.milestoneId, table.companyId] })],
+);
+
+export const bankConnections = sqliteTable(
+  "bank_connections",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("qonto"),
+    label: text("label").notNull().default("Qonto"),
+    login: text("login").notNull(),
+    secretKey: text("secret_key").notNull(),
+    environment: text("environment").notNull().default("production"),
+    stagingToken: text("staging_token").notNull().default(""),
+    orgId: text("org_id").notNull().default(""),
+    orgName: text("org_name").notNull().default(""),
+    orgSlug: text("org_slug").notNull().default(""),
+    status: text("status").notNull().default("new"),
+    lastError: text("last_error").notNull().default(""),
+    lastSyncedAt: text("last_synced_at"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("bank_connections_company_provider_unique").on(table.companyId, table.provider)],
+);
+
+export const bankAccounts = sqliteTable(
+  "bank_accounts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    connectionId: integer("connection_id").notNull().references(() => bankConnections.id, { onDelete: "cascade" }),
+    companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().default(""),
+    iban: text("iban").notNull().default(""),
+    bic: text("bic").notNull().default(""),
+    currency: text("currency").notNull().default("EUR"),
+    balanceCents: integer("balance_cents").notNull().default(0),
+    authorizedBalanceCents: integer("authorized_balance_cents").notNull().default(0),
+    status: text("status").notNull().default("active"),
+    main: integer("is_main", { mode: "boolean" }).notNull().default(false),
+    external: integer("is_external", { mode: "boolean" }).notNull().default(false),
+    updatedAt: text("updated_at").notNull().default(""),
+    syncedAt: text("synced_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("bank_accounts_connection_external_unique").on(table.connectionId, table.externalId),
+    index("bank_accounts_company_idx").on(table.companyId),
+  ],
+);
+
+export const bankTransactions = sqliteTable(
+  "bank_transactions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    accountId: integer("account_id").notNull().references(() => bankAccounts.id, { onDelete: "cascade" }),
+    companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    externalRef: text("external_ref").notNull().default(""),
+    status: text("status").notNull(),
+    side: text("side").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull().default("EUR"),
+    bookedOn: text("booked_on").notNull(),
+    emittedAt: text("emitted_at").notNull().default(""),
+    settledAt: text("settled_at").notNull().default(""),
+    createdAt: text("created_at").notNull().default(""),
+    updatedAt: text("updated_at").notNull().default(""),
+    label: text("label").notNull().default(""),
+    counterpartyName: text("counterparty_name").notNull().default(""),
+    reference: text("reference").notNull().default(""),
+    note: text("note").notNull().default(""),
+    operationType: text("operation_type").notNull().default(""),
+    subjectType: text("subject_type").notNull().default(""),
+    category: text("category").notNull().default(""),
+    cashflowCategory: text("cashflow_category").notNull().default(""),
+    cashflowSubcategory: text("cashflow_subcategory").notNull().default(""),
+    vatAmountCents: integer("vat_amount_cents"),
+    vatRateBps: integer("vat_rate_bps"),
+    cardLastDigits: text("card_last_digits").notNull().default(""),
+    counterpartyIban: text("counterparty_iban").notNull().default(""),
+    counterpartyBic: text("counterparty_bic").notNull().default(""),
+    attachmentCount: integer("attachment_count").notNull().default(0),
+    syncedAt: text("synced_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("bank_transactions_account_external_unique").on(table.accountId, table.externalId),
+    index("bank_transactions_company_date_idx").on(table.companyId, table.bookedOn),
+    index("bank_transactions_account_date_idx").on(table.accountId, table.bookedOn),
+  ],
 );
 
 export const reserveMovements = sqliteTable("reserve_movements", {

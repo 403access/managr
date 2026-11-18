@@ -90,6 +90,7 @@ import {
   legalView,
   ledgerView,
   cashflowView,
+  bankView,
   peopleView,
   personView,
   projectsView,
@@ -340,6 +341,15 @@ export const tools: DeskTool[] = [
     description: "One year from invoicing to the tax office: billed and paid invoices, the journal split into purchases, net wages, wage tax, social insurance, VAT, corporate tax, solidarity surcharge, trade tax, and profit, plus the VAT chain, withheld amounts, bank movements, and filing counts.",
     input: { year: z.number().int().min(2000).max(2100).optional().describe("Calendar year. Defaults to the current year.") },
     run: (input) => cashflowView(input.year ?? Number(todayIso().slice(0, 4))),
+  }),
+  tool({
+    name: "read_bank",
+    description: "The connected Qonto business accounts with balances and the stored bank transactions of the active company. Read-only; nothing is posted to the journal.",
+    input: {
+      year: z.number().int().min(2000).max(2100).optional().describe("Calendar year. Defaults to the current year."),
+      all: z.boolean().optional().describe("Include every stored year instead of one year."),
+    },
+    run: (input) => bankView(input.year ?? Number(todayIso().slice(0, 4)), input.all ?? false),
   }),
   tool({
     name: "read_people",

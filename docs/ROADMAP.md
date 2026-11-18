@@ -43,6 +43,7 @@ Shipped after the first version, in this order:
 10. A managing-director contract records the signing date, fixed gross, and term; a retroactive signature is refused, and salary changes are checked against a resolution dated on or before the change.
 11. A shareholder loan records drawdowns, repayments, and interest through the journal. The outstanding principal is shown, over-repayment is refused, and an interest-free loan carries a tax reminder.
 12. Founder health cover records private or voluntary statutory cover, the premium, and the Statusfeststellungsverfahren. The premium stays outside payroll, and an open or missing status procedure is called out.
+13. A read-only Qonto bank connection per company stores the accounts and transactions from the Qonto API and shows balances, a year of transactions, and filters. The transactions are not posted to the journal.
 
 ## Founder self-payment — conversation roadmap
 
@@ -105,7 +106,7 @@ These need an external system or a different product decision. They are not stub
 - Sign-in and roles.
 - ZUGFeRD, and transmission of an e-invoice (Peppol, a portal, or e-mail). The KoSIT validator is not run.
 - DATEV EXTF export and a locked DATEV account map.
-- Bank CSV or a bank feed.
+- Bank CSV import.
 - ELSTER transmission.
 - Lohnsteuer from ELStAM, church tax, and factor rules.
 - DEÜV filings, Beitragsnachweise, and U1/U2 fund rates (those rates are set by the collecting agency).

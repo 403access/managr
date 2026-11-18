@@ -9,6 +9,7 @@ export const VIEW_NAMES = [
   "invoice-edit",
   "ledger",
   "cashflow",
+  "bank",
   "people",
   "person",
   "org",

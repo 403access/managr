@@ -83,6 +83,14 @@ The analysis tab shows the status split, the progress by category, the progress 
 
 The page reads the same journal and invoices as the ledger and the desk. It files nothing, and the corporate and trade tax figures remain planning estimates. A VAT credit or a loss appears as extra funding so the shares still add up.
 
+## Bank (Qonto)
+
+**Bank** under Mehr at `/bank` connects one Qonto business account per company. Create an API key in Qonto under **Integrations and Partnerships > API key**, then enter the organization's sign-in and secret key. The first sync reads the organization's accounts and the last twelve months of transactions; later syncs request only changes, with one day of overlap. A sandbox connection also needs the staging token from the Qonto Developer Portal.
+
+The page shows the account balances, the available balance, and the transactions with counterparty, purpose, category, status, VAT, card digits, and attachment count. Filters and the year switch work on the stored data. The connection is read-only: nothing is posted to the journal, and invoices or receipts stay matched by hand.
+
+The secret key is stored in `data/managr.db` and never sent back to the browser. Treat that file like the key. **Verbindung trennen** deletes only the local copy of the accounts and transactions; it changes nothing in Qonto. The assistant and MCP clients read the same view through `read_bank`.
+
 ## Founder pay
 
 The person screen records the written managing-director contract with its signing date, fixed gross, and term. A contract that starts before it is signed is refused, and a salary change without a shareholder resolution dated on or before it is called out. The desk does not decide whether the salary is appropriate.
@@ -185,4 +193,4 @@ Open [http://localhost:3001/managr/](http://localhost:3001/managr/). The notes a
 - Structure: `docs/ARCHITECTURE.md`
 - Published site: `website/` (marketing page, docs at `/docs`)
 
-An issued invoice can be downloaded as an XRechnung 3.0.2 file (the e-invoice) and checked against the KoSIT rules on this computer. The desk does not send it. Version 1 does not include ELSTER, DATEV, ZUGFeRD, bank feeds, or a Lohnsteuer calculation. Those are listed in the roadmap so they are not pretended here.
+An issued invoice can be downloaded as an XRechnung 3.0.2 file (the e-invoice) and checked against the KoSIT rules on this computer. The desk does not send it. Version 1 does not include ELSTER, DATEV, ZUGFeRD, bank CSV imports, or a Lohnsteuer calculation. Those are listed in the roadmap so they are not pretended here.

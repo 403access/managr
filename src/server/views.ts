@@ -12,6 +12,7 @@ import { conversionGap, reserveDutyActive } from "@/domain/reserve";
 import { balanceSheetTotals, summarizeProfit } from "@/domain/reporting";
 import { addWork, emptyWorkTotals, isProductiveTaskType, monthlyWork, projectCounts, sharePercent, taskTypeMinutes, workTotals, type WorkTotals } from "@/domain/analytics";
 import { flowShareBps, moneyFlow } from "@/domain/money-flow";
+import { bankPeriodSummary, bankTotals, maskSecret } from "@/domain/bank";
 import { analyzeMilestones, analyzeMilestonesByCompany, milestoneIsOverdue, milestoneProgress, milestoneYears, sortMilestones } from "@/domain/milestones";
 import { buildOrgChart } from "@/domain/org";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
@@ -20,6 +21,9 @@ import { euroInput, quantityInput } from "@/components/amounts";
 import {
   accountBalances,
   getFounderHealth,
+  listBankAccounts,
+  listBankTransactions,
+  listBankYears,
   listCompliance,
   listCashMovements,
   listCustomers,
@@ -41,6 +45,7 @@ import {
   listTime,
   listTimeInRange,
   listCompanies,
+  loadBankConnection,
   loadCompany,
   loadInvoice,
   loadPerson,
@@ -736,6 +741,59 @@ function cashCategory(source: string): CashCategory {
   }
 }
 
+export function bankView(year: number, all = false) {
+  const company = loadCompany();
+  const connection = loadBankConnection(company.id);
+  const accounts = listBankAccounts(company.id);
+  const transactions = listBankTransactions(
+    company.id,
+    all ? undefined : `${year}-01-01`,
+    all ? undefined : `${year}-12-31`,
+  );
+  const years = [...new Set([Number(todayIso().slice(0, 4)), year, ...listBankYears(company.id)])].sort(
+    (left, right) => right - left,
+  );
+  return {
+    today: todayIso(),
+    year,
+    all,
+    years,
+    connection: connection
+      ? {
+          id: connection.id,
+          provider: connection.provider,
+          label: connection.label,
+          login: connection.login,
+          environment: connection.environment,
+          orgName: connection.orgName,
+          orgSlug: connection.orgSlug,
+          status: connection.status,
+          lastError: connection.lastError,
+          lastSyncedAt: connection.lastSyncedAt,
+          secretHint: maskSecret(connection.secretKey),
+          stagingTokenSet: Boolean(connection.stagingToken),
+        }
+      : null,
+    accounts: accounts.map((account) => ({
+      id: account.id,
+      name: account.name,
+      iban: account.iban,
+      bic: account.bic,
+      currency: account.currency,
+      balanceCents: account.balanceCents,
+      authorizedBalanceCents: account.authorizedBalanceCents,
+      status: account.status,
+      main: account.main,
+      external: account.external,
+      updatedAt: account.updatedAt,
+    })),
+    totals: bankTotals(accounts),
+    summary: bankPeriodSummary(transactions),
+    transactions,
+    truncated: transactions.length === 5000,
+  };
+}
+
 export function cashflowView(year: number) {
   const company = loadCompany();
   const from = `${year}-01-01`;
@@ -910,6 +968,8 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return ledgerView(query.all);
     case "cashflow":
       return cashflowView(query.year);
+    case "bank":
+      return bankView(query.year, query.all);
     case "people":
       return peopleView();
     case "person":

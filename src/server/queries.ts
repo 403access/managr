@@ -4,6 +4,9 @@ import { getDb } from "@/db/client";
 import {
   absences,
   accounts,
+  bankAccounts,
+  bankConnections,
+  bankTransactions,
   companies,
   complianceItems,
   customers,
@@ -506,4 +509,73 @@ export function listJournal(limit = 20) {
     .where(inArray(journalLines.entryId, entries.map((entry) => entry.id)))
     .all();
   return entries.map((entry) => ({ ...entry, lines: lines.filter((line) => line.entryId === entry.id) }));
+}
+
+export function loadBankConnection(companyId = loadCompany().id) {
+  return getDb()
+    .select()
+    .from(bankConnections)
+    .where(and(eq(bankConnections.companyId, companyId), eq(bankConnections.provider, "qonto")))
+    .get();
+}
+
+export function listBankAccounts(companyId = loadCompany().id) {
+  return getDb()
+    .select()
+    .from(bankAccounts)
+    .where(eq(bankAccounts.companyId, companyId))
+    .orderBy(desc(bankAccounts.main), asc(bankAccounts.status), asc(bankAccounts.name))
+    .all();
+}
+
+export function listBankTransactions(companyId = loadCompany().id, from?: string, to?: string) {
+  const conditions = [eq(bankTransactions.companyId, companyId)];
+  if (from) conditions.push(gte(bankTransactions.bookedOn, from));
+  if (to) conditions.push(lte(bankTransactions.bookedOn, to));
+  return getDb()
+    .select({
+      id: bankTransactions.id,
+      accountId: bankTransactions.accountId,
+      accountName: bankAccounts.name,
+      accountIban: bankAccounts.iban,
+      externalRef: bankTransactions.externalRef,
+      status: bankTransactions.status,
+      side: bankTransactions.side,
+      amountCents: bankTransactions.amountCents,
+      currency: bankTransactions.currency,
+      bookedOn: bankTransactions.bookedOn,
+      settledAt: bankTransactions.settledAt,
+      label: bankTransactions.label,
+      counterpartyName: bankTransactions.counterpartyName,
+      reference: bankTransactions.reference,
+      note: bankTransactions.note,
+      operationType: bankTransactions.operationType,
+      subjectType: bankTransactions.subjectType,
+      category: bankTransactions.category,
+      cashflowCategory: bankTransactions.cashflowCategory,
+      cashflowSubcategory: bankTransactions.cashflowSubcategory,
+      vatAmountCents: bankTransactions.vatAmountCents,
+      vatRateBps: bankTransactions.vatRateBps,
+      cardLastDigits: bankTransactions.cardLastDigits,
+      counterpartyIban: bankTransactions.counterpartyIban,
+      counterpartyBic: bankTransactions.counterpartyBic,
+      attachmentCount: bankTransactions.attachmentCount,
+    })
+    .from(bankTransactions)
+    .innerJoin(bankAccounts, eq(bankAccounts.id, bankTransactions.accountId))
+    .where(and(...conditions))
+    .orderBy(desc(bankTransactions.bookedOn), desc(bankTransactions.settledAt), desc(bankTransactions.id))
+    .limit(5000)
+    .all();
+}
+
+export function listBankYears(companyId = loadCompany().id): number[] {
+  return getDb()
+    .select({ year: sql<string>`substr(${bankTransactions.bookedOn}, 1, 4)` })
+    .from(bankTransactions)
+    .where(eq(bankTransactions.companyId, companyId))
+    .groupBy(sql`substr(${bankTransactions.bookedOn}, 1, 4)`)
+    .all()
+    .map((row) => Number(row.year))
+    .filter((year) => Number.isInteger(year) && year >= 2000);
 }

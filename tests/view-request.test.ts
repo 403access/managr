@@ -6,6 +6,7 @@ describe("view requests", () => {
     expect(parseViewName("desk")).toBe("desk");
     expect(parseViewName("invoice-edit")).toBe("invoice-edit");
     expect(parseViewName("analytics")).toBe("analytics");
+    expect(parseViewName("bank")).toBe("bank");
     expect(parseViewName("payroll")).toBeNull();
   });
 

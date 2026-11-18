@@ -75,6 +75,8 @@ Corporate, solidarity, and trade tax are a planning estimate in `estimateCorpora
 - Gewerbesteuer is not deducted again inside the Körperschaftsteuer base in this estimate.
 - The Hebesatz is the company's municipal rate, not a federal constant.
 
+A Qonto transaction in `bank_transactions` is display data, not a journal entry. The bank sync never posts, and a bank row never becomes a booking without a separate journal action. Matching a bank transaction to an invoice or receipt remains manual.
+
 ## Shareholder loans
 
 A loan from a shareholder is financing, not salary. `shareholder_loans` stores the agreement and the initial drawdown; `shareholder_loan_movements` stores further drawdowns, repayments, and interest. `loanOutstandingCents` in `src/domain/shareholder-loan.ts` adds a drawdown and subtracts a repayment. Interest does not change the principal.

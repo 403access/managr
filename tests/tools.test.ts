@@ -56,6 +56,9 @@ describe("tool registry", () => {
     const analytics = data<{ totals: { minutes: number }; typeRows: unknown[] }>(await runTool("read_analytics", {}));
     expect(analytics.totals.minutes).toBeGreaterThan(0);
     expect(analytics.typeRows.length).toBeGreaterThan(0);
+    const bank = data<{ connection: unknown; accounts: unknown[] }>(await runTool("read_bank", {}));
+    expect(bank.connection).toBeNull();
+    expect(bank.accounts).toEqual([]);
   });
 });
 

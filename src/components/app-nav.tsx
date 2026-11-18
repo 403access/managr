@@ -25,6 +25,7 @@ function Icon({ name }: { name: NavIcon }) {
       {name === "company" ? <path {...common} d="M4 20.5h16M6 20.5V8l6-4 6 4v12.5M10 20.5v-4h4v4" /> : null}
       {name === "ledger" ? <path {...common} d="M5 5h14v14H5zM5 9h14M5 13h14M9 5v14" /> : null}
       {name === "cashflow" ? <path {...common} d="M4 6.5h5v11H4zM13 8.5h7M13 12h7M13 15.5h5M17.5 14l2 1.5-2 1.5" /> : null}
+      {name === "bank" ? <path {...common} d="M3.5 20.5h17M5.5 20.5V10M9.5 20.5V10M14.5 20.5V10M18.5 20.5V10M4 10l8-5.5L20 10z" /> : null}
       {name === "people" ? <path {...common} d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4.5 19.5c.6-2.4 2.4-3.5 4.5-3.5s3.9 1.1 4.5 3.5M16 11a2.5 2.5 0 1 0 0-5M16.2 16c1.6.2 2.8 1.2 3.3 3.5" /> : null}
       {name === "org" ? <path {...common} d="M9.5 3.5h5v4h-5zM3.5 16.5h5v4h-5zM15.5 16.5h5v4h-5zM12 7.5v4.5M6 16.5v-2.5h12v2.5" /> : null}
       {name === "documents" ? <path {...common} d="M7 3.5h6l4 4V20.5H7zM13 3.5V8h4" /> : null}

@@ -74,6 +74,14 @@ The person view and the company view expose these records to the screens. The sa
 
 `/cashflow` reads `cashflowView` in `src/server/views.ts`. It combines the invoices of one calendar year with the year's journal rows: billing and payment status, then `moneyFlow` from `src/domain/money-flow.ts` splits gross revenue into purchases, net wages, wage tax, social insurance, VAT payable, corporate tax, solidarity surcharge, trade tax, and profit after tax. The domain function keeps the slices reconciled; a VAT credit or a loss becomes extra funding instead of a negative band. The view also walks the VAT chain, groups actual bank movements by posting source, and counts the VAT and wage-tax returns marked done. Corporate and trade tax remain the same planning estimate as the ledger. `read_cashflow` exposes the view to the assistant and MCP clients.
 
+## Bank (Qonto)
+
+`/bank` reads `bankView` in `src/server/views.ts`. `bank_connections` stores one Qonto API key per company (sign-in, secret key, environment, optional sandbox token). `bank_accounts` and `bank_transactions` are a local cache filled by `src/server/bank.ts`; the pure mapping, period summary, totals, sync window, and error text live in `src/domain/bank.ts`. `src/server/qonto.ts` is the only module that calls `https://thirdparty.qonto.com/v2` or the sandbox. It sends the raw `sign-in:secret-key` authorization header, paginates transactions, and asks for completed, pending, declined, and reversed rows.
+
+The first sync reads twelve months. Later syncs use `updated_at_from` with a one-day overlap so a late status change is not missed. The transaction date is the Berlin calendar day of `settled_at`, then `emitted_at`, then `created_at`. Account balances are refreshed on every sync. The secret is never returned to the browser; the view exposes only the last four characters. Disconnecting deletes the connection, which cascades to the local accounts and transactions.
+
+The bank page is display-only. No bank row goes through `src/server/posting.ts`, and the journal stays the source for the books. The same view is available to the assistant and MCP clients as `read_bank`. A bank CSV import is still on the roadmap.
+
 ## Request flow
 
 A screen does not open SQLite. `src/server/views.ts` builds the JSON for that screen from `src/server/queries.ts`, scoped to the active company. The server page puts that JSON into a TanStack Query cache with `Hydrate`. The client screen reads the same key with `useView`, and refetches `GET /api/views/[name]` when the cache is stale. Query keys live in `src/client/query-keys.ts`. Switching companies reloads the page because the cache keys do not carry the company id.

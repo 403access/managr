@@ -71,12 +71,12 @@ export function ActionForm({
   );
 }
 
-export function SubmitButton({ children, tone = "primary", name, value, onClick }: { children: ReactNode; tone?: ButtonTone; name?: string; value?: string; onClick?: MouseEventHandler<HTMLButtonElement> }) {
+export function SubmitButton({ children, tone = "primary", name, value, onClick, pendingLabel }: { children: ReactNode; tone?: ButtonTone; name?: string; value?: string; onClick?: MouseEventHandler<HTMLButtonElement>; pendingLabel?: string }) {
   const { pending } = useFormStatus();
   const { t } = useI18n();
   return (
     <button type="submit" name={name} value={value} disabled={pending} onClick={onClick} className={buttonClass(tone)}>
-      {pending ? t("common.saving") : children}
+      {pending ? (pendingLabel ?? t("common.saving")) : children}
     </button>
   );
 }

@@ -6,6 +6,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { getDb } from "@/db/client";
 import {
   absences,
+  bankConnections,
   companies,
   complianceItems,
   customers,
@@ -64,6 +65,7 @@ import { isStateCode } from "@/domain/states";
 import { durationMinutes, timeWarnings } from "@/domain/time";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { removeUpload, saveUpload } from "./files";
+import { connectBank, syncBankConnection } from "./bank";
 import { type ActionState, basisPoints, checked, euros, hoursToMinutes, requireDate, text, wholeNumber } from "./form";
 import { invoiceMoney } from "./invoice-math";
 import { invoicePayloadSchema, journalPayloadSchema, type InvoicePayload } from "./payloads";
@@ -308,6 +310,60 @@ export async function updateBank(_state: ActionState, formData: FormData): Promi
       .where(eq(companies.id, company.id))
       .run();
     return saved("Bank and invoice settings saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function saveBankConnection(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const company = requireCompany();
+    const login = text(formData, "login");
+    if (!login) throw new Error("The Qonto sign-in is missing.");
+    if (!/^[A-Za-z0-9._-]+$/.test(login)) throw new Error("The Qonto sign-in has an unexpected format.");
+    const environment = oneOf(text(formData, "environment") || "production", ["production", "sandbox"] as const, "Environment");
+    const db = getDb();
+    const existing = db
+      .select()
+      .from(bankConnections)
+      .where(and(eq(bankConnections.companyId, company.id), eq(bankConnections.provider, "qonto")))
+      .get();
+    const secretKey = text(formData, "secretKey") || existing?.secretKey || "";
+    if (!secretKey) throw new Error("The Qonto secret key is missing.");
+    const stagingToken = text(formData, "stagingToken") || existing?.stagingToken || "";
+    if (environment === "sandbox" && !stagingToken) throw new Error("A sandbox token is required for the Qonto sandbox.");
+
+    const result = await connectBank({ companyId: company.id, login, secretKey, environment, stagingToken });
+    revalidatePath("/", "layout");
+    if (result.transactionError) {
+      return { error: result.transactionError, message: "Qonto connected. Accounts were loaded." };
+    }
+    return {
+      error: "",
+      message: `Qonto connected. ${result.accounts} accounts and ${result.transactions} transactions were loaded.`,
+    };
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function syncBank(_state: ActionState, _formData: FormData): Promise<ActionState> {
+  try {
+    const result = await syncBankConnection(requireCompany().id);
+    return saved(`Qonto synchronized. ${result.accounts} accounts and ${result.transactions} transactions.`);
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function disconnectBank(_state: ActionState, _formData: FormData): Promise<ActionState> {
+  try {
+    const company = requireCompany();
+    getDb()
+      .delete(bankConnections)
+      .where(and(eq(bankConnections.companyId, company.id), eq(bankConnections.provider, "qonto")))
+      .run();
+    return saved("The Qonto connection was removed.");
   } catch (error) {
     return failed(error);
   }
