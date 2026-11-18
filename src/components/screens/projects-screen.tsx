@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { deleteProject, saveProject } from "@/server/actions";
 import type { projectsView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
-import { filterProjects, PROJECT_STATUSES, type ProjectStatus } from "@/domain/projects";
+import { filterProjects, groupProjects, DEFAULT_PROJECT_GROUPING, PROJECT_GROUPINGS, PROJECT_STATUSES, type ProjectGrouping, type ProjectStatus } from "@/domain/projects";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -93,11 +93,22 @@ function ProjectCard({ project, customers, today }: { project: Project; customer
   );
 }
 
+function ProjectGrid({ projects, customers, today }: { projects: Project[]; customers: Projects["customers"]; today: string }) {
+  return (
+    <div className="grid gap-3 xl:grid-cols-2">
+      {projects.map((project) => (
+        <ProjectCard key={project.id} project={project} customers={customers} today={today} />
+      ))}
+    </div>
+  );
+}
+
 function ProjectsBody({ data }: { data: Projects }) {
-  const { t, label } = useI18n();
+  const { t, label, monthName } = useI18n();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ProjectStatus | "">("");
   const [customer, setCustomer] = useState("");
+  const [grouping, setGrouping] = useState<ProjectGrouping>(DEFAULT_PROJECT_GROUPING);
   const customerFilter = customer === "" ? null : customer === "none" ? "none" : Number(customer);
   const customers = useMemo(() => {
     const seen = new Map<number, string>();
@@ -110,12 +121,25 @@ function ProjectsBody({ data }: { data: Projects }) {
     () => filterProjects(data.projects, { query: search, status, customer: customerFilter }),
     [customerFilter, data.projects, search, status],
   );
+  const groups = useMemo(
+    () => (grouping === "none" ? [] : groupProjects(filtered, grouping)),
+    [filtered, grouping],
+  );
   const active = Boolean(search.trim() || status || customer);
 
   function reset() {
     setSearch("");
     setStatus("");
     setCustomer("");
+  }
+
+  function groupHeading(group: (typeof groups)[number]): string {
+    if (group.kind === "customer") {
+      return group.customerId === null ? t("projects.noCustomer") : group.name ?? "";
+    }
+    return group.month === null
+      ? t("projects.groupNoDeadline")
+      : `${monthName(Number(group.month.slice(5, 7)))} ${group.month.slice(0, 4)}`;
   }
 
   return (
@@ -129,7 +153,7 @@ function ProjectsBody({ data }: { data: Projects }) {
       {data.projects.length === 0 ? <Empty>{t("projects.empty")}</Empty> : null}
       {data.projects.length > 0 ? (
         <Card className="mb-3">
-          <div role="group" aria-label={t("projects.filterLabel")} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,12rem)_minmax(0,16rem)]">
+          <div role="group" aria-label={t("projects.filterLabel")} className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,13rem)_minmax(0,13rem)]">
             <Field label={t("projects.filterSearch")}>
               <TextInput
                 type="search"
@@ -155,6 +179,15 @@ function ProjectsBody({ data }: { data: Projects }) {
                 ))}
               </SelectInput>
             </Field>
+            <Field label={t("projects.groupBy")}>
+              <SelectInput value={grouping} onChange={(event) => setGrouping(event.target.value as ProjectGrouping)}>
+                {PROJECT_GROUPINGS.map((value) => (
+                  <option key={value} value={value}>
+                    {value === "customer" ? t("projects.groupCustomer") : value === "deadline" ? t("projects.groupDeadline") : t("projects.groupNone")}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted" aria-live="polite">
@@ -169,10 +202,19 @@ function ProjectsBody({ data }: { data: Projects }) {
         </Card>
       ) : null}
       {data.projects.length > 0 && filtered.length === 0 ? <Empty>{t("projects.filterEmpty")}</Empty> : null}
-      {filtered.length > 0 ? (
-        <div className="grid gap-3 xl:grid-cols-2">
-          {filtered.map((project) => (
-            <ProjectCard key={project.id} project={project} customers={data.customers} today={data.today} />
+      {filtered.length > 0 && grouping === "none" ? (
+        <ProjectGrid projects={filtered} customers={data.customers} today={data.today} />
+      ) : null}
+      {filtered.length > 0 && grouping !== "none" ? (
+        <div className="grid gap-5">
+          {groups.map((group) => (
+            <section key={group.key}>
+              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg">{groupHeading(group)}</h2>
+                <span className="rounded-full bg-ink/10 px-2 py-0.5 text-xs text-muted">{group.projects.length}</span>
+              </div>
+              <ProjectGrid projects={group.projects} customers={data.customers} today={data.today} />
+            </section>
           ))}
         </div>
       ) : null}
