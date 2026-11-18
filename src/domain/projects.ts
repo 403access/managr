@@ -58,14 +58,39 @@ function byName<T extends FilterableProject>(left: T, right: T): number {
   return left.name.localeCompare(right.name);
 }
 
-function byDeadline<T extends FilterableProject>(left: T, right: T): number {
-  const comparison = (left.endedOn ?? "").localeCompare(right.endedOn ?? "");
-  return comparison !== 0 ? comparison : byName(left, right);
+export const PROJECT_SORTS = ["name", "startedDesc", "startedAsc", "deadlineAsc", "minutesDesc"] as const;
+
+export type ProjectSort = (typeof PROJECT_SORTS)[number];
+
+export const DEFAULT_PROJECT_SORT: ProjectSort = "name";
+
+export type SortableProject = FilterableProject & {
+  startedOn: string;
+  minutes: number;
+};
+
+/** Projects in the chosen order. Ties fall back to the project name. */
+export function sortProjects<T extends SortableProject>(projects: readonly T[], sort: ProjectSort): T[] {
+  return [...projects].sort((left, right) => {
+    switch (sort) {
+      case "startedDesc":
+        return right.startedOn.localeCompare(left.startedOn) || byName(left, right);
+      case "startedAsc":
+        return left.startedOn.localeCompare(right.startedOn) || byName(left, right);
+      case "deadlineAsc":
+        return (left.endedOn ?? "9999-12-31").localeCompare(right.endedOn ?? "9999-12-31") || byName(left, right);
+      case "minutesDesc":
+        return right.minutes - left.minutes || byName(left, right);
+      default:
+        return byName(left, right);
+    }
+  });
 }
 
 /**
  * Groups projects by customer or by the month of their end date. Projects without a
- * customer or without an end date form the last group. No grouping is the caller's job.
+ * customer or without an end date form the last group. The order inside each group is
+ * the input order, so sort the projects first. No grouping is the caller's job.
  */
 export function groupProjects<T extends FilterableProject>(
   projects: readonly T[],
@@ -83,7 +108,7 @@ export function groupProjects<T extends FilterableProject>(
         key,
         customerId: members[0]?.customerId ?? null,
         name: members[0]?.customerName ?? null,
-        projects: [...members].sort(byName),
+        projects: members,
       }))
       .sort((left, right) => {
         if (left.customerId === null) return right.customerId === null ? 0 : 1;
@@ -102,7 +127,7 @@ export function groupProjects<T extends FilterableProject>(
       kind: "deadline" as const,
       key,
       month: key === "none" ? null : key,
-      projects: [...members].sort(byDeadline),
+      projects: members,
     }))
     .sort((left, right) => {
       if (left.month === null) return right.month === null ? 0 : 1;

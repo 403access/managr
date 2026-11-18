@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { deleteProject, saveProject } from "@/server/actions";
 import type { projectsView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
-import { filterProjects, groupProjects, DEFAULT_PROJECT_GROUPING, PROJECT_GROUPINGS, PROJECT_STATUSES, type ProjectGrouping, type ProjectStatus } from "@/domain/projects";
+import { filterProjects, groupProjects, sortProjects, DEFAULT_PROJECT_GROUPING, DEFAULT_PROJECT_SORT, PROJECT_GROUPINGS, PROJECT_SORTS, PROJECT_STATUSES, type ProjectGrouping, type ProjectSort, type ProjectStatus } from "@/domain/projects";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -109,6 +109,7 @@ function ProjectsBody({ data }: { data: Projects }) {
   const [status, setStatus] = useState<ProjectStatus | "">("");
   const [customer, setCustomer] = useState("");
   const [grouping, setGrouping] = useState<ProjectGrouping>(DEFAULT_PROJECT_GROUPING);
+  const [sort, setSort] = useState<ProjectSort>(DEFAULT_PROJECT_SORT);
   const customerFilter = customer === "" ? null : customer === "none" ? "none" : Number(customer);
   const customers = useMemo(() => {
     const seen = new Map<number, string>();
@@ -121,9 +122,10 @@ function ProjectsBody({ data }: { data: Projects }) {
     () => filterProjects(data.projects, { query: search, status, customer: customerFilter }),
     [customerFilter, data.projects, search, status],
   );
+  const sorted = useMemo(() => sortProjects(filtered, sort), [filtered, sort]);
   const groups = useMemo(
-    () => (grouping === "none" ? [] : groupProjects(filtered, grouping)),
-    [filtered, grouping],
+    () => (grouping === "none" ? [] : groupProjects(sorted, grouping)),
+    [grouping, sorted],
   );
   const active = Boolean(search.trim() || status || customer);
 
@@ -142,6 +144,21 @@ function ProjectsBody({ data }: { data: Projects }) {
       : `${monthName(Number(group.month.slice(5, 7)))} ${group.month.slice(0, 4)}`;
   }
 
+  function sortLabel(value: ProjectSort): string {
+    switch (value) {
+      case "startedDesc":
+        return t("projects.sortStartedDesc");
+      case "startedAsc":
+        return t("projects.sortStartedAsc");
+      case "deadlineAsc":
+        return t("projects.sortDeadline");
+      case "minutesDesc":
+        return t("projects.sortMinutes");
+      default:
+        return t("projects.sortName");
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -153,15 +170,17 @@ function ProjectsBody({ data }: { data: Projects }) {
       {data.projects.length === 0 ? <Empty>{t("projects.empty")}</Empty> : null}
       {data.projects.length > 0 ? (
         <Card className="mb-3">
-          <div role="group" aria-label={t("projects.filterLabel")} className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,10rem)_minmax(0,13rem)_minmax(0,13rem)]">
-            <Field label={t("projects.filterSearch")}>
-              <TextInput
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={t("projects.filterSearchPlaceholder")}
-              />
-            </Field>
+          <div role="group" aria-label={t("projects.filterLabel")} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="md:col-span-2 xl:col-span-4">
+              <Field label={t("projects.filterSearch")}>
+                <TextInput
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={t("projects.filterSearchPlaceholder")}
+                />
+              </Field>
+            </div>
             <Field label={t("projects.filterStatus")}>
               <SelectInput value={status} onChange={(event) => setStatus(event.target.value as ProjectStatus | "")}>
                 <option value="">{t("projects.filterAll")}</option>
@@ -188,6 +207,13 @@ function ProjectsBody({ data }: { data: Projects }) {
                 ))}
               </SelectInput>
             </Field>
+            <Field label={t("projects.sortBy")}>
+              <SelectInput value={sort} onChange={(event) => setSort(event.target.value as ProjectSort)}>
+                {PROJECT_SORTS.map((value) => (
+                  <option key={value} value={value}>{sortLabel(value)}</option>
+                ))}
+              </SelectInput>
+            </Field>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted" aria-live="polite">
@@ -203,7 +229,7 @@ function ProjectsBody({ data }: { data: Projects }) {
       ) : null}
       {data.projects.length > 0 && filtered.length === 0 ? <Empty>{t("projects.filterEmpty")}</Empty> : null}
       {filtered.length > 0 && grouping === "none" ? (
-        <ProjectGrid projects={filtered} customers={data.customers} today={data.today} />
+        <ProjectGrid projects={sorted} customers={data.customers} today={data.today} />
       ) : null}
       {filtered.length > 0 && grouping !== "none" ? (
         <div className="grid gap-5">
