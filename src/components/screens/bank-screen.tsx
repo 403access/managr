@@ -280,9 +280,9 @@ function BankBody({ data }: { data: Bank }) {
       <>
         <PageHeader title={t("bank.title")} lede={t("bank.lede")} />
         <ConnectCard />
-        <p className="mt-4">
+        <div className="mt-4">
           <Disclaimer>{t("bank.readOnly")}</Disclaimer>
-        </p>
+        </div>
       </>
     );
   }
@@ -439,9 +439,9 @@ function BankBody({ data }: { data: Bank }) {
       </section>
 
       <ConnectionCard connection={data.connection} />
-      <p className="mt-4">
+      <div className="mt-4">
         <Disclaimer>{t("bank.readOnly")}</Disclaimer>
-      </p>
+      </div>
     </>
   );
 }
