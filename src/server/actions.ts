@@ -25,6 +25,8 @@ import {
   reserveMovements,
   resolutions,
   salaryPeriods,
+  shareholderLoanMovements,
+  shareholderLoans,
   shareholders,
   tasks,
   timeEntries,
@@ -46,12 +48,16 @@ import {
   buildReserveAllocation,
   buildReserveLossOffset,
   buildSalesInvoice,
+  buildShareholderLoanDrawdown,
+  buildShareholderLoanInterest,
+  buildShareholderLoanRepayment,
   buildShareholderPayout,
   buildVatPrepayment,
   reverseLines,
 } from "@/domain/postings";
 import { reserveDutyActive } from "@/domain/reserve";
 import { salaryForMonth } from "@/domain/salary";
+import { loanInterestCents, loanOutstandingCents } from "@/domain/shareholder-loan";
 import { estimateContributions, payrollAmounts } from "@/domain/social";
 import { isStateCode } from "@/domain/states";
 import { durationMinutes, timeWarnings } from "@/domain/time";
@@ -62,7 +68,7 @@ import { invoiceMoney } from "./invoice-math";
 import { invoicePayloadSchema, journalPayloadSchema, type InvoicePayload } from "./payloads";
 import { socialInput } from "./people";
 import { entryLines, payrollSourceId, postJournal } from "./posting";
-import { accountBalances, listSalaryPeriods, loadCompany, signedAccount } from "./queries";
+import { accountBalances, listSalaryPeriods, listShareholderLoans, loadCompany, signedAccount } from "./queries";
 
 const KINDS = ["regular", "minijob", "midijob", "apprentice", "managing_director"] as const;
 const SV = ["automatic", "subject", "exempt"] as const;
@@ -73,6 +79,7 @@ const ABSENCE_KIND = ["vacation", "sick", "other"] as const;
 const ABSENCE_STATUS = ["approved", "requested", "rejected"] as const;
 const POLICY_KIND = ["health", "liability", "contents", "legal", "other"] as const;
 const RESOLUTION_KIND = ["formation", "profit", "salary", "appointment", "other"] as const;
+const LOAN_KIND = ["drawdown", "repayment", "interest"] as const;
 const DOCUMENT_CATEGORY = ["corporate", "tax", "invoice", "employment", "insurance", "other"] as const;
 const MILESTONE_STATUS = MILESTONE_STATUSES;
 const MILESTONE_CATEGORY = MILESTONE_CATEGORIES;
@@ -325,6 +332,120 @@ export async function deleteShareholder(_state: ActionState, formData: FormData)
     const company = requireCompany();
     getDb().delete(shareholders).where(and(eq(shareholders.id, requiredId(formData)), eq(shareholders.companyId, company.id))).run();
     return saved("Shareholder removed.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+function requireLoan(formData: FormData) {
+  const id = requiredId(formData, "loanId");
+  const loan = getDb()
+    .select()
+    .from(shareholderLoans)
+    .where(and(eq(shareholderLoans.id, id), eq(shareholderLoans.companyId, requireCompany().id)))
+    .get();
+  if (!loan) throw new Error("Shareholder loan not found.");
+  return loan;
+}
+
+function loanMovements(loanId: number) {
+  return getDb().select().from(shareholderLoanMovements).where(eq(shareholderLoanMovements.loanId, loanId)).all();
+}
+
+export async function addShareholderLoan(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const company = requireCompany();
+    const shareholderId = requiredId(formData, "shareholderId");
+    const shareholder = getDb()
+      .select()
+      .from(shareholders)
+      .where(and(eq(shareholders.id, shareholderId), eq(shareholders.companyId, company.id)))
+      .get();
+    if (!shareholder) throw new Error("Shareholder not found.");
+    const amountCents = euros(formData, "amount");
+    if (amountCents === null || amountCents <= 0) throw new Error("Enter the loan amount.");
+    const openedOn = requireDate(text(formData, "openedOn"), "The loan");
+    const interestRaw = text(formData, "interest");
+    const interestBps = interestRaw ? basisPoints(formData, "interest") : 0;
+    if (interestBps === null || interestBps < 0 || interestBps > 5000) throw new Error("Interest is a percent, such as 2,00.");
+    const label = text(formData, "label") || "Gesellschafterdarlehen";
+    const notes = text(formData, "notes");
+    const db = getDb();
+    db.transaction(() => {
+      const created = db
+        .insert(shareholderLoans)
+        .values({ companyId: company.id, shareholderId, label, openedOn, principalCents: amountCents, interestBps, notes, createdAt: new Date().toISOString() })
+        .run();
+      const loanId = Number(created.lastInsertRowid);
+      const movement = db
+        .insert(shareholderLoanMovements)
+        .values({ loanId, movedOn: openedOn, kind: "drawdown", amountCents, note: notes, journalEntryId: null })
+        .run();
+      const movementId = Number(movement.lastInsertRowid);
+      const entryId = postJournal(db, {
+        companyId: company.id,
+        date: openedOn,
+        memo: `Darlehen von ${shareholder.name}`,
+        source: "shareholder-loan",
+        sourceId: `loan:${loanId}:${movementId}`,
+        lines: buildShareholderLoanDrawdown(amountCents),
+      });
+      db.update(shareholderLoanMovements).set({ journalEntryId: entryId }).where(eq(shareholderLoanMovements.id, movementId)).run();
+    });
+    return saved("Shareholder loan recorded. The drawdown is a liability to the shareholder, not income.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function addShareholderLoanMovement(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const loan = requireLoan(formData);
+    const kind = oneOf(text(formData, "kind"), LOAN_KIND, "Loan movement");
+    const movedOn = requireDate(text(formData, "movedOn"), "The loan movement");
+    const movements = loanMovements(loan.id);
+    const outstanding = loanOutstandingCents(loan.principalCents, movements);
+    let amountCents: number | null;
+    if (kind === "interest" && !text(formData, "amount")) {
+      amountCents = loanInterestCents(outstanding, loan.interestBps);
+      if (amountCents <= 0) throw new Error("The loan has no interest rate or no outstanding balance. Enter the interest amount.");
+    } else {
+      amountCents = euros(formData, "amount");
+      if (amountCents === null || amountCents <= 0) throw new Error("Enter the amount.");
+    }
+    if (kind === "repayment" && amountCents > outstanding) throw new Error("The repayment is larger than the outstanding loan.");
+    const db = getDb();
+    db.transaction(() => {
+      const created = db
+        .insert(shareholderLoanMovements)
+        .values({ loanId: loan.id, movedOn, kind, amountCents, note: text(formData, "note"), journalEntryId: null })
+        .run();
+      const movementId = Number(created.lastInsertRowid);
+      const lines = kind === "drawdown"
+        ? buildShareholderLoanDrawdown(amountCents)
+        : kind === "repayment"
+          ? buildShareholderLoanRepayment(amountCents)
+          : buildShareholderLoanInterest(amountCents, checked(formData, "paidNow"));
+      const memo = kind === "drawdown"
+        ? `Weitere Darlehensauszahlung ${loan.label}`
+        : kind === "repayment"
+          ? `Tilgung ${loan.label}`
+          : `Zinsen ${loan.label}`;
+      const entryId = postJournal(db, {
+        companyId: requireCompany().id,
+        date: movedOn,
+        memo,
+        source: "shareholder-loan",
+        sourceId: `loan:${loan.id}:${movementId}`,
+        lines,
+      });
+      db.update(shareholderLoanMovements).set({ journalEntryId: entryId }).where(eq(shareholderLoanMovements.id, movementId)).run();
+    });
+    return saved(kind === "interest"
+      ? "Interest posted as a financing expense. It is not salary."
+      : kind === "repayment"
+        ? "Loan repayment posted. It reduces the liability to the shareholder."
+        : "Further drawdown posted as a liability to the shareholder.");
   } catch (error) {
     return failed(error);
   }

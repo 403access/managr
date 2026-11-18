@@ -34,6 +34,7 @@ import {
   listProjects,
   listReserveMovements,
   listResolutions,
+  listShareholderLoans,
   listTasks,
   listTime,
   listTimeInRange,
@@ -193,6 +194,7 @@ export function companyView() {
   const holders = loadShareholders();
   const balances = accountBalances();
   const reserve = signedAccount(balances, ACCOUNTS.reserve);
+  const loans = listShareholderLoans();
   return {
     company,
     holders,
@@ -201,6 +203,8 @@ export function companyView() {
     reserve,
     retained: signedAccount(balances, ACCOUNTS.retained),
     shareholdersPayable: signedAccount(balances, ACCOUNTS.shareholdersPayable),
+    loans,
+    loanTotalCents: loans.reduce((sum, loan) => sum + loan.outstandingCents, 0),
     gap: conversionGap(company.shareCapitalCents, reserve),
     duty: reserveDutyActive(company.shareCapitalCents),
     klein: kleinSnapshot(company),
@@ -696,7 +700,7 @@ export function legalView() {
   };
 }
 
-const CASH_CATEGORIES = ["customer", "expense", "payroll", "vat", "owner", "capital", "other"] as const;
+const CASH_CATEGORIES = ["customer", "expense", "payroll", "vat", "owner", "capital", "loan", "other"] as const;
 type CashCategory = (typeof CASH_CATEGORIES)[number];
 
 function cashCategory(source: string): CashCategory {
@@ -712,6 +716,8 @@ function cashCategory(source: string): CashCategory {
     case "shareholder-payout":
     case "distribution":
       return "owner";
+    case "shareholder-loan":
+      return "loan";
     case "opening":
       return "capital";
     default:

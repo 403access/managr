@@ -178,6 +178,47 @@ describe("payroll and the shareholder director", () => {
   });
 });
 
+describe("shareholder loans", () => {
+  it("records a loan, a repayment, and interest without changing the books' balance", async () => {
+    const company = data<{ holders: { id: number; name: string }[] }>(await runTool("read_company", {}));
+    const holder = company.holders[0]!;
+    const created = data<{ loanId: number; amountCents: number }>(
+      await runTool("add_shareholder_loan", {
+        shareholderId: holder.id,
+        amount: "5000,00",
+        openedOn: "2027-03-01",
+        interestBps: 200,
+        label: "Testdarlehen",
+        notes: "Liquiditätsbrücke",
+      }),
+    );
+    expect(created.amountCents).toBe(500_000);
+
+    const afterDraw = data<{ loans: { id: number; outstandingCents: number; movements: unknown[] }[]; totalOutstandingCents: number }>(
+      await runTool("read_shareholder_loans", {}),
+    );
+    expect(afterDraw.totalOutstandingCents).toBe(500_000);
+    expect(afterDraw.loans.find((loan) => loan.id === created.loanId)?.movements).toHaveLength(1);
+
+    const repaid = data<{ amountCents: number }>(
+      await runTool("record_shareholder_loan_movement", { loanId: created.loanId, kind: "repayment", amount: "1000,00", movedOn: "2027-04-01" }),
+    );
+    expect(repaid.amountCents).toBe(100_000);
+
+    const interest = data<{ amountCents: number }>(
+      await runTool("record_shareholder_loan_movement", { loanId: created.loanId, kind: "interest", movedOn: "2027-04-30", paidNow: true }),
+    );
+    expect(interest.amountCents).toBe(8_000);
+
+    const after = data<{ loans: { id: number; outstandingCents: number }[] }>(await runTool("read_shareholder_loans", {}));
+    expect(after.loans.find((loan) => loan.id === created.loanId)?.outstandingCents).toBe(400_000);
+
+    const tooMuch = await runTool("record_shareholder_loan_movement", { loanId: created.loanId, kind: "repayment", amount: "5000,00" });
+    expect(tooMuch.ok).toBe(false);
+    expect(tooMuch.ok === false ? tooMuch.error : "").toMatch(/larger than the outstanding loan/);
+  });
+});
+
 describe("director contract", () => {
   it("records a prospective contract and refuses a retroactive one", async () => {
     const people = data<{ people: { id: number; lastName: string }[] }>(await runTool("read_people", {}));

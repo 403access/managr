@@ -75,6 +75,18 @@ Corporate, solidarity, and trade tax are a planning estimate in `estimateCorpora
 - Gewerbesteuer is not deducted again inside the Körperschaftsteuer base in this estimate.
 - The Hebesatz is the company's municipal rate, not a federal constant.
 
+## Shareholder loans
+
+A loan from a shareholder is financing, not salary. `shareholder_loans` stores the agreement and the initial drawdown; `shareholder_loan_movements` stores further drawdowns, repayments, and interest. `loanOutstandingCents` in `src/domain/shareholder-loan.ts` adds a drawdown and subtracts a repayment. Interest does not change the principal.
+
+The postings in `src/domain/postings.ts`:
+
+- A drawdown debits bank and credits `ACCOUNTS.shareholdersPayable` (1700).
+- A repayment debits 1700 and credits bank. A repayment may not exceed the outstanding loan.
+- Interest debits `ACCOUNTS.interestExpense` (7300). Paid interest credits bank; unpaid interest credits 1700 and stays a liability.
+
+Interest is a financing expense, not salary and not a salary component. `reviewShareholderLoan` warns when an outstanding loan carries no interest and when it has no note. An interest-free shareholder loan can have tax consequences; the desk does not decide the arm's-length rate. The records are append-only like the rest of the journal; there is no delete action for a posted loan.
+
 ## People, social insurance, health
 
 2026 ceilings, rates, the minijob limit, and Faktor F are the constants in `src/domain/rates-2026.ts`. The minijob limit is derived from the minimum wage (wage × 130 / 3, rounded up to a whole euro). Faktor F is the published four-decimal factor, checked against 28% / the average total rate.

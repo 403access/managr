@@ -22,6 +22,8 @@ import {
   reserveMovements,
   resolutions,
   salaryPeriods,
+  shareholderLoanMovements,
+  shareholderLoans,
   shareholders,
   tasks,
   timeEntries,
@@ -42,12 +44,16 @@ import {
   buildReserveAllocation,
   buildReserveLossOffset,
   buildSalesInvoice,
+  buildShareholderLoanDrawdown,
+  buildShareholderLoanInterest,
+  buildShareholderLoanRepayment,
   buildShareholderPayout,
   buildVatPrepayment,
   reverseLines,
 } from "@/domain/postings";
 import { reserveDutyActive } from "@/domain/reserve";
 import { salaryForMonth } from "@/domain/salary";
+import { loanInterestCents, loanOutstandingCents } from "@/domain/shareholder-loan";
 import { estimateContributions, payrollAmounts } from "@/domain/social";
 import { isStateCode } from "@/domain/states";
 import { durationMinutes, timeWarnings } from "@/domain/time";
@@ -63,6 +69,7 @@ import {
   listObligations,
   listPeople,
   listSalaryPeriods,
+  listShareholderLoans,
   listTasks,
   loadCompany,
   loadInvoice,
@@ -100,6 +107,7 @@ const ABSENCE_KIND = ["vacation", "sick", "other"] as const;
 const ABSENCE_STATUS = ["approved", "requested", "rejected"] as const;
 const POLICY_KIND = ["health", "liability", "contents", "legal", "other"] as const;
 const RESOLUTION_KIND = ["formation", "profit", "salary", "appointment", "other"] as const;
+const LOAN_KIND = ["drawdown", "repayment", "interest"] as const;
 const RECURRENCE = ["none", "monthly", "quarterly", "yearly"] as const;
 
 export type DeskTool = {
@@ -285,6 +293,15 @@ export const tools: DeskTool[] = [
     description: "Master data, tax profile, shareholders, reserve, cover, and the small-business assessment of the active company.",
     input: {},
     run: () => companyView(),
+  }),
+  tool({
+    name: "read_shareholder_loans",
+    description: "Shareholder loans with outstanding principal, interest rate, movements, and the reminder list. A loan is financing, not salary.",
+    input: {},
+    run: () => {
+      const loans = listShareholderLoans();
+      return { loans, totalOutstandingCents: loans.reduce((sum, loan) => sum + loan.outstandingCents, 0) };
+    },
   }),
   tool({
     name: "read_customers",
@@ -612,6 +629,120 @@ export const tools: DeskTool[] = [
         })
         .run();
       return { id: Number(created.lastInsertRowid), name: input.name };
+    },
+  }),
+  tool({
+    name: "add_shareholder_loan",
+    description:
+      "Record a loan from a shareholder and post the initial drawdown: cash in, liability to the shareholder. Interest is a percent in basis points (200 = 2,00 %).",
+    input: {
+      shareholderId: z.number().int().positive(),
+      amount: z.string().trim().describe('Loan amount in euro, for example "5000,00".'),
+      openedOn: z.string().optional().describe("YYYY-MM-DD. Defaults to today."),
+      interestBps: z.number().int().min(0).max(5000).optional().describe("Interest rate in basis points, 200 = 2,00 %."),
+      label: z.string().trim().max(160).optional(),
+      notes: z.string().trim().max(1000).optional(),
+    },
+    run: (input) => {
+      const holder = requireShareholder(input.shareholderId);
+      const amountCents = positiveCents(input.amount, "The loan amount");
+      const openedOn = input.openedOn ? date(input.openedOn, "The loan") : todayIso();
+      const db = getDb();
+      const company = requireCompany();
+      const result = db.transaction(() => {
+        const created = db
+          .insert(shareholderLoans)
+          .values({
+            companyId: company.id,
+            shareholderId: holder.id,
+            label: input.label ?? "Gesellschafterdarlehen",
+            openedOn,
+            principalCents: amountCents,
+            interestBps: input.interestBps ?? 0,
+            notes: input.notes ?? "",
+            createdAt: new Date().toISOString(),
+          })
+          .run();
+        const loanId = Number(created.lastInsertRowid);
+        const movement = db
+          .insert(shareholderLoanMovements)
+          .values({ loanId, movedOn: openedOn, kind: "drawdown", amountCents, note: input.notes ?? "", journalEntryId: null })
+          .run();
+        const movementId = Number(movement.lastInsertRowid);
+        const entryId = postJournal(db, {
+          companyId: company.id,
+          date: openedOn,
+          memo: `Darlehen von ${holder.name}`,
+          source: "shareholder-loan",
+          sourceId: `loan:${loanId}:${movementId}`,
+          lines: buildShareholderLoanDrawdown(amountCents),
+        });
+        db.update(shareholderLoanMovements).set({ journalEntryId: entryId }).where(eq(shareholderLoanMovements.id, movementId)).run();
+        return { loanId, journalEntryId: entryId, amountCents };
+      });
+      return result;
+    },
+  }),
+  tool({
+    name: "record_shareholder_loan_movement",
+    description:
+      "Post a further drawdown, a repayment, or interest on a shareholder loan. Interest does not change the principal; a repayment cannot exceed the outstanding balance.",
+    input: {
+      loanId: z.number().int().positive(),
+      kind: z.string().trim().describe("drawdown, repayment, or interest."),
+      amount: z.string().trim().optional().describe("Amount in euro. For interest, empty uses the stored rate on the outstanding balance."),
+      movedOn: z.string().optional().describe("YYYY-MM-DD. Defaults to today."),
+      paidNow: z.boolean().optional().describe("For interest: pay from the bank instead of accruing to the shareholder."),
+      note: z.string().trim().max(400).optional(),
+    },
+    run: (input) => {
+      const loan = getDb()
+        .select()
+        .from(shareholderLoans)
+        .where(and(eq(shareholderLoans.id, input.loanId), eq(shareholderLoans.companyId, requireCompany().id)))
+        .get();
+      if (!loan) throw new Error("Shareholder loan not found.");
+      const kind = oneOf(input.kind, LOAN_KIND, "Loan movement");
+      const movedOn = input.movedOn ? date(input.movedOn, "The loan movement") : todayIso();
+      const movements = getDb().select().from(shareholderLoanMovements).where(eq(shareholderLoanMovements.loanId, loan.id)).all();
+      const outstanding = loanOutstandingCents(loan.principalCents, movements);
+      let amountCents: number;
+      if (kind === "interest" && !input.amount) {
+        amountCents = loanInterestCents(outstanding, loan.interestBps);
+        if (amountCents <= 0) throw new Error("The loan has no interest rate or no outstanding balance. Pass the interest amount.");
+      } else {
+        amountCents = positiveCents(input.amount ?? "", "The amount");
+      }
+      if (kind === "repayment" && amountCents > outstanding) throw new Error("The repayment is larger than the outstanding loan.");
+      const db = getDb();
+      const result = db.transaction(() => {
+        const created = db
+          .insert(shareholderLoanMovements)
+          .values({ loanId: loan.id, movedOn, kind, amountCents, note: input.note ?? "", journalEntryId: null })
+          .run();
+        const movementId = Number(created.lastInsertRowid);
+        const lines = kind === "drawdown"
+          ? buildShareholderLoanDrawdown(amountCents)
+          : kind === "repayment"
+            ? buildShareholderLoanRepayment(amountCents)
+            : buildShareholderLoanInterest(amountCents, input.paidNow ?? false);
+        const memo = kind === "drawdown"
+          ? `Weitere Darlehensauszahlung ${loan.label}`
+          : kind === "repayment"
+            ? `Tilgung ${loan.label}`
+            : `Zinsen ${loan.label}`;
+        const entryId = postJournal(db, {
+          companyId: requireCompany().id,
+          date: movedOn,
+          memo,
+          source: "shareholder-loan",
+          sourceId: `loan:${loan.id}:${movementId}`,
+          lines,
+        });
+        db.update(shareholderLoanMovements).set({ journalEntryId: entryId }).where(eq(shareholderLoanMovements.id, movementId)).run();
+        return { loanId: loan.id, journalEntryId: entryId, kind, amountCents };
+      });
+      return result;
     },
   }),
   tool({

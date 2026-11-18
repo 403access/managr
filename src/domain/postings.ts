@@ -88,6 +88,26 @@ export function buildShareholderPayout(amountCents: number): DraftLine[] {
   return checked([line(ACCOUNTS.shareholdersPayable, amountCents, 0), line(ACCOUNTS.bank, 0, amountCents)]);
 }
 
+/** A loan from a shareholder is financing: the company receives cash and owes it back. */
+export function buildShareholderLoanDrawdown(amountCents: number): DraftLine[] {
+  if (amountCents <= 0) throw new Error("Drawdown must be positive.");
+  return checked([line(ACCOUNTS.bank, amountCents, 0), line(ACCOUNTS.shareholdersPayable, 0, amountCents)]);
+}
+
+export function buildShareholderLoanRepayment(amountCents: number): DraftLine[] {
+  if (amountCents <= 0) throw new Error("Repayment must be positive.");
+  return checked([line(ACCOUNTS.shareholdersPayable, amountCents, 0), line(ACCOUNTS.bank, 0, amountCents)]);
+}
+
+/** Interest is a financing expense. Unpaid interest accrues to the shareholder. */
+export function buildShareholderLoanInterest(amountCents: number, paidNow: boolean): DraftLine[] {
+  if (amountCents <= 0) throw new Error("Interest must be positive.");
+  return checked([
+    line(ACCOUNTS.interestExpense, amountCents, 0),
+    line(paidNow ? ACCOUNTS.bank : ACCOUNTS.shareholdersPayable, 0, amountCents),
+  ]);
+}
+
 /** A profit distribution uses retained profit. It is not a salary and not an operating expense. */
 export function buildProfitDistribution(amountCents: number): DraftLine[] {
   if (amountCents <= 0) throw new Error("Distribution must be positive.");

@@ -24,6 +24,8 @@ import {
   reserveMovements,
   resolutions,
   salaryPeriods,
+  shareholderLoanMovements,
+  shareholderLoans,
   shareholders,
   tasks,
   timeEntries,
@@ -33,6 +35,7 @@ import { ACCOUNTS, signedBalance } from "@/domain/accounts";
 import { addDays, todayIso } from "@/domain/calendar";
 import { statutoryObligations } from "@/domain/obligations";
 import { salaryForMonth, type SalaryPeriod } from "@/domain/salary";
+import { loanInterestCents, loanOutstandingCents, reviewShareholderLoan } from "@/domain/shareholder-loan";
 import { estimateContributions, type ContributionEstimate } from "@/domain/social";
 import { countWorkdays, weekStart } from "@/domain/time";
 import { lineNetCents, summarizeVat } from "@/domain/vat";
@@ -298,6 +301,48 @@ export function listOrgMembers() {
 
 export function listSalaryPeriods(employeeId: number) {
   return getDb().select().from(salaryPeriods).where(eq(salaryPeriods.employeeId, employeeId)).orderBy(desc(salaryPeriods.validFrom)).all();
+}
+
+export function listShareholderLoans() {
+  const companyId = loadCompany().id;
+  const db = getDb();
+  const rows = db
+    .select({
+      id: shareholderLoans.id,
+      companyId: shareholderLoans.companyId,
+      shareholderId: shareholderLoans.shareholderId,
+      shareholderName: shareholders.name,
+      label: shareholderLoans.label,
+      openedOn: shareholderLoans.openedOn,
+      principalCents: shareholderLoans.principalCents,
+      interestBps: shareholderLoans.interestBps,
+      notes: shareholderLoans.notes,
+      createdAt: shareholderLoans.createdAt,
+    })
+    .from(shareholderLoans)
+    .innerJoin(shareholders, eq(shareholders.id, shareholderLoans.shareholderId))
+    .where(eq(shareholderLoans.companyId, companyId))
+    .orderBy(desc(shareholderLoans.openedOn), desc(shareholderLoans.id))
+    .all();
+  const movements = db.select().from(shareholderLoanMovements).all();
+  return rows.map((loan) => {
+    const own = movements
+      .filter((movement) => movement.loanId === loan.id)
+      .sort((left, right) => left.movedOn.localeCompare(right.movedOn) || left.id - right.id);
+    const outstandingCents = loanOutstandingCents(loan.principalCents, own);
+    return {
+      ...loan,
+      movements: own,
+      outstandingCents,
+      interestSuggestionCents: loanInterestCents(outstandingCents, loan.interestBps),
+      review: reviewShareholderLoan({
+        label: loan.label,
+        outstandingCents,
+        interestBps: loan.interestBps,
+        hasNotes: loan.notes.trim().length > 0,
+      }),
+    };
+  });
 }
 
 export function listDirectorContracts(employeeId: number) {

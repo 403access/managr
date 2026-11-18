@@ -71,6 +71,7 @@ export function CashflowScreen({ year }: { year: number }) {
     vat: t("cashflow.cash.vat"),
     owner: t("cashflow.cash.owner"),
     capital: t("cashflow.cash.capital"),
+    loan: t("cashflow.cash.loan"),
     other: t("cashflow.cash.other"),
   };
 

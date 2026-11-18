@@ -59,8 +59,8 @@ This roadmap turns the founder's questions into work items: paying yourself from
 ### 2. A month with less revenue
 
 - [x] The fixed salary stays in the contract. If the company cannot pay, the net pay remains a liability to the shareholder.
-- [ ] Record a shareholder loan: drawdown, repayment, interest, and the journal postings.
-- [ ] Warn when a shareholder loan carries no interest, because the tax treatment of an interest-free loan has to be confirmed.
+- [x] Record a shareholder loan: drawdown, repayment, interest, and the journal postings.
+- [x] Warn when a shareholder loan carries no interest, because the tax treatment of an interest-free loan has to be confirmed.
 - [x] The payout is separate from the salary expense, so a deferred salary is not booked as a new expense.
 
 ### 3. Health insurance and social-insurance status
@@ -86,7 +86,8 @@ This roadmap turns the founder's questions into work items: paying yourself from
 - [x] The salary has to be arm's length; the excess can be a vGA and is not a business expense.
 - [x] A service contract dated after its start is refused, and a contract gross that differs from the person record is called out.
 - [x] Every salary change needs a resolution dated on or before the change.
-- [ ] The loan and health records keep their own dates and notes, so the paperwork is traceable.
+- [x] The loan records keep their own dates and notes, so the paperwork is traceable.
+- [ ] The health record keeps its own start date, premium, and status-procedure outcome.
 
 ### 6. Reserve and the step to a GmbH
 

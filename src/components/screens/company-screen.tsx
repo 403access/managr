@@ -1,10 +1,10 @@
 "use client";
 
-import { addPolicy, addShareholder, createCompany, deletePolicy, deleteShareholder, offsetReserve, payProfitDistribution, recordReserve, switchCompany, updateBank, updateIdentity, updateTaxProfile } from "@/server/actions";
+import { addPolicy, addShareholder, addShareholderLoan, addShareholderLoanMovement, createCompany, deletePolicy, deleteShareholder, offsetReserve, payProfitDistribution, recordReserve, switchCompany, updateBank, updateIdentity, updateTaxProfile } from "@/server/actions";
 import type { companyView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { LEGAL_FORMS, legalFormLabel } from "@/domain/company";
-import { formatEuro } from "@/domain/money";
+import { formatEuro, formatPercentBps } from "@/domain/money";
 import { KLEINUNTERNEHMER_NOTE } from "@/domain/invoice";
 import { GMBH_MINIMUM_CAPITAL_CENTS } from "@/domain/rates-2026";
 import { FEDERAL_STATES } from "@/domain/states";
@@ -224,6 +224,79 @@ export function CompanyScreen() {
                 ))}
               </div>
               <p className="mt-3 text-sm text-muted">{t("company.shareholdersPayable", { amount: formatEuro(data.shareholdersPayable) })}</p>
+              <Card className="mt-3">
+                <h2 className="text-xl">{t("company.loans")}</h2>
+                <p className="mt-1 text-sm text-muted">{t("company.loanTotal", { amount: formatEuro(data.loanTotalCents) })}</p>
+                {data.loans.length === 0 ? <p className="mt-3 text-sm text-muted">{t("company.loanNone")}</p> : null}
+                {data.loans.map((loan) => (
+                  <div key={loan.id} className="mt-3 rounded-xl border border-line bg-white p-3">
+                    <p className="font-medium">{loan.label}</p>
+                    <p className="text-sm text-muted">
+                      {loan.shareholderName} · {t("company.loanLine", {
+                        principal: formatEuro(loan.principalCents),
+                        outstanding: formatEuro(loan.outstandingCents),
+                        interest: formatPercentBps(loan.interestBps),
+                      })}
+                    </p>
+                    <p className="text-xs text-muted">{t("company.loanOpened", { date: formatDate(loan.openedOn) })}</p>
+                    {loan.movements.map((movement) => (
+                      <p key={movement.id} className="mt-1 text-xs text-muted">
+                        {formatDate(movement.movedOn)} · {label(movement.kind)} · {formatEuro(movement.amountCents)}
+                        {movement.note ? ` · ${movement.note}` : ""}
+                      </p>
+                    ))}
+                    {loan.review.warnings.map((warning) => (
+                      <p key={warning} className="mt-2 text-sm text-amber">{tx(warning)}</p>
+                    ))}
+                  </div>
+                ))}
+                <h3 className="mt-4 text-lg">{t("company.loanAdd")}</h3>
+                <ActionForm action={addShareholderLoan} resetOnSuccess>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label={t("company.loanShareholder")}>
+                      <SelectInput name="shareholderId">
+                        {data.holders.map((holder) => (
+                          <option key={holder.id} value={holder.id}>{holder.name}</option>
+                        ))}
+                      </SelectInput>
+                    </Field>
+                    <Field label={t("company.loanLabel")}><TextInput name="label" defaultValue="Gesellschafterdarlehen" /></Field>
+                    <Field label={t("common.amount")}><TextInput name="amount" inputMode="decimal" /></Field>
+                    <Field label={t("company.loanOpened")}><TextInput name="openedOn" type="date" defaultValue={data.today} /></Field>
+                    <Field label={t("company.loanInterest")} hint={t("company.loanInterestHint")}><TextInput name="interest" inputMode="decimal" placeholder="0,00" /></Field>
+                  </div>
+                  <Field label={t("common.notes")}><TextInput name="notes" /></Field>
+                  <SubmitButton>{t("company.loanAddButton")}</SubmitButton>
+                </ActionForm>
+                {data.loans.length > 0 ? (
+                  <>
+                    <h3 className="mt-4 text-lg">{t("company.loanMovement")}</h3>
+                    <ActionForm action={addShareholderLoanMovement} resetOnSuccess>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label={t("company.loanWhich")}>
+                          <SelectInput name="loanId">
+                            {data.loans.map((loan) => (
+                              <option key={loan.id} value={loan.id}>{loan.label} · {loan.shareholderName}</option>
+                            ))}
+                          </SelectInput>
+                        </Field>
+                        <Field label={t("common.kind")}>
+                          <SelectInput name="kind" defaultValue="repayment">
+                            <option value="repayment">{label("repayment")}</option>
+                            <option value="drawdown">{label("drawdown")}</option>
+                            <option value="interest">{label("interest")}</option>
+                          </SelectInput>
+                        </Field>
+                        <Field label={t("common.amount")} hint={t("company.loanAmountHint")}><TextInput name="amount" inputMode="decimal" /></Field>
+                        <Field label={t("common.date")}><TextInput name="movedOn" type="date" defaultValue={data.today} /></Field>
+                      </div>
+                      <Check name="paidNow" label={t("company.loanInterestPaid")} hint={t("company.loanInterestPaidHint")} />
+                      <Field label={t("common.notes")}><TextInput name="note" /></Field>
+                      <SubmitButton>{t("company.loanPost")}</SubmitButton>
+                    </ActionForm>
+                  </>
+                ) : null}
+              </Card>
               <Card className="mt-3">
                 <h2 className="text-xl">{t("company.distribution")}</h2>
                 <p className="mt-1 text-sm leading-relaxed text-muted">{t("company.distributionBody", { amount: formatEuro(data.retained) })}</p>

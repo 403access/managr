@@ -190,6 +190,28 @@ export const directorContracts = sqliteTable("director_contracts", {
   createdAt: text("created_at").notNull(),
 });
 
+export const shareholderLoans = sqliteTable("shareholder_loans", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  shareholderId: integer("shareholder_id").notNull().references(() => shareholders.id),
+  label: text("label").notNull(),
+  openedOn: text("opened_on").notNull(),
+  principalCents: integer("principal_cents").notNull(),
+  interestBps: integer("interest_bps").notNull().default(0),
+  notes: text("notes").notNull().default(""),
+  createdAt: text("created_at").notNull(),
+});
+
+export const shareholderLoanMovements = sqliteTable("shareholder_loan_movements", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  loanId: integer("loan_id").notNull().references(() => shareholderLoans.id, { onDelete: "cascade" }),
+  movedOn: text("moved_on").notNull(),
+  kind: text("kind").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  note: text("note").notNull().default(""),
+  journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
+});
+
 export const absences = sqliteTable("absences", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   employeeId: integer("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
