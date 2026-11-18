@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { saveInvoice } from "@/server/actions";
 import { addDays } from "@/domain/calendar";
 import { KLEINUNTERNEHMER_NOTE, reviewInvoice } from "@/domain/invoice";
@@ -8,9 +9,10 @@ import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung, type XRechnungInput } from "@/domain/xrechnung";
+import { InvoiceDocument, type InvoiceDocumentData } from "./invoice-document";
 import { useI18n } from "./locale-provider";
 import { ActionForm, SubmitButton } from "./action-form";
-import { buttonClass, Field, inputClass, SelectInput } from "./ui";
+import { buttonClass, Card, Field, inputClass, SelectInput } from "./ui";
 
 export type CustomerOption = {
   id: number;
@@ -37,6 +39,7 @@ export type Seller = {
   managingDirector: string;
   iban: string;
   bic: string;
+  bankName: string;
   email: string;
   phone: string;
   country: string;
@@ -85,27 +88,97 @@ export function InvoiceForm({
   const [buyerReference, setBuyerReference] = useState(draft ? draft.buyerReference : (customers[0]?.buyerReference ?? ""));
   const [amountDisplay, setAmountDisplay] = useState<"net" | "gross">(draft?.amountDisplay === "gross" ? "gross" : "net");
   const [lines, setLines] = useState<Line[]>(draft?.lines ?? [{ description: "", quantity: "1", unitNet: "", vatBps: seller.kleinunternehmer ? 0 : defaultVatBps }]);
+  const [pendingIntent, setPendingIntent] = useState<"draft" | "issue" | null>(null);
+  const confirmedSubmit = useRef(false);
+  const previewDialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = previewDialog.current;
+    if (!dialog) return;
+    if (pendingIntent && !dialog.open) dialog.showModal();
+    if (!pendingIntent && dialog.open) dialog.close();
+  }, [pendingIntent]);
 
   const chosen = customers.find((item) => item.id === customerId) ?? null;
   const buyer = mode === "existing" && chosen ? chosen : { ...customer, id: 0 };
 
-  const preview = useMemo(() => {
-    try {
-      const priced = lines.map((line) => {
+  const pricedLines = useMemo(
+    () =>
+      lines.map((line) => {
         const quantityMilli = parseQuantityMilli(line.quantity);
         const unitNetCents = parseEuroToCents(line.unitNet);
-        if (quantityMilli === null || unitNetCents === null) return null;
         const vatBps = seller.kleinunternehmer ? 0 : line.vatBps;
-        if (!isSupportedVat(vatBps) || quantityMilli <= 0 || unitNetCents < 0) return null;
-        return { description: line.description, quantityMilli, netCents: lineNetCents(quantityMilli, unitNetCents), vatBps };
-      });
-      if (priced.some((line) => line === null)) return null;
-      const ready = priced.filter((line): line is NonNullable<typeof line> => line !== null);
-      return summarizeVat(ready.map((line) => ({ netCents: line.netCents, vatBps: line.vatBps })), seller.kleinunternehmer);
+        const valid = quantityMilli !== null && quantityMilli > 0 && unitNetCents !== null && unitNetCents >= 0 && isSupportedVat(vatBps);
+        return {
+          description: line.description,
+          quantityMilli: quantityMilli ?? 0,
+          unitNetCents: unitNetCents ?? 0,
+          vatBps,
+          netCents: valid ? lineNetCents(quantityMilli!, unitNetCents!) : 0,
+          valid,
+        };
+      }),
+    [lines, seller.kleinunternehmer],
+  );
+
+  const preview = useMemo(() => {
+    if (!pricedLines.every((line) => line.valid)) return null;
+    try {
+      return summarizeVat(pricedLines.map((line) => ({ netCents: line.netCents, vatBps: line.vatBps })), seller.kleinunternehmer);
     } catch {
       return null;
     }
-  }, [lines, seller.kleinunternehmer]);
+  }, [pricedLines, seller.kleinunternehmer]);
+
+  const previewDocument = useMemo<InvoiceDocumentData>(() => {
+    const documentLines = pricedLines.map(({ description, quantityMilli, unitNetCents, vatBps, netCents }) => ({
+      description,
+      quantityMilli,
+      unitNetCents,
+      vatBps: isSupportedVat(vatBps) ? vatBps : 0,
+      netCents,
+    }));
+    const totals = summarizeVat(
+      documentLines.map((line) => ({ netCents: line.netCents, vatBps: line.vatBps })),
+      seller.kleinunternehmer,
+    );
+    return {
+      number: null,
+      status: "draft",
+      seller: {
+        legalName: seller.legalName,
+        legalForm: seller.legalForm,
+        street: seller.street,
+        postalCode: seller.postalCode,
+        city: seller.city,
+        email: seller.email,
+        taxNumber: seller.taxNumber,
+        vatId: seller.vatId,
+        registerCourt: seller.registerCourt,
+        registerNumber: seller.registerNumber,
+        managingDirector: seller.managingDirector,
+        iban: seller.iban,
+        bic: seller.bic,
+        bankName: seller.bankName,
+      },
+      buyer: {
+        name: buyer.name,
+        street: buyer.street,
+        postalCode: buyer.postalCode,
+        city: buyer.city,
+        vatId: buyer.vatId,
+      },
+      issueDate,
+      serviceDate,
+      dueDate,
+      notes,
+      exemptionNote: seller.kleinunternehmer ? KLEINUNTERNEHMER_NOTE : "",
+      buyerReference,
+      amountDisplay,
+      lines: documentLines,
+      ...totals,
+    };
+  }, [amountDisplay, buyer.name, buyer.postalCode, buyer.street, buyer.city, buyer.vatId, buyerReference, dueDate, issueDate, notes, pricedLines, seller, serviceDate]);
 
   const review = reviewInvoice({
     legalName: seller.legalName,
@@ -209,8 +282,31 @@ export function InvoiceForm({
   }
 
   return (
-    <ActionForm action={saveInvoice} className="@container grid gap-4">
+    <ActionForm
+      action={saveInvoice}
+      className="@container grid gap-4"
+      onSubmit={() => {
+        if (confirmedSubmit.current) {
+          confirmedSubmit.current = false;
+          setPendingIntent(null);
+          return true;
+        }
+        setPendingIntent("draft");
+        return false;
+      }}
+    >
       <input type="hidden" name="payload" value={payload} />
+      {seller.kleinunternehmer ? (
+        <Card className="border-pine/30 bg-pine/5">
+          <p className="text-sm font-medium">{t("invoices.kleinActive")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted">{t("invoices.kleinActiveHint")}</p>
+        </Card>
+      ) : (
+        <p className="text-xs leading-relaxed text-muted">
+          {t("invoices.kleinInactiveHint")}{" "}
+          <Link href="/company#tax" className="font-medium text-pine underline underline-offset-2">{t("invoices.kleinSettings")}</Link>
+        </p>
+      )}
       <div className="grid gap-3 @[30rem]:grid-cols-2">
         <Field label={t("invoices.customer")}>
           <select className={inputClass} value={mode === "new" ? "new" : String(customerId ?? "")} onChange={(event) => {
@@ -295,7 +391,6 @@ export function InvoiceForm({
       <Field label={t("common.notes")}>
         <textarea className={`${inputClass} min-h-24 py-3`} value={notes} onChange={(event) => setNotes(event.target.value)} />
       </Field>
-      {seller.kleinunternehmer ? <p className="text-sm text-muted">{KLEINUNTERNEHMER_NOTE}</p> : null}
       {preview ? (
         <p className="font-mono text-sm tabular-nums">
           {seller.kleinunternehmer
@@ -307,6 +402,15 @@ export function InvoiceForm({
       ) : (
         <p className="text-sm text-muted">{seller.kleinunternehmer ? t("invoices.previewEmptyKlein") : t("invoices.previewEmpty")}</p>
       )}
+      <Card className="bg-card/60">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-xl">{t("invoices.previewTitle")}</h2>
+          <p className="text-xs leading-relaxed text-muted">{t("invoices.previewHint")}</p>
+        </div>
+        <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-white p-4">
+          <InvoiceDocument data={previewDocument} stamp="VORSCHAU" className="mx-auto max-w-3xl" />
+        </div>
+      </Card>
       {review.blockers.length > 0 ? (
         <ul className="grid gap-1 text-sm text-clay">
           {review.blockers.map((item) => <li key={item}>{tx(item)}</li>)}
@@ -326,9 +430,64 @@ export function InvoiceForm({
         </div>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <SubmitButton name="intent" value="draft" tone="quiet">{t("invoices.saveDraft")}</SubmitButton>
-        <SubmitButton name="intent" value="issue">{t("invoices.issue")}</SubmitButton>
+        <button type="button" className={buttonClass("quiet")} onClick={() => setPendingIntent("draft")}>{t("invoices.saveDraft")}</button>
+        <button type="button" className={buttonClass()} onClick={() => setPendingIntent("issue")}>{t("invoices.issue")}</button>
       </div>
+      <dialog
+        ref={previewDialog}
+        onClose={() => setPendingIntent(null)}
+        aria-labelledby="invoice-preview-heading"
+        className="m-auto max-h-[90dvh] w-[min(56rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-line bg-paper p-0 text-ink backdrop:bg-ink/40"
+      >
+        {pendingIntent ? (
+          <div className="grid gap-4 p-5 md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium tracking-wide text-muted uppercase">{t("invoices.previewEyebrow")}</p>
+                <h2 id="invoice-preview-heading" className="mt-1 text-2xl leading-tight text-ink">
+                  {pendingIntent === "issue" ? t("invoices.previewBeforeIssue") : t("invoices.previewBeforeDraft")}
+                </h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted">{t("invoices.previewCheck")}</p>
+              </div>
+              <button
+                type="button"
+                aria-label={t("common.close")}
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-card text-ink hover:border-ink"
+                onClick={() => setPendingIntent(null)}
+              >
+                <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-line bg-white p-4">
+              <InvoiceDocument data={previewDocument} stamp="VORSCHAU" className="mx-auto max-w-3xl" />
+            </div>
+            {pendingIntent === "issue" && review.blockers.length > 0 ? (
+              <div className="grid gap-1 rounded-2xl border border-clay/30 bg-clay/5 p-3">
+                <p className="text-sm font-medium text-clay">{t("invoices.issueBlocked")}</p>
+                <ul className="grid gap-1 text-sm text-clay">
+                  {review.blockers.map((item) => <li key={item}>{tx(item)}</li>)}
+                </ul>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" className={buttonClass("quiet")} onClick={() => setPendingIntent(null)}>{t("common.back")}</button>
+              {pendingIntent === "issue" && review.blockers.length > 0 ? null : (
+                <SubmitButton
+                  name="intent"
+                  value={pendingIntent}
+                  onClick={() => {
+                    confirmedSubmit.current = true;
+                  }}
+                >
+                  {pendingIntent === "issue" ? t("invoices.confirmIssue") : t("invoices.confirmDraft")}
+                </SubmitButton>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </dialog>
     </ActionForm>
   );
 }

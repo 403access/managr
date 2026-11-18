@@ -58,6 +58,7 @@ function sellerFrom(company: ReturnType<typeof loadCompany>) {
     managingDirector: company.managingDirector,
     iban: company.iban,
     bic: company.bic,
+    bankName: company.bankName,
     email: company.email,
     phone: company.phone,
     country: company.country,

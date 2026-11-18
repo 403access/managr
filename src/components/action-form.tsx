@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useActionState, useEffect, useRef, type MouseEventHandler, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, type FormEvent, type MouseEventHandler, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { initialState, type ActionState } from "@/server/form";
 import { useI18n } from "./locale-provider";
@@ -15,6 +15,7 @@ export function ActionForm({
   className,
   resetOnSuccess = false,
   reloadOnSuccess = false,
+  onSubmit,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   children: ReactNode;
@@ -23,6 +24,8 @@ export function ActionForm({
   className?: string;
   resetOnSuccess?: boolean;
   reloadOnSuccess?: boolean;
+  /** Runs first. Return false to keep the form from submitting. */
+  onSubmit?: (event: FormEvent<HTMLFormElement>) => boolean | void;
 }) {
   const { tx } = useI18n();
   const [state, formAction] = useActionState(action, initialState);
@@ -46,6 +49,10 @@ export function ActionForm({
       action={formAction}
       className={className ?? (compact ? "flex flex-wrap items-center gap-2" : "grid gap-4")}
       onSubmit={(event) => {
+        if (onSubmit?.(event) === false) {
+          event.preventDefault();
+          return;
+        }
         if (confirm && !window.confirm(confirm)) event.preventDefault();
       }}
     >
