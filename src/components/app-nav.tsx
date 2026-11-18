@@ -28,6 +28,7 @@ function Icon({ name }: { name: NavIcon }) {
       {name === "legal" ? <path {...common} d="M12 3.5v3M8 6.5h8M7 10.5 5 18h6l-2-7.5M17 10.5 15 18h6l-2-7.5M4 20.5h16" /> : null}
       {name === "projects" ? <path {...common} d="M4 7.5h6l2 2h8v9H4zM4 7.5v-2h6l2 2" /> : null}
       {name === "analytics" ? <path {...common} d="M4 20.5h16M7 20.5v-6M12 20.5V8M17 20.5V4.5" /> : null}
+      {name === "milestones" ? <path {...common} d="M6 3.5v17M6 4.5h11l-2 3.5 2 3.5H6" /> : null}
       {name === "sources" ? <path {...common} d="M4 5.5h6.5a1.5 1.5 0 0 1 1.5 1.5v13a1.5 1.5 0 0 0-1.5-1.5H4zM20 5.5h-6.5A1.5 1.5 0 0 0 12 7v13a1.5 1.5 0 0 1 1.5-1.5H20zM7 9h2.5M7 12h2.5M14.5 9H17M14.5 12H17" /> : null}
     </svg>
   );
@@ -59,7 +60,7 @@ export function AppNav({ variant, collapsed = false }: { variant: "side" | "bott
   if (variant === "side") {
     return (
       <div className="mt-6 flex min-h-0 flex-1 flex-col">
-        <nav className={`grid gap-1 ${collapsed ? "justify-items-center" : ""}`} aria-label={t("nav.sections")}>
+        <nav className={`grid gap-1 overflow-y-auto ${collapsed ? "justify-items-center" : ""}`} aria-label={t("nav.sections")}>
           {primaryNav.map((item) => (
             <Item key={item.href} item={item} pathname={pathname} label={t(item.labelKey)} collapsed={collapsed} />
           ))}
@@ -82,7 +83,7 @@ export function AppNav({ variant, collapsed = false }: { variant: "side" | "bott
   return (
     <div className="md:hidden">
       {moreOpen ? (
-        <div className="fixed inset-x-3 bottom-20 z-40 rounded-2xl border border-line bg-card p-2 shadow-lg">
+        <div className="fixed inset-x-3 bottom-20 z-40 max-h-[70dvh] overflow-y-auto rounded-2xl border border-line bg-card p-2 shadow-lg">
           <nav className="grid gap-1" aria-label={t("nav.moreSections")}>
             {moreNav.map((item) => (
               <Item key={item.href} item={item} pathname={pathname} label={t(item.labelKey)} onNavigate={() => setMoreOpen(false)} />

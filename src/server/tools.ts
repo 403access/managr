@@ -12,6 +12,8 @@ import {
   invoiceLines,
   invoices,
   journalEntries,
+  milestoneCompanies,
+  milestones,
   obligationStates,
   payments,
   policies,
@@ -29,6 +31,7 @@ import { addDays, nextDueDate, todayIso, type Recurrence } from "@/domain/calend
 import { DEFAULT_LEGAL_FORM, LEGAL_FORMS, isCorporation, isLegalForm } from "@/domain/company";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, isKleinunternehmerNote, reviewInvoice } from "@/domain/invoice";
 import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money";
+import { MILESTONE_CATEGORIES, MILESTONE_STATUSES, clampProgress } from "@/domain/milestones";
 import {
   buildCustomerPayment,
   buildExpense,
@@ -81,6 +84,7 @@ import {
   personView,
   projectsView,
   analyticsView,
+  milestonesView,
   shellView,
   timeView,
   obligationsView,
@@ -170,6 +174,13 @@ function requireTask(id: number) {
 function requireProject(id: number) {
   const row = getDb().select().from(projects).where(and(eq(projects.id, id), eq(projects.companyId, requireCompany().id))).get();
   if (!row) throw new Error("Project not found.");
+  return row;
+}
+
+/** Milestones are not scoped to a company, so this lookup has no company filter. */
+function requireMilestone(id: number) {
+  const row = getDb().select().from(milestones).where(eq(milestones.id, id)).get();
+  if (!row) throw new Error("Milestone not found.");
   return row;
 }
 
@@ -363,6 +374,13 @@ export const tools: DeskTool[] = [
       customerId: z.number().int().positive().optional().describe("Limit the report to one customer."),
     },
     run: (input) => analyticsView(input.year ?? Number(todayIso().slice(0, 4)), input.customerId ?? null),
+  }),
+  tool({
+    name: "read_milestones",
+    description:
+      "Overarching milestones across every company, with target year, status, progress, category, the companies they name, and the analysis by status, category, company, and quarter. Not limited to the active company.",
+    input: { year: z.number().int().min(2000).max(2100).optional().describe("Target year. Defaults to the current year.") },
+    run: (input) => milestonesView(input.year ?? Number(todayIso().slice(0, 4))),
   }),
   tool({
     name: "web_search",
@@ -1394,6 +1412,60 @@ export const tools: DeskTool[] = [
       const project = requireProject(input.id);
       getDb().delete(projects).where(eq(projects.id, project.id)).run();
       return { id: project.id, removed: true };
+    },
+  }),
+  tool({
+    name: "save_milestone",
+    description:
+      "Add or update an overarching milestone. A goal can name several companies; omit companyIds for a goal that applies to the whole group. It is not tied to the active company.",
+    input: {
+      milestoneId: z.number().int().positive().optional().describe("Omit to create; pass an id from read_milestones to update."),
+      title: z.string().trim().min(1).max(200),
+      category: z.string().trim().optional().describe("growth, revenue, product, team, operations, compliance, or other. Defaults to other."),
+      status: z.string().trim().optional().describe("planned, active, achieved, or missed. Defaults to planned."),
+      targetDate: z.string().optional().describe("Target date, YYYY-MM-DD. Defaults to today when creating."),
+      progress: z.number().int().min(0).max(100).optional().describe("0 to 100. An achieved goal is stored as 100."),
+      description: z.string().trim().max(2000).optional(),
+      companyIds: z.array(z.number().int().positive()).optional().describe("Companies the goal belongs to. Omit or pass an empty list for the whole group."),
+    },
+    run: (input) => {
+      const db = getDb();
+      const existing = input.milestoneId ? requireMilestone(input.milestoneId) : null;
+      const status = oneOf(input.status ?? existing?.status ?? "planned", MILESTONE_STATUSES, "Milestone status");
+      const category = oneOf(input.category ?? existing?.category ?? "other", MILESTONE_CATEGORIES, "Milestone category");
+      const targetDate = date(input.targetDate ?? existing?.targetDate ?? todayIso(), "The target date");
+      const progress = status === "achieved" ? 100 : clampProgress(input.progress ?? existing?.progress ?? 0);
+      const existingCompanyIds = existing
+        ? db.select().from(milestoneCompanies).where(eq(milestoneCompanies.milestoneId, existing.id)).all().map((link) => link.companyId)
+        : [];
+      const companyIds = [...new Set(input.companyIds ?? existingCompanyIds)];
+      for (const companyId of companyIds) {
+        if (!db.select().from(companies).where(eq(companies.id, companyId)).get()) throw new Error(`Company ${companyId} not found.`);
+      }
+      const values = { title: input.title, description: input.description ?? existing?.description ?? "", category, status, targetDate, progress };
+      let milestoneId = existing?.id ?? 0;
+      db.transaction(() => {
+        if (milestoneId > 0) {
+          db.update(milestones).set(values).where(eq(milestones.id, milestoneId)).run();
+        } else {
+          milestoneId = Number(db.insert(milestones).values({ ...values, createdAt: new Date().toISOString() }).run().lastInsertRowid);
+        }
+        db.delete(milestoneCompanies).where(eq(milestoneCompanies.milestoneId, milestoneId)).run();
+        for (const companyId of companyIds) {
+          db.insert(milestoneCompanies).values({ milestoneId, companyId }).run();
+        }
+      });
+      return { id: milestoneId, title: input.title, status, category, targetDate, progress, companyIds };
+    },
+  }),
+  tool({
+    name: "delete_milestone",
+    description: "Remove a cross-company milestone.",
+    input: idInput,
+    run: (input) => {
+      const milestone = requireMilestone(input.id);
+      getDb().delete(milestones).where(eq(milestones.id, milestone.id)).run();
+      return { id: milestone.id, removed: true };
     },
   }),
   tool({

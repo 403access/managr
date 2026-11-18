@@ -14,6 +14,8 @@ import {
   invoices,
   journalEntries,
   journalLines,
+  milestoneCompanies,
+  milestones,
   obligationStates,
   payments,
   policies,
@@ -82,6 +84,20 @@ export function listProjects(companyId = loadCompany().id) {
     .where(eq(projects.companyId, companyId))
     .orderBy(asc(projects.status), asc(projects.name))
     .all();
+}
+
+/** Cross-company goals with the companies they name. Not scoped to the active company. */
+export function listMilestones() {
+  const db = getDb();
+  const rows = db.select().from(milestones).orderBy(asc(milestones.targetDate), asc(milestones.title)).all();
+  const links = db.select().from(milestoneCompanies).all();
+  return rows.map((row) => ({
+    ...row,
+    companyIds: links
+      .filter((link) => link.milestoneId === row.id)
+      .map((link) => link.companyId)
+      .sort((left, right) => left - right),
+  }));
 }
 
 export function listTimeInRange(from: string, to: string) {

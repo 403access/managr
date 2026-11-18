@@ -10,6 +10,7 @@ import { conversionGap, reserveDutyActive } from "@/domain/reserve";
 import { balanceSheetTotals, summarizeProfit } from "@/domain/reporting";
 import { addWork, emptyWorkTotals, isProductiveTaskType, monthlyWork, projectCounts, sharePercent, taskTypeMinutes, workTotals, type WorkTotals } from "@/domain/analytics";
 import { flowShareBps, moneyFlow } from "@/domain/money-flow";
+import { analyzeMilestones, analyzeMilestonesByCompany, milestoneIsOverdue, milestoneProgress, milestoneYears, sortMilestones } from "@/domain/milestones";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
 import { durationMinutes, minimumVacationDays, timeWarnings, vacationShortfall } from "@/domain/time";
 import { euroInput, quantityInput } from "@/components/amounts";
@@ -22,6 +23,7 @@ import {
   listDocuments,
   listInvoices,
   listJournal,
+  listMilestones,
   listObligations,
   listPeople,
   listPolicies,
@@ -806,6 +808,38 @@ export function cashflowView(year: number) {
   };
 }
 
+export function milestonesView(year: number) {
+  const today = todayIso();
+  const all = listMilestones();
+  const companies = listCompanies().map((company) => ({ id: company.id, name: company.legalName }));
+  const companyName = new Map(companies.map((company) => [company.id, company.name]));
+  const milestones = sortMilestones(all.filter((milestone) => milestone.targetDate.startsWith(`${year}-`))).map((milestone) => ({
+    ...milestone,
+    companyNames: milestone.companyIds.flatMap((id) => {
+      const name = companyName.get(id);
+      return name ? [{ id, name }] : [];
+    }),
+    overdue: milestoneIsOverdue(milestone, today),
+    effectiveProgress: milestoneProgress(milestone),
+  }));
+  const years = new Set(milestoneYears(all));
+  const currentYear = Number(today.slice(0, 4));
+  // Neighbouring years stay reachable so a goal can be planned ahead of time.
+  for (const candidate of [currentYear - 1, currentYear, currentYear + 1, year - 1, year, year + 1]) {
+    years.add(candidate);
+  }
+  const yearList = [...years].sort((left, right) => left - right);
+  return {
+    today,
+    year,
+    years: yearList,
+    companies,
+    milestones,
+    analysis: analyzeMilestones(all, year, today),
+    companyRows: analyzeMilestonesByCompany(all, companies, year, today),
+  };
+}
+
 export function loadView(name: ViewName, params: URLSearchParams) {
   const query = parseViewQuery(params, todayIso());
   if (!viewIsReady(name, query)) return null;
@@ -848,5 +882,7 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return projectsView();
     case "analytics":
       return analyticsView(query.year, query.customer);
+    case "milestones":
+      return milestonesView(query.year);
   }
 }

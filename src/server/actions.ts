@@ -15,6 +15,8 @@ import {
   invoiceLines,
   invoices,
   journalEntries,
+  milestoneCompanies,
+  milestones,
   obligationStates,
   payments,
   policies,
@@ -31,6 +33,7 @@ import { TASK_TYPES } from "@/domain/analytics";
 import { formatDate, nextDueDate, todayIso, type Recurrence } from "@/domain/calendar";
 import { DEFAULT_LEGAL_FORM, isCorporation, isLegalForm } from "@/domain/company";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, reviewInvoice } from "@/domain/invoice";
+import { MILESTONE_CATEGORIES, MILESTONE_STATUSES, clampProgress } from "@/domain/milestones";
 import { buyerReferenceProblem } from "@/domain/xrechnung";
 import { parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import {
@@ -69,6 +72,8 @@ const ABSENCE_STATUS = ["approved", "requested", "rejected"] as const;
 const POLICY_KIND = ["health", "liability", "contents", "legal", "other"] as const;
 const RESOLUTION_KIND = ["formation", "profit", "salary", "appointment", "other"] as const;
 const DOCUMENT_CATEGORY = ["corporate", "tax", "invoice", "employment", "insurance", "other"] as const;
+const MILESTONE_STATUS = MILESTONE_STATUSES;
+const MILESTONE_CATEGORY = MILESTONE_CATEGORIES;
 
 function saved(message: string): ActionState {
   revalidatePath("/", "layout");
@@ -1026,6 +1031,53 @@ export async function deleteProject(_state: ActionState, formData: FormData): Pr
   try {
     getDb().delete(projects).where(and(eq(projects.id, requiredId(formData)), eq(projects.companyId, requireCompany().id))).run();
     return saved("Project removed. Recorded time stays and is shown without a project.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function saveMilestone(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const title = text(formData, "title");
+    if (!title) throw new Error("The milestone needs a title.");
+    const status = oneOf(text(formData, "status") || "planned", MILESTONE_STATUS, "Milestone status");
+    const category = oneOf(text(formData, "category") || "other", MILESTONE_CATEGORY, "Milestone category");
+    const targetDate = requireDate(text(formData, "targetDate"), "The target date");
+    const rawProgress = wholeNumber(formData, "progress");
+    const progress = status === "achieved" ? 100 : clampProgress(rawProgress ?? 0);
+    const db = getDb();
+    const companyIds = [...new Set(formData.getAll("companyIds").flatMap((value) => {
+      const id = Number(String(value));
+      return Number.isInteger(id) && id > 0 ? [id] : [];
+    }))];
+    for (const companyId of companyIds) {
+      if (!db.select().from(companies).where(eq(companies.id, companyId)).get()) throw new Error("Company not found.");
+    }
+    const values = { title, description: text(formData, "description"), category, status, targetDate, progress };
+    const id = optionalId(formData);
+    db.transaction(() => {
+      let milestoneId = id ?? 0;
+      if (id) {
+        if (!db.select().from(milestones).where(eq(milestones.id, id)).get()) throw new Error("Milestone not found.");
+        db.update(milestones).set(values).where(eq(milestones.id, id)).run();
+      } else {
+        milestoneId = Number(db.insert(milestones).values({ ...values, createdAt: new Date().toISOString() }).run().lastInsertRowid);
+      }
+      db.delete(milestoneCompanies).where(eq(milestoneCompanies.milestoneId, milestoneId)).run();
+      for (const companyId of companyIds) {
+        db.insert(milestoneCompanies).values({ milestoneId, companyId }).run();
+      }
+    });
+    return saved(id ? "Milestone saved." : "Milestone added.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function deleteMilestone(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    getDb().delete(milestones).where(eq(milestones.id, requiredId(formData))).run();
+    return saved("Milestone removed.");
   } catch (error) {
     return failed(error);
   }

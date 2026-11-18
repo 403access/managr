@@ -296,6 +296,27 @@ export const policies = sqliteTable("policies", {
   notes: text("notes").notNull().default(""),
 });
 
+export const milestones = sqliteTable("milestones", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  category: text("category").notNull().default("other"),
+  status: text("status").notNull().default("planned"),
+  targetDate: text("target_date").notNull(),
+  progress: integer("progress").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+});
+
+/** A goal can span companies. No row means it applies to the group as a whole. */
+export const milestoneCompanies = sqliteTable(
+  "milestone_companies",
+  {
+    milestoneId: integer("milestone_id").notNull().references(() => milestones.id, { onDelete: "cascade" }),
+    companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.milestoneId, table.companyId] })],
+);
+
 export const reserveMovements = sqliteTable("reserve_movements", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),

@@ -39,6 +39,7 @@ Shipped after the first version, in this order:
 6. Projects tie customers, tasks, deliverables, and time together. The analysis shows time per project, project starts and completions, the productive/unproductive task split, and the people and customers behind the work. A customer report prints from the same figures and is saved as a PDF through the browser print dialog.
 7. The assistant reads providers, models, and credentials from the local opencode installation. Two searchable fields choose the provider and model; the environment variables remain the fallback when opencode is not installed.
 8. The assistant searches the public web and reads a page when a fact is not in the desk, names the source URL, and treats page text as untrusted data. Web access can be switched off for the assistant and MCP.
+9. Cross-company milestones hold overarching goals with a target date, status, progress, category, and any number of companies. `/milestones` analyses the goals per status, category, company, and quarter, and the MCP server exposes the same view and writes.
 
 ## Not in version 1
 

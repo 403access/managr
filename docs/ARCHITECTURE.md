@@ -50,6 +50,10 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 `/analytics/report` is the printable customer report. It is a server render outside the app shell, like the invoice print route, and uses the same `analyticsView` with an optional `customer` filter. The **Als PDF drucken** button opens the browser print dialog, where the report is saved as a PDF. There is no server-side PDF file and nothing is sent to a customer.
 
+## Milestones
+
+`milestones` is deliberately not scoped to a company: the page compares goals across the whole desk. `milestone_companies` links a goal to any number of companies; no row means the goal applies to the group as a whole. `/milestones` reads `milestonesView` in `src/server/views.ts`, which adds the linked companies, the overdue flag, and the effective progress. `src/domain/milestones.ts` holds the filters, quarter grouping, and the analysis by status, category, company, and quarter; `read_milestones`, `save_milestone`, and `delete_milestone` expose the same data and rules to the assistant and MCP clients. A milestone never posts to the journal and does not change the books.
+
 ## Money flow
 
 `/cashflow` reads `cashflowView` in `src/server/views.ts`. It combines the invoices of one calendar year with the year's journal rows: billing and payment status, then `moneyFlow` from `src/domain/money-flow.ts` splits gross revenue into purchases, net wages, wage tax, social insurance, VAT payable, corporate tax, solidarity surcharge, trade tax, and profit after tax. The domain function keeps the slices reconciled; a VAT credit or a loss becomes extra funding instead of a negative band. The view also walks the VAT chain, groups actual bank movements by posting source, and counts the VAT and wage-tax returns marked done. Corporate and trade tax remain the same planning estimate as the ledger. `read_cashflow` exposes the view to the assistant and MCP clients.

@@ -69,7 +69,7 @@ Read tools render the existing views, so the assistant sees the same JSON a scre
 - `read_ledger`, `read_cashflow`
 - `read_people`, `read_person`
 - `read_time`, `read_tasks`
-- `read_projects`, `read_analytics`
+- `read_projects`, `read_analytics`, `read_milestones`
 - `read_obligations`, `read_documents`, `read_legal`
 - `web_search`, `web_fetch` when web access is on
 
@@ -81,6 +81,7 @@ Write tools follow the server actions:
 - **Books:** `post_expense`, `post_vat_prepayment`, `post_journal_entry`
 - **People:** `create_person`, `update_person`, `add_salary_change`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
 - **Time, tasks, deadlines:** `add_time`, `delete_time`, `save_project`, `delete_project`, `add_task`, `set_task_status`, `delete_task`, `set_obligation`, `add_deadline`, `complete_deadline`, `delete_deadline`
+- **Milestones:** `save_milestone`, `delete_milestone`
 - **Legal:** `set_compliance_done`, `save_resolution`
 
 The MCP endpoint uses the SDK's Streamable HTTP transport in stateless mode with JSON responses. It speaks the standard `initialize`, `tools/list`, and `tools/call` flow. It is available only while the desk runs and only on the machine that runs it.

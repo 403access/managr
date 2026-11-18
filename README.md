@@ -67,6 +67,12 @@ Projects tie a customer, tasks, deliverables, and time together. Open **Projekte
 
 The **Report als PDF** button opens `/analytics/report` for the selected year. A customer report limits the same figures to one customer. The report is printed through the browser print dialog, where it is saved as a PDF, like an invoice. Nothing is sent.
 
+## Milestones across companies
+
+**Meilensteine** under Mehr at `/milestones` holds overarching goals that are not tied to the active company. A goal has a title, description, category, target date, status (planned, active, achieved, missed), and progress. It can name several companies, or none for a goal that applies to the whole group. The year selector scopes the list and the analysis by target year.
+
+The analysis tab shows the status split, the progress by category, the progress per company including a group-wide row, and the goals per quarter. Overdue means the target date has passed and the goal is not achieved. Nothing is posted to the journal, and changing the company in the sidebar does not change the list.
+
 ## Money flow
 
 **Geldfluss** under Mehr at `/cashflow` follows one year from invoicing to the tax office. It shows the gross invoices and how much of them is paid or open, then a Sankey of the journal: purchases and operations, net wages, wage tax, social insurance, VAT payable, corporate tax, solidarity surcharge, trade tax, and the profit that remains. A second table walks the tax chain from output VAT and input VAT to the open VAT, adds withheld wage tax and the annual tax estimate, and names the social-insurance amount that goes to the health insurer rather than the tax office. The bottom shows actual bank movements grouped by posting type, with opening and closing balances.

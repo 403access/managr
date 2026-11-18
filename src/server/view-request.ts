@@ -17,6 +17,7 @@ export const VIEW_NAMES = [
   "legal",
   "projects",
   "analytics",
+  "milestones",
 ] as const;
 
 export type ViewName = (typeof VIEW_NAMES)[number];

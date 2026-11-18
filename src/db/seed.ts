@@ -29,6 +29,8 @@ import {
   journalEntries,
   invoiceLines,
   invoices,
+  milestoneCompanies,
+  milestones,
   obligationStates,
   payments,
   policies,
@@ -330,6 +332,50 @@ export function seedIfEmpty(db: DB) {
     compliance.forEach((item, index) => {
       tx.insert(complianceItems).values({ companyId, area: item[0], title: item[1], detail: item[2], done: item[3], sortOrder: index + 1 }).run();
     });
+
+    // Cross-company goals. Three name the sample company; the last one is a group-wide goal.
+    const createdAt = new Date().toISOString();
+    const firstCustomerGoal = insertId(tx.insert(milestones).values({
+      title: "Drei feste Kunden mit Rahmenvertrag",
+      description: "Beispielziel: wiederkehrender Umsatz statt einzelner Aufträge.",
+      category: "growth",
+      status: "active",
+      targetDate: `${year}-12-31`,
+      progress: 45,
+      createdAt,
+    }).run());
+    const profitGoal = insertId(tx.insert(milestones).values({
+      title: "Erstes volles Geschäftsjahr mit Gewinn",
+      description: "Beispielziel: Jahresüberschuss nach Steuern und Rücklage.",
+      category: "revenue",
+      status: "achieved",
+      targetDate: `${year}-03-31`,
+      progress: 100,
+      createdAt,
+    }).run());
+    const utilisationGoal = insertId(tx.insert(milestones).values({
+      title: "Monatliche Auslastung über 70 Prozent",
+      description: "Beispielziel: gebuchte Kundenzeit im Verhältnis zur verfügbaren Zeit.",
+      category: "operations",
+      status: "active",
+      targetDate: `${year}-09-30`,
+      progress: 30,
+      createdAt,
+    }).run());
+    tx.insert(milestones).values({
+      title: "Unterlagen für die erste Betriebsprüfung ablegen",
+      description: "Beispielziel für das Gesamtbild: Belege, Verträge und Beschlüsse an einer Stelle.",
+      category: "compliance",
+      status: "planned",
+      targetDate: `${year}-11-30`,
+      progress: 0,
+      createdAt,
+    }).run();
+    tx.insert(milestoneCompanies).values([
+      { milestoneId: firstCustomerGoal, companyId },
+      { milestoneId: profitGoal, companyId },
+      { milestoneId: utilisationGoal, companyId },
+    ]).run();
 
     const storedName = "sample-shareholder-list.txt";
     const body = [
