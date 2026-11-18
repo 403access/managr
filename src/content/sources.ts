@@ -786,3 +786,41 @@ export function sourceGroups(current: Locale): DomainGroup[] {
       sources: [...entries].sort((left, right) => pick(left.title, current).localeCompare(pick(right.title, current))),
     }));
 }
+
+export type SourceFilter = { query: string; domain: string; topic: GuideId | "" };
+
+function normalize(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/ß/g, "ss")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function searchText(source: Source, current: Locale): string {
+  return normalize(
+    [
+      pick(source.title, current),
+      pick(source.publisher, current),
+      pick(source.kind, current),
+      pick(source.note, current),
+      source.domain,
+      ...guidesUsingSource(source.id).map((guide) => pick(guide.title, current)),
+    ].join(" "),
+  );
+}
+
+/** Sources grouped by domain, narrowed by a free-text query, domain, and topic. */
+export function filterSourceGroups(current: Locale, filter: SourceFilter): DomainGroup[] {
+  const needle = normalize(filter.query.trim());
+  return sourceGroups(current)
+    .filter((group) => !filter.domain || group.domain === filter.domain)
+    .map((group) => ({
+      domain: group.domain,
+      sources: group.sources.filter((source) => {
+        if (filter.topic && !guidesUsingSource(source.id).some((guide) => guide.id === filter.topic)) return false;
+        return !needle || searchText(source, current).includes(needle);
+      }),
+    }))
+    .filter((group) => group.sources.length > 0);
+}
