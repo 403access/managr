@@ -42,6 +42,16 @@ Beim ersten Start einer leeren Datenbank wird die Beispielgesellschaft Atelier N
 
 Zwei gespeicherte Kopien, `data/managr.demo.db` und `data/managr.production.db`, können mit der geöffneten `data/managr.db` getauscht werden. `bun run db:demo` und `bun run db:prod` laden eine Kopie; `bun run db:demo:set` und `bun run db:prod:set` speichern die geöffnete Datenbank in eine Kopie. `bun run db:prod:init` erstellt eine saubere Produktionsdatenbank mit Schema und Kontenrahmen, aber ohne Beispielbuchungen. Produktion akzeptiert `db:prod:set` ohne `--from` nur, während sie bereits aktiv ist, und das Skript lehnt eine Demo- oder Beispieldatenbank ab, sodass Produktion nie mit Demo-Buchungen startet. `data/managr.active` zeichnet auf, welche Kopie geöffnet ist, und `bun run db:status` zeigt sie an. Beim Wechsel wird die geöffnete Datenbank zuerst in ihre gespeicherte Kopie zurückgeschrieben; beende den Schreibtisch daher vor dem Wechsel und starte ihn danach neu. Uploads werden nicht kopiert und bleiben gemeinsam in `data/uploads`.
 
+## Gründervergütung
+
+Drei Datensätze stehen neben den vorhandenen Lohn- und Gesellschafterdaten:
+
+- `director_contracts` auf dem Personenbildschirm speichert den schriftlichen Geschäftsführervertrag. `src/domain/director-contract.ts` wählt den aktuellen Vertrag, lehnt ein rückwirkendes Unterschriftsdatum in der Server Action und im MCP-Werkzeug ab und erstellt die Erinnerungen zu Vertrag und Gehaltsänderungen.
+- `shareholder_loans` und `shareholder_loan_movements` auf dem Gesellschaftsbildschirm speichern eine Finanzierungsvereinbarung mit einem Gesellschafter. `src/domain/shareholder-loan.ts` berechnet den offenen Betrag und die vorgeschlagenen Zinsen; `src/domain/postings.ts` bucht Auszahlungen, Tilgungen und Zinsen über dasselbe Journal.
+- `founder_health` speichert die private oder freiwillig gesetzliche Versicherung der Geschäftsführung, den Beitrag und das Statusfeststellungsverfahren. `src/domain/founder-health.ts` erstellt die Erinnerungsliste. Der Beitrag ist nie eine Lohnzeile.
+
+Die Personenansicht und die Gesellschaftsansicht stellen diese Datensätze den Bildschirmen bereit. Dieselben Daten sind über `read_person`, `read_company`, `save_director_contract`, `save_founder_health`, `add_shareholder_loan` und `record_shareholder_loan_movement` erreichbar.
+
 ## Anfragefluss
 
 Ein Bildschirm öffnet kein SQLite. `src/server/views.ts` baut das JSON für diesen Bildschirm aus `src/server/queries.ts`. Die Serverseite legt dieses JSON mit `Hydrate` in einen TanStack-Query-Cache. Der Client-Bildschirm liest denselben Key mit `useView` und lädt `GET /api/views/[name]` neu, wenn der Cache veraltet ist. Query-Keys liegen in `src/client/query-keys.ts`.

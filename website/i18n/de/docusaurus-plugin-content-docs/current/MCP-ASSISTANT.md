@@ -41,7 +41,7 @@ Eine Registrierung mit Name, Beschreibung, Zod-Eingabeschema und Ausführungsfun
 
 Lese-Werkzeuge geben die vorhandenen Ansichten aus, damit der Assistent dasselbe JSON sieht wie ein Bildschirm:
 
-- `read_companies`, `read_desk`, `read_company`
+- `read_companies`, `read_desk`, `read_company`, `read_shareholder_loans`
 - `read_customers`
 - `read_invoices`, `read_invoice`
 - `read_ledger`
@@ -52,10 +52,10 @@ Lese-Werkzeuge geben die vorhandenen Ansichten aus, damit der Assistent dasselbe
 Schreib-Werkzeuge folgen den Server-Actions:
 
 - **Gesellschaft:** `switch_company`, `create_company`, `update_company_identity`, `update_tax_profile`, `update_bank`
-- **Gesellschafter, Rücklage, Versicherungen:** `add_shareholder`, `delete_shareholder`, `record_reserve_allocation`, `offset_reserve`, `add_policy`, `delete_policy`, `pay_profit_distribution`
+- **Gesellschafter, Rücklage, Versicherungen:** `add_shareholder`, `delete_shareholder`, `add_shareholder_loan`, `record_shareholder_loan_movement`, `record_reserve_allocation`, `offset_reserve`, `add_policy`, `delete_policy`, `pay_profit_distribution`
 - **Rechnungen:** `save_customer`, `create_invoice`, `issue_invoice`, `update_buyer_reference`, `record_invoice_payment`, `void_invoice`, `delete_invoice_draft`
 - **Bücher:** `post_expense`, `post_vat_prepayment`, `post_journal_entry`
-- **Personen:** `create_person`, `update_person`, `add_salary_change`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
+- **Personen:** `create_person`, `update_person`, `add_salary_change`, `save_director_contract`, `delete_director_contract`, `save_founder_health`, `delete_founder_health`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
 - **Zeit, Aufgaben, Fristen:** `add_time`, `delete_time`, `add_task`, `set_task_status`, `delete_task`, `set_obligation`, `add_deadline`, `complete_deadline`, `delete_deadline`
 - **Recht:** `set_compliance_done`, `save_resolution`
 

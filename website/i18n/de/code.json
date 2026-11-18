@@ -52,8 +52,12 @@
     "description": "The introduction of the features section"
   },
   "home.area.company": {
-    "message": "Rechtlicher Name, Gesellschafter, Stammkapital und die Rücklage nach §5a GmbHG, einschließlich der Lücke zum Stammkapital von 25.000 €.",
+    "message": "Rechtlicher Name, Gesellschafter, Stammkapital, die Rücklage nach §5a GmbHG und Gesellschafterdarlehen mit Auszahlung, Tilgung und Zinsen.",
     "description": "The company feature description"
+  },
+  "home.area.founder": {
+    "message": "Ein schriftlicher Geschäftsführervertrag mit festem Gehalt, Gehaltsänderungen nur mit vorherigem Gesellschafterbeschluss, die Krankenversicherung des Gründers und das Statusfeststellungsverfahren. Der Schreibtisch hält die Unterlagen fest; er entscheidet nicht über Angemessenheit oder Sozialversicherungsstatus.",
+    "description": "The founder pay feature description"
   },
   "home.area.deadlines": {
     "message": "Umsatzsteuer, Lohnsteuer, Gewerbesteuer, Körperschaftsteuer, Sozialversicherung, Offenlegung, IHK, Berufsgenossenschaft und eigene Fristen in einem Kalender.",
@@ -68,7 +72,7 @@
     "description": "The books feature description"
   },
   "home.area.people": {
-    "message": "Anstellung, Minijob-, Midijob- und reguläre Beitragsschätzungen für 2026, Urlaub, Krankenversicherung der Gründerin oder des Gründers und ein Lohnjournal. Die Lohnsteuer wird eingegeben, nicht berechnet.",
+    "message": "Anstellung, Minijob-, Midijob- und reguläre Beitragsschätzungen für 2026, Urlaub, Gehaltsverlauf, Krankenversicherung der Gründerin oder des Gründers und ein Lohnjournal. Die Lohnsteuer wird eingegeben, nicht berechnet.",
     "description": "The people feature description"
   },
   "home.area.records": {

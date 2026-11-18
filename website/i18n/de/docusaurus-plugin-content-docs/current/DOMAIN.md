@@ -73,6 +73,18 @@ Körperschaft-, Solidaritäts- und Gewerbesteuer sind eine Planungsschätzung in
 - Die Gewerbesteuer wird in dieser Schätzung nicht noch einmal innerhalb der Körperschaftsteuerbasis abgezogen.
 - Der Hebesatz ist der kommunale Hebesatz der Gesellschaft, keine bundesweite Konstante.
 
+## Gesellschafterdarlehen
+
+Ein Darlehen eines Gesellschafters ist Finanzierung, kein Gehalt. `shareholder_loans` speichert die Vereinbarung und die erste Auszahlung; `shareholder_loan_movements` speichert weitere Auszahlungen, Tilgungen und Zinsen. `loanOutstandingCents` in `src/domain/shareholder-loan.ts` addiert eine Auszahlung und zieht eine Tilgung ab. Zinsen ändern das Kapital nicht.
+
+Die Buchungen in `src/domain/postings.ts`:
+
+- Eine Auszahlung belastet die Bank und erkennt `ACCOUNTS.shareholdersPayable` (1700) als Verbindlichkeit.
+- Eine Tilgung belastet 1700 und erkennt die Bank. Eine Tilgung darf das offene Darlehen nicht überschreiten.
+- Zinsen belasten `ACCOUNTS.interestExpense` (7300). Gezahlte Zinsen erkennen die Bank; nicht gezahlte Zinsen erkennen 1700 und bleiben eine Verbindlichkeit.
+
+Zinsen sind Finanzierungsaufwand, kein Gehalt und kein Gehaltsbestandteil. `reviewShareholderLoan` warnt, wenn ein offenes Darlehen keine Zinsen trägt und wenn ein Vermerk fehlt. Ein zinsloses Gesellschafterdarlehen kann steuerliche Folgen haben; der Schreibtisch entscheidet nicht über den fremdüblichen Zins. Die Unterlagen sind wie das übrige Journal nur anhängend; für ein gebuchtes Darlehen gibt es keine Löschaktion.
+
 ## Personen, Sozialversicherung, Gesundheit
 
 Die Obergrenzen, Sätze, die Minijob-Grenze und der Faktor F für 2026 sind die Konstanten in `src/domain/rates-2026.ts`. Die Minijob-Grenze wird aus dem Mindestlohn abgeleitet (Lohn × 130 / 3, auf einen ganzen Euro aufgerundet). Der Faktor F ist der veröffentlichte vierstellige Faktor, geprüft gegen 28 % / den durchschnittlichen Gesamtsatz.
@@ -94,6 +106,31 @@ Die Obergrenzen, Sätze, die Minijob-Grenze und der Faktor F für 2026 sind die 
 Ein Gehalt kann sich über die Zeit ändern. `salary_periods` hält je Änderung eine Zeile: das Datum, ab dem sie gilt, und das Monatsbrutto. `salaryForMonth` liefert die letzte Änderung, die nicht nach dem Abrechnungsmonat liegt, sonst das Vertragsbrutto in `employees.gross_monthly_cents`. Eine Änderung mit Datum innerhalb eines Monats gilt für diesen ganzen Monat. Der Personenbildschirm zeigt den Verlauf und die nächste Änderung; das Lohnformular schlägt den Betrag des gewählten Monats vor, und eine Einmalzahlung, ein Bonus oder ein angebrochener Monat wird beim Buchen selbst als Brutto eingetragen. Gebucht wird, was bestätigt wurde, nicht was der Verlauf vorgeschlagen hat.
 
 Die Krankenversicherung einer geschäftsführenden Gesellschafterin oder eines geschäftsführenden Gesellschafters ist ein Policeneintrag (privat oder freiwillig gesetzlich), kein Lohnabzug. Verlängerungsdaten erscheinen als Erinnerungen.
+
+`founder_health` ergänzt die gründerspezifische Sicht auf diese Versicherung: die Art (`private` oder `voluntary_statutory`), den Versicherer, den Monatsbeitrag, den Beginn des Versicherungsschutzes, das Statusfeststellungsverfahren (`not_required`, `requested`, `completed`), sein Datum und das Ergebnis (`open`, `not_socially_insured`, `socially_insured`). Je Geschäftsführung und Unternehmen gibt es eine Zeile.
+
+`reviewFounderHealth` in `src/domain/founder-health.ts` ist eine Erinnerungsliste:
+
+- Fehlende Versicherung oder eine Versicherung ohne Monatsbeitrag wird gemeldet.
+- Ein offenes Statusverfahren wird gemeldet.
+- Ein abgeschlossenes Verfahren ohne Datum wird gemeldet.
+- Eine Geschäftsführung mit der Hälfte der Anteile oder weniger braucht oft ein Statusfeststellungsverfahren; `not_required` wird dann gemeldet.
+
+Der Beitrag wird nicht über die Lohnabrechnung gebucht und nicht einbehalten. Die Krankenkasse entscheidet den Status; managr hält fest, was der Benutzer bestätigt, und entscheidet den Sozialversicherungsstatus nicht.
+
+## Geschäftsführeranstellungsvertrag
+
+Ein schriftlicher Anstellungsvertrag der Geschäftsführung legt das Gehalt im Voraus fest. `director_contracts` speichert das Unterschriftsdatum (`signed_on`), den Beginn der Laufzeit (`valid_from`), ein optionales Ende (`ended_on`) und das feste Monatsbrutto. Eine Person kann nacheinander mehrere Verträge haben; `currentDirectorContract` in `src/domain/director-contract.ts` liefert den Vertrag, der an einem Datum gilt, und ignoriert einen zukünftigen Vertrag.
+
+Die Server-Action und das MCP-Werkzeug lehnen ein Unterschriftsdatum nach dem Beginn der Laufzeit ab. Das ist die Formvorgabe hinter der Erinnerung: Eine rückwirkende Gehaltsvereinbarung kann eine verdeckte Gewinnausschüttung sein. Ein Brutto von null ist erlaubt, solange die Geschäftsführung kein Gehalt nimmt; die Prüfung sagt das.
+
+`reviewDirectorContract` ist eine Erinnerungsliste, keine Beurteilung:
+
+- Ein fehlender Vertrag wird gemeldet, weil das Gehalt schriftlich vereinbart sein muss.
+- Ein Vertragsbrutto, das vom Vertragsbrutto der Person abweicht, wird gemeldet; beide Werte sollen dasselbe feste Gehalt beschreiben.
+- Jede Gehaltsänderung braucht einen Gesellschafterbeschluss mit Datum an oder vor der Änderung. Fehlt er, wird das gemeldet, weil die Änderung sonst rückwirkend wäre.
+
+Der Schreibtisch hält den Vertrag fest. Er entscheidet nicht, ob der Vertrag wirksam, das Gehalt angemessen oder die Zahlung möglich ist.
 
 ## Gehalt an den Gesellschafter-Geschäftsführer
 

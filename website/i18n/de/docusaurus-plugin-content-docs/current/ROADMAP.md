@@ -36,6 +36,67 @@ Nach der ersten Version ausgeliefert, in dieser Reihenfolge:
 3. Ein Gehaltsverlauf trägt Erhöhungen über die Zeit; das Lohnformular schlägt den Betrag des gewählten Monats vor und bucht weiterhin den bestätigten Betrag.
 4. Das Gehalt eines Gesellschafter-Geschäftsführers sammelt sich als Verbindlichkeit gegenüber dem Gesellschafter, die Auszahlung tilgt sie, und eine getrennte Gewinnausschüttung verwendet den Gewinnvortrag. Gehaltsvereinbarungen sind Gesellschafterbeschlüsse, mit Erinnerungen an Beschluss und Angemessenheitsprüfung.
 5. Ein Assistenten-Panel und ein MCP-Server stellen dieselben Werkzeuge bereit, die auch die Bildschirme nutzen, sodass eine Anfrage über Rechnungen, Bücher, Personen, Zeit und Fristen lesen und buchen kann. Es wird nichts versendet, und ein Cloud-Modell erhält das Gespräch nur, wenn es eingerichtet wurde.
+6. Projekte verbinden Kunden, Aufgaben, Deliverables und Zeit. Die Auswertung zeigt Zeit je Projekt, Projektstarts und -abschlüsse, die Aufteilung in produktive und unproduktive Aufgaben sowie die Personen und Kunden hinter der Arbeit. Ein Kundenbericht druckt dieselben Zahlen und wird über den Browser-Druckdialog als PDF gespeichert.
+7. Der Assistent liest Anbieter, Modelle und Zugangsdaten aus der lokalen opencode-Installation. Zwei durchsuchbare Felder wählen Anbieter und Modell; die Umgebungsvariablen bleiben der Rückfall, wenn opencode nicht installiert ist.
+8. Der Assistent sucht im öffentlichen Web und liest eine Seite, wenn eine Tatsache nicht im Schreibtisch steht, nennt die Quell-URL und behandelt Seitentext als nicht vertrauenswürdige Daten. Der Web-Zugriff lässt sich für Assistent und MCP abschalten.
+9. Unternehmensübergreifende Meilensteine halten übergeordnete Ziele mit Zieldatum, Status, Fortschritt, Kategorie und beliebig vielen Unternehmen. `/milestones` wertet die Ziele nach Status, Kategorie, Unternehmen und Quartal aus, und der MCP-Server stellt dieselbe Ansicht und dieselben Schreibvorgänge bereit.
+10. Ein Geschäftsführervertrag erfasst Unterschriftsdatum, festes Brutto und Laufzeit; eine rückwirkende Unterschrift wird abgelehnt, und Gehaltsänderungen werden gegen einen Beschluss mit Datum an oder vor der Änderung geprüft.
+11. Ein Gesellschafterdarlehen erfasst Auszahlungen, Tilgungen und Zinsen über das Journal. Der offene Betrag wird gezeigt, eine Überzahlung wird abgelehnt, und ein zinsloses Darlehen trägt einen steuerlichen Hinweis.
+12. Die Krankenversicherung des Gründers erfasst private oder freiwillig gesetzliche Versicherung, den Beitrag und das Statusfeststellungsverfahren. Der Beitrag bleibt außerhalb der Lohnabrechnung; ein offenes oder fehlendes Statusverfahren wird gemeldet.
+
+## Gründervergütung — Roadmap aus dem Gespräch
+
+Diese Roadmap übersetzt die Fragen des Gründers in Arbeitspakete: sich selbst aus einer UG bezahlen, Krankenversicherung, Sozialversicherung, verdeckte Gewinnausschüttung (vGA) und Monate mit weniger Umsatz. Sie ist eine Planungshilfe, keine Rechts- oder Steuerberatung.
+
+### 1. Sich als Gesellschafter-Geschäftsführer bezahlen
+
+- [x] Die Lohnbuchung erfasst Brutto, die eingegebene Lohnsteuer und die geschätzten Beiträge. Die Lohnsteuer wird nie berechnet.
+- [x] Ein Gehaltsverlauf trägt Erhöhungen über die Zeit; das Lohnformular schlägt den Betrag für den Monat vor und bucht, was bestätigt wurde.
+- [x] Der Nettolohn einer verknüpften Geschäftsführung sammelt sich als Verbindlichkeit gegenüber dem Gesellschafter (1700); eine Auszahlung tilgt sie.
+- [x] Eine Gehaltsvereinbarung ist ein Gesellschafterbeschluss. Der Personenbildschirm erinnert, wenn er fehlt oder rückwirkend ist.
+- [x] Ein unbezahlter Start ist möglich: Das Vertragsbrutto kann null sein.
+- [x] Der schriftliche Geschäftsführervertrag mit Unterschriftsdatum, festem Brutto und Laufzeit wird erfasst.
+- [x] Jede Gehaltsänderung wird gegen einen Beschluss mit Datum an oder vor der Änderung geprüft.
+- [x] Die Angemessenheitserinnerung bleibt sichtbar; der Schreibtisch entscheidet nicht, ob ein Gehalt fremdüblich ist.
+
+### 2. Ein Monat mit weniger Umsatz
+
+- [x] Das feste Gehalt bleibt im Vertrag. Kann die Gesellschaft nicht zahlen, bleibt der Nettolohn eine Verbindlichkeit gegenüber dem Gesellschafter.
+- [x] Ein Gesellschafterdarlehen mit Auszahlung, Tilgung, Zinsen und den Journalbuchungen wird erfasst.
+- [x] Ein zinsloses Gesellschafterdarlehen wird gemeldet, weil die steuerliche Behandlung zu klären ist.
+- [x] Die Auszahlung ist vom Gehaltsaufwand getrennt, damit ein gestundetes Gehalt nicht als neuer Aufwand gebucht wird.
+
+### 3. Krankenversicherung und Sozialversicherungsstatus
+
+- [x] Eine Geschäftsführung mit mehr als der Hälfte der Anteile gilt standardmäßig als nicht sozialversichert. Das ist keine Statusfeststellung.
+- [x] Die Krankenversicherung ist ein Policeneintrag mit Verlängerungserinnerung; sie ist kein Lohnabzug.
+- [x] Die Versicherung des Gründers wird als privat oder freiwillig gesetzlich erfasst, mit Beitrag und Beginn.
+- [x] Das Statusfeststellungsverfahren und sein Ergebnis werden erfasst; ein offenes Verfahren bleibt sichtbar.
+- [x] Die Sozialversicherungsschätzung sagt, dass Kranken- und Pflegeversicherung außerhalb der Lohnabrechnung liegen.
+
+### 4. Steuern, Lohn und Buchhaltung
+
+- [x] Monatliche Lohnbuchung, Lohnsteuereingabe sowie die Pflichten für Lohnsteuer und Sozialversicherung.
+- [x] Getrennte Bücher je Unternehmen, ein Checklistenpunkt zum Geschäftskonto und keine privaten Entnahmen über das Journal.
+- [x] Rechnungen im Namen der Gesellschaft, Umsatzsteuer, doppeltes Journal und Körperschaftsteuerschätzung.
+- [x] Gesetzliche Rücklage nach §5a GmbHG, Verlustausgleich und Gewinnausschüttung aus dem Gewinnvortrag.
+- [x] Pflichten für Umsatzsteuer, Lohnsteuer, Gewerbesteuer, Körperschaftsteuer, Offenlegung, IHK und Berufsgenossenschaft.
+
+### 5. Verdeckte Gewinnausschüttung (vGA) vermeiden
+
+- [x] Der Personenbildschirm verbindet Gesellschaftereintrag, Gehaltsbeschluss und Auszahlung.
+- [x] Ein Beschluss, der nach Beginn des Gehalts datiert ist, wird als rückwirkend gemeldet.
+- [x] Das Gehalt muss fremdüblich sein; der Überschuss kann eine vGA sein und ist keine Betriebsausgabe.
+- [x] Ein Geschäftsführervertrag, der vor seiner Unterschrift beginnt, wird abgelehnt; ein abweichendes Vertragsbrutto wird gemeldet.
+- [x] Jede Gehaltsänderung braucht einen Beschluss mit Datum an oder vor der Änderung.
+- [x] Die Darlehensunterlagen behalten Datum und Vermerk, damit die Unterlagen nachvollziehbar bleiben.
+- [x] Die Krankenversicherung behält Beginn, Beitrag und Ergebnis des Statusverfahrens.
+
+### 6. Rücklage und der Weg zur GmbH
+
+- [x] Ein Viertel des Jahresüberschusses geht in die gesetzliche Rücklage, solange das Stammkapital unter dem GmbH-Minimum liegt.
+- [x] Die Rücklage kann einen Verlust ausgleichen; das Stammkapital steigt dadurch nicht.
+- [x] Die Lücke zu 25.000 € wird gezeigt. Die Pflicht endet erst mit der eingetragenen Kapitalerhöhung, nicht wenn der Rücklagenbestand das Minimum erreicht.
 
 ## Nicht in Version 1
 

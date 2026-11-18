@@ -12,7 +12,12 @@ const areas: { id: string; term: string; text: string }[] = [
   {
     id: "home.area.company",
     term: "Gesellschaft",
-    text: "Legal name, shareholders, Stammkapital, and the reserve under §5a GmbHG, including the gap toward €25,000 share capital.",
+    text: "Legal name, shareholders, Stammkapital, the reserve under §5a GmbHG, and shareholder loans with drawdown, repayment, and interest.",
+  },
+  {
+    id: "home.area.founder",
+    term: "Vergütung",
+    text: "A written managing-director contract with a fixed salary, salary changes checked against a prior shareholder resolution, founder health cover, and the Statusfeststellungsverfahren. The desk records the paperwork; it does not decide appropriateness or social-insurance status.",
   },
   {
     id: "home.area.deadlines",
@@ -32,7 +37,7 @@ const areas: { id: string; term: string; text: string }[] = [
   {
     id: "home.area.people",
     term: "Personen",
-    text: "Employment, 2026 minijob, midijob, and regular contribution estimates, vacation, founder health cover, and a payroll journal. Wage tax is entered, not calculated.",
+    text: "Employment, 2026 minijob, midijob, and regular contribution estimates, vacation, salary history, founder health cover, and a payroll journal. Wage tax is entered, not calculated.",
   },
   {
     id: "home.area.records",
