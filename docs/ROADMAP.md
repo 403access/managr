@@ -41,6 +41,59 @@ Shipped after the first version, in this order:
 8. The assistant searches the public web and reads a page when a fact is not in the desk, names the source URL, and treats page text as untrusted data. Web access can be switched off for the assistant and MCP.
 9. Cross-company milestones hold overarching goals with a target date, status, progress, category, and any number of companies. `/milestones` analyses the goals per status, category, company, and quarter, and the MCP server exposes the same view and writes.
 
+## Founder self-payment — conversation roadmap
+
+This roadmap turns the founder's questions into work items: paying yourself from a UG, health cover, social insurance, hidden profit distributions (vGA), and low-revenue months. It is a planning aid, not legal or tax advice.
+
+### 1. Paying yourself as a shareholder-director
+
+- [x] Payroll posts gross pay, the entered wage tax, and the estimated contributions. Wage tax is never calculated.
+- [x] A salary history carries raises over time; the payroll form suggests the figure for the month and books what was confirmed.
+- [x] A linked shareholder-director's net pay accrues to the liability to the shareholder (1700); a payout clears it.
+- [x] A salary agreement is a shareholder resolution, and the person screen reminds you when it is missing or retroactive.
+- [x] An unpaid start is possible: the contract gross can be zero.
+- [ ] Record the written managing-director service contract, its signing date, fixed gross, and term.
+- [ ] Check every salary change against a resolution dated on or before the change.
+- [x] The appropriateness reminder stays visible; the desk does not decide whether a salary is arm's length.
+
+### 2. A month with less revenue
+
+- [x] The fixed salary stays in the contract. If the company cannot pay, the net pay remains a liability to the shareholder.
+- [ ] Record a shareholder loan: drawdown, repayment, interest, and the journal postings.
+- [ ] Warn when a shareholder loan carries no interest, because the tax treatment of an interest-free loan has to be confirmed.
+- [x] The payout is separate from the salary expense, so a deferred salary is not booked as a new expense.
+
+### 3. Health insurance and social-insurance status
+
+- [x] A managing director with more than half the shares is treated as not socially insured by default. This is not a Statusfeststellung.
+- [x] Health cover is a policy record with a renewal reminder; it is not a payroll deduction.
+- [ ] Record the founder's cover as private or voluntary statutory, with premium and start date.
+- [ ] Record the Statusfeststellungsverfahren and its outcome, and remind when it is still open.
+- [x] The social-insurance estimate states that health and care cover sit outside payroll.
+
+### 4. Tax, payroll, and bookkeeping
+
+- [x] Monthly payroll posting, wage-tax entry, and the wage-tax and social-insurance obligations.
+- [x] Separate books per company, a business-account checklist item, and no private withdrawals through the ledger.
+- [x] Invoices in the company's name, VAT handling, the double-entry ledger, and the corporate-tax estimate.
+- [x] Statutory reserve under §5a GmbHG, loss offset, and profit distribution from retained profit.
+- [x] Obligations for VAT, wage tax, trade tax, corporate tax, disclosure, IHK, and the Berufsgenossenschaft.
+
+### 5. Preventing a hidden profit distribution (vGA)
+
+- [x] The person screen links the shareholder record, salary resolution, and payout.
+- [x] A resolution dated after the salary began is called out as retroactive.
+- [x] The salary has to be arm's length; the excess can be a vGA and is not a business expense.
+- [ ] A service contract dated after its start is refused, and a contract gross that differs from the person record is called out.
+- [ ] Every salary change needs a resolution dated on or before the change.
+- [ ] The loan and health records keep their own dates and notes, so the paperwork is traceable.
+
+### 6. Reserve and the step to a GmbH
+
+- [x] A quarter of the annual surplus goes to the statutory reserve while share capital is below the GmbH minimum.
+- [x] The reserve can offset a loss; this does not increase share capital.
+- [x] The gap to €25,000 is shown, and the duty ends only when the increase is registered, not when the reserve balance reaches the minimum.
+
 ## Not in version 1
 
 These need an external system or a different product decision. They are not stubbed as if they worked.
