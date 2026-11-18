@@ -82,7 +82,7 @@ Colors, type, and spacing are in `src/app/globals.css`. The layout is fluid and 
 
 `invoices/layout.tsx` keeps the invoice list mounted while a nested route opens. From 1024px up the list is a sticky master pane and the selected invoice or invoice form fills the remaining width. Below that, a detail route hides the list and shows a back link, so the list and the detail never squeeze each other on a phone. Invoice forms and line rows use container queries rather than viewport breakpoints because the same component runs full width on a phone and in the narrow detail pane on a desktop.
 
-Screens that stack several independent sections use `Tabs` in `src/components/tabs.tsx`. The open section is stored in the URL hash. Summary figures, page titles, and controls that apply to the whole page stay above the tab bar. Without JavaScript every section stays visible.
+Screens that stack several independent sections use `Tabs` in `src/components/tabs.tsx`. The open section is stored in the URL hash. Summary figures, page titles, and controls that apply to the whole page stay above the tab bar. Without JavaScript every section stays visible. Long forms pass `inline` to group their fields by topic inside an existing section; that variant keeps the open group in local state so it does not replace the screen's section in the hash, and it does not stick to the top. All groups stay in the form, so one save submits every field.
 
 `/time/playback` replays `src/demo/time-tracking-2026.ts` entry by entry in the browser. It calls the domain time functions and never opens SQLite. The Time screen links to it as a test run.
 

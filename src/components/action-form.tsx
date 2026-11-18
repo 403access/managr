@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useActionState, useEffect, useRef, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, type MouseEventHandler, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { initialState, type ActionState } from "@/server/form";
 import { useI18n } from "./locale-provider";
@@ -64,11 +64,11 @@ export function ActionForm({
   );
 }
 
-export function SubmitButton({ children, tone = "primary", name, value }: { children: ReactNode; tone?: ButtonTone; name?: string; value?: string }) {
+export function SubmitButton({ children, tone = "primary", name, value, onClick }: { children: ReactNode; tone?: ButtonTone; name?: string; value?: string; onClick?: MouseEventHandler<HTMLButtonElement> }) {
   const { pending } = useFormStatus();
   const { t } = useI18n();
   return (
-    <button type="submit" name={name} value={value} disabled={pending} className={buttonClass(tone)}>
+    <button type="submit" name={name} value={value} disabled={pending} onClick={onClick} className={buttonClass(tone)}>
       {pending ? t("common.saving") : children}
     </button>
   );

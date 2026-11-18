@@ -17,7 +17,7 @@ function tabItems(children: ReactNode): TabProps[] {
   return items;
 }
 
-export function Tabs({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+export function Tabs({ label, children, className, inline = false }: { label: string; children: ReactNode; className?: string; inline?: boolean }) {
   const items = tabItems(children);
   const signature = items.map((item) => item.id).join("|");
   const [selected, setSelected] = useState<string | null>(null);
@@ -26,6 +26,7 @@ export function Tabs({ label, children, className }: { label: string; children: 
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (inline) return;
     const ids = signature.split("|").filter(Boolean);
     const apply = () => {
       const hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
@@ -36,10 +37,11 @@ export function Tabs({ label, children, className }: { label: string; children: 
     apply();
     window.addEventListener("hashchange", apply);
     return () => window.removeEventListener("hashchange", apply);
-  }, [signature, uid]);
+  }, [inline, signature, uid]);
 
   function select(id: string) {
     setSelected(id);
+    if (inline) return;
     const next = `${window.location.pathname}${window.location.search}#${id}`;
     const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     if (current !== next) {
@@ -72,7 +74,13 @@ export function Tabs({ label, children, className }: { label: string; children: 
 
   return (
     <div ref={rootRef}>
-      <div className={`sticky top-0 z-20 bg-paper/95 pt-2 pb-4 backdrop-blur ${className ?? "-mx-4 px-4 md:-mx-8 md:px-8"}`}>
+      <div
+        className={
+          inline
+            ? `pb-4 ${className ?? ""}`
+            : `sticky top-0 z-20 bg-paper/95 pt-2 pb-4 backdrop-blur ${className ?? "-mx-4 px-4 md:-mx-8 md:px-8"}`
+        }
+      >
         <div role="tablist" aria-label={label} aria-orientation="horizontal" onKeyDown={onKeyDown} className="flex gap-2 overflow-x-auto">
           {items.map((item) => {
             const on = item.id === active;
