@@ -8,6 +8,7 @@ import {
   complianceItems,
   customers,
   customDeadlines,
+  directorContracts,
   documents,
   employees,
   invoiceLines,
@@ -297,6 +298,15 @@ export function listOrgMembers() {
 
 export function listSalaryPeriods(employeeId: number) {
   return getDb().select().from(salaryPeriods).where(eq(salaryPeriods.employeeId, employeeId)).orderBy(desc(salaryPeriods.validFrom)).all();
+}
+
+export function listDirectorContracts(employeeId: number) {
+  return getDb()
+    .select()
+    .from(directorContracts)
+    .where(and(eq(directorContracts.employeeId, employeeId), eq(directorContracts.companyId, loadCompany().id)))
+    .orderBy(desc(directorContracts.validFrom), desc(directorContracts.id))
+    .all();
 }
 
 /** Every salary change grouped by person, oldest first. Used for the current salary in lists. */

@@ -10,6 +10,7 @@ import {
   complianceItems,
   customers,
   customDeadlines,
+  directorContracts,
   documents,
   employees,
   invoiceLines,
@@ -867,6 +868,52 @@ export async function saveSalaryPeriod(_state: ActionState, formData: FormData):
     if (existing) throw new Error("There is already a salary change on that date.");
     db.insert(salaryPeriods).values({ employeeId: employee.id, validFrom, grossMonthlyCents, note: text(formData, "note") }).run();
     return saved("Salary change saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function saveDirectorContract(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const employee = requireEmployee(formData);
+    if (employee.kind !== "managing_director") {
+      throw new Error("A managing-director service contract belongs to a managing director.");
+    }
+    const signedOn = requireDate(text(formData, "signedOn"), "The signing date");
+    const validFrom = requireDate(text(formData, "validFrom"), "The start of the contract");
+    if (signedOn > validFrom) {
+      throw new Error("A service contract cannot start before it is signed. A retroactive agreement can be a hidden profit distribution.");
+    }
+    const endedRaw = text(formData, "endedOn");
+    const endedOn = endedRaw ? requireDate(endedRaw, "The end of the contract") : null;
+    if (endedOn && endedOn < validFrom) throw new Error("The contract ends before it starts.");
+    const grossMonthlyCents = euros(formData, "gross");
+    if (grossMonthlyCents === null) throw new Error("Enter the fixed monthly gross. Use 0 while the director takes no salary.");
+    const db = getDb();
+    const id = optionalId(formData);
+    const values = { signedOn, validFrom, endedOn, grossMonthlyCents, notes: text(formData, "notes") };
+    if (id) {
+      const existing = db.select().from(directorContracts).where(and(eq(directorContracts.id, id), eq(directorContracts.employeeId, employee.id))).get();
+      if (!existing) throw new Error("Service contract not found.");
+      db.update(directorContracts).set(values).where(eq(directorContracts.id, id)).run();
+      return saved("Managing-director service contract saved.");
+    }
+    db.insert(directorContracts).values({ ...values, companyId: requireCompany().id, employeeId: employee.id, createdAt: new Date().toISOString() }).run();
+    return saved("Managing-director service contract saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function deleteDirectorContract(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const employee = requireEmployee(formData);
+    const id = requiredId(formData);
+    getDb()
+      .delete(directorContracts)
+      .where(and(eq(directorContracts.id, id), eq(directorContracts.employeeId, employee.id), eq(directorContracts.companyId, requireCompany().id)))
+      .run();
+    return saved("Service contract removed.");
   } catch (error) {
     return failed(error);
   }

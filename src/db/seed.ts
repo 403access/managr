@@ -24,6 +24,7 @@ import {
   complianceItems,
   customers,
   customDeadlines,
+  directorContracts,
   documents,
   employees,
   journalEntries,
@@ -191,6 +192,17 @@ export function seedIfEmpty(db: DB) {
     });
     tx.insert(salaryPeriods)
       .values({ employeeId: jonasId, validFrom: on(32), grossMonthlyCents: 170_000, note: "Beispiel: Erhöhung nach der Probezeit." })
+      .run();
+    tx.insert(directorContracts)
+      .values({
+        companyId,
+        employeeId: maraId,
+        signedOn: "2024-03-15",
+        validFrom: "2024-03-15",
+        grossMonthlyCents: 320_000,
+        notes: "Beispielvertrag. Das feste Gehalt ist im Voraus vereinbart; die Angemessenheit prüft ein Berater.",
+        createdAt: new Date().toISOString(),
+      })
       .run();
     const aylinId = person({
       firstName: "Aylin",

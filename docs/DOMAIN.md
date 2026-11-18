@@ -97,6 +97,20 @@ A salary can change over time. `salary_periods` holds one row per change: the da
 
 Health insurance for a controlling shareholder-director is a policy record (private or voluntary statutory), not a payroll deduction. Renewal dates surface as reminders.
 
+## Managing-director service contract
+
+A managing director's written service contract fixes the salary in advance. `director_contracts` stores the signing date (`signed_on`), the start of the term (`valid_from`), an optional end (`ended_on`), and the fixed monthly gross. A person can have several contracts in sequence; `currentDirectorContract` in `src/domain/director-contract.ts` returns the contract that applies on a date and ignores a future contract.
+
+The server action and the MCP tool refuse a signing date after the start of the term. That is the form requirement behind the reminder: a retroactive salary agreement can be a hidden profit distribution. A gross of zero is allowed while the director takes no salary, but the review says so.
+
+`reviewDirectorContract` is a reminder list, not an assessment:
+
+- No contract is a warning, because the salary has to be agreed in writing.
+- A contract gross that differs from the person's contract gross is a warning; both figures should describe the same fixed salary.
+- Every salary change needs a shareholder resolution dated on or before the change. A missing one is a warning, because the change would otherwise be retroactive.
+
+The desk records the contract. It does not decide whether the contract is valid, whether the salary is appropriate, or whether the company can pay it.
+
 ## Shareholder-director salary
 
 A managing director who also holds shares is paid through payroll, but the money moves differently. When the person is linked to a shareholder record (`employees.shareholder_id`), the payroll credits the net pay to `ACCOUNTS.shareholdersPayable` (1700) instead of bank or wages payable. `buildShareholderPayout` then clears that liability against the bank. The payout is not the salary: the salary is already booked as an expense.

@@ -177,3 +177,35 @@ describe("payroll and the shareholder director", () => {
     expect(again.ok === false ? again.error : "").toMatch(/already posted/);
   });
 });
+
+describe("director contract", () => {
+  it("records a prospective contract and refuses a retroactive one", async () => {
+    const people = data<{ people: { id: number; lastName: string }[] }>(await runTool("read_people", {}));
+    const mara = people.people.find((person) => person.lastName === "Elling")!;
+
+    const saved = data<{ id: number }>(
+      await runTool("save_director_contract", {
+        personId: mara.id,
+        signedOn: "2027-03-01",
+        validFrom: "2027-03-01",
+        grossMonthly: "3200,00",
+        notes: "Testvertrag",
+      }),
+    );
+    expect(saved.id).toBeGreaterThan(0);
+
+    const person = data<{ contracts: { grossMonthlyCents: number }[]; contractReview: { warnings: string[] } }>(
+      await runTool("read_person", { personId: mara.id }),
+    );
+    expect(person.contracts.some((contract) => contract.grossMonthlyCents === 320_000)).toBe(true);
+
+    const bad = await runTool("save_director_contract", {
+      personId: mara.id,
+      signedOn: "2027-05-01",
+      validFrom: "2027-04-01",
+      grossMonthly: "3200,00",
+    });
+    expect(bad.ok).toBe(false);
+    expect(bad.ok === false ? bad.error : "").toMatch(/before it is signed/);
+  });
+});

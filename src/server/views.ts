@@ -1,6 +1,7 @@
 import "server-only";
 import { CHART, ACCOUNTS, signedBalance } from "@/domain/accounts";
 import { addDays, fiscalYearContaining, todayIso } from "@/domain/calendar";
+import { currentDirectorContract, reviewDirectorContract } from "@/domain/director-contract";
 import { reviewDirectorSalary } from "@/domain/director-salary";
 import { reviewInvoice } from "@/domain/invoice";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
@@ -21,6 +22,7 @@ import {
   listCashMovements,
   listCustomers,
   listDeadlines,
+  listDirectorContracts,
   listDocuments,
   listInvoices,
   listJournal,
@@ -361,10 +363,13 @@ export function personView(id: number) {
   const colleagues = listOrgMembers()
     .filter((member) => member.id !== id)
     .map((member) => ({ id: member.id, name: `${member.firstName} ${member.lastName}`, role: member.role }));
-  const salaryResolutionDate = listResolutions()
+  const salaryResolutionDates = listResolutions()
     .filter((resolution) => resolution.kind === "salary" && resolution.employeeId === employee.id)
     .map((resolution) => resolution.resolvedOn)
-    .sort()[0] ?? null;
+    .sort();
+  const salaryResolutionDate = salaryResolutionDates[0] ?? null;
+  const contracts = listDirectorContracts(employee.id);
+  const currentContract = currentDirectorContract(contracts, todayIso());
   return {
     employee,
     company: { stateCode: company.stateCode, additionalKvBps: company.additionalKvBps },
@@ -381,7 +386,17 @@ export function personView(id: number) {
     shareholders: holders.map((holder) => ({ id: holder.id, name: holder.name, shareBps: holder.shareBps })),
     colleagues,
     shareholder,
+    contracts,
+    currentContract,
     salaryResolutionDate,
+    contractReview: reviewDirectorContract({
+      kind: employee.kind,
+      ownershipBps: employee.ownershipBps,
+      contract: currentContract,
+      employeeGrossCents: currentSalaryCents,
+      salaryResolutionDates,
+      salaryChanges: salaryPeriods.map((period) => ({ validFrom: period.validFrom, grossMonthlyCents: period.grossMonthlyCents })),
+    }),
     directorReview: reviewDirectorSalary({
       kind: employee.kind,
       ownershipBps: employee.ownershipBps,

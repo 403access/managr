@@ -52,8 +52,8 @@ This roadmap turns the founder's questions into work items: paying yourself from
 - [x] A linked shareholder-director's net pay accrues to the liability to the shareholder (1700); a payout clears it.
 - [x] A salary agreement is a shareholder resolution, and the person screen reminds you when it is missing or retroactive.
 - [x] An unpaid start is possible: the contract gross can be zero.
-- [ ] Record the written managing-director service contract, its signing date, fixed gross, and term.
-- [ ] Check every salary change against a resolution dated on or before the change.
+- [x] Record the written managing-director service contract, its signing date, fixed gross, and term.
+- [x] Check every salary change against a resolution dated on or before the change.
 - [x] The appropriateness reminder stays visible; the desk does not decide whether a salary is arm's length.
 
 ### 2. A month with less revenue
@@ -84,8 +84,8 @@ This roadmap turns the founder's questions into work items: paying yourself from
 - [x] The person screen links the shareholder record, salary resolution, and payout.
 - [x] A resolution dated after the salary began is called out as retroactive.
 - [x] The salary has to be arm's length; the excess can be a vGA and is not a business expense.
-- [ ] A service contract dated after its start is refused, and a contract gross that differs from the person record is called out.
-- [ ] Every salary change needs a resolution dated on or before the change.
+- [x] A service contract dated after its start is refused, and a contract gross that differs from the person record is called out.
+- [x] Every salary change needs a resolution dated on or before the change.
 - [ ] The loan and health records keep their own dates and notes, so the paperwork is traceable.
 
 ### 6. Reserve and the step to a GmbH

@@ -1,6 +1,6 @@
 "use client";
 
-import { addAbsence, deleteAbsence, deleteSalaryPeriod, payShareholder, saveSalaryPeriod } from "@/server/actions";
+import { addAbsence, deleteAbsence, deleteDirectorContract, deleteSalaryPeriod, payShareholder, saveDirectorContract, saveSalaryPeriod } from "@/server/actions";
 import type { personView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { formatEuro, formatPercentBps } from "@/domain/money";
@@ -102,6 +102,59 @@ export function PersonScreen({ id }: { id: number }) {
                 ) : null}
                 {loaded.salaryPeriods.length === 0 ? <p className="mt-2 text-sm text-muted">{t("people.salaryNone")}</p> : null}
               </Card>
+              {employee.kind === "managing_director" ? (
+                <>
+                  <Card className="mt-3">
+                    <h2 className="text-xl">{t("people.contractTitle")}</h2>
+                    <p className="mt-1 text-sm leading-relaxed text-muted">{t("people.contractBody")}</p>
+                    {loaded.contractReview.warnings.map((warning) => (
+                      <p key={warning} className="mt-2 text-sm text-amber">{tx(warning)}</p>
+                    ))}
+                    {loaded.contracts.length === 0 ? <p className="mt-3 text-sm text-muted">{t("people.contractNone")}</p> : null}
+                    {loaded.contracts.length > 0 ? (
+                      <div className="mt-3 grid gap-2">
+                        {loaded.contracts.map((contract) => (
+                          <div key={contract.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-line bg-white p-3">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {t("people.contractLine", { gross: formatEuro(contract.grossMonthlyCents), from: formatDate(contract.validFrom) })}
+                              </p>
+                              <p className="mt-1 text-xs text-muted">
+                                {t("people.contractSigned", { date: formatDate(contract.signedOn) })}
+                                {" · "}
+                                {contract.endedOn ? t("people.contractEnded", { date: formatDate(contract.endedOn) }) : t("people.contractOpen")}
+                              </p>
+                              {contract.notes ? <p className="mt-1 text-xs text-muted">{contract.notes}</p> : null}
+                            </div>
+                            <ActionForm action={deleteDirectorContract} compact confirm={t("people.contractRemove")}>
+                              <input type="hidden" name="employeeId" value={employee.id} />
+                              <input type="hidden" name="id" value={contract.id} />
+                              <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
+                            </ActionForm>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <p className="mt-3 text-xs leading-relaxed text-muted">{t("people.contractNote")}</p>
+                  </Card>
+                  <Card className="mt-3">
+                    <h2 className="text-xl">{t("people.contractAdd")}</h2>
+                    <ActionForm action={saveDirectorContract} resetOnSuccess>
+                      <input type="hidden" name="employeeId" value={employee.id} />
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label={t("people.contractSignedOn")}><TextInput name="signedOn" type="date" defaultValue={loaded.today} /></Field>
+                        <Field label={t("people.contractFrom")}><TextInput name="validFrom" type="date" defaultValue={loaded.today} /></Field>
+                        <Field label={t("people.contractGross")} hint={t("people.contractGrossHint")}>
+                          <TextInput name="gross" inputMode="decimal" defaultValue={euroInput(loaded.employee.grossMonthlyCents)} />
+                        </Field>
+                        <Field label={t("people.contractEnd")}><TextInput name="endedOn" type="date" /></Field>
+                      </div>
+                      <Field label={t("common.notes")}><TextInput name="notes" /></Field>
+                      <SubmitButton>{t("people.contractSave")}</SubmitButton>
+                    </ActionForm>
+                  </Card>
+                </>
+              ) : null}
               {loaded.salaryPeriods.length > 0 ? (
                 <div className="mt-3 grid gap-2">
                   {loaded.salaryPeriods.map((period) => (

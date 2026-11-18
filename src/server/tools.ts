@@ -8,6 +8,7 @@ import {
   complianceItems,
   customers,
   customDeadlines,
+  directorContracts,
   employees,
   invoiceLines,
   invoices,
@@ -1201,6 +1202,59 @@ export const tools: DeskTool[] = [
         .values({ employeeId: employee.id, validFrom, grossMonthlyCents: positiveCents(input.grossMonthly, "The monthly gross"), note: input.note ?? "" })
         .run();
       return { id: Number(created.lastInsertRowid), personId: employee.id, validFrom };
+    },
+  }),
+  tool({
+    name: "save_director_contract",
+    description:
+      "Record or change a managing director's written service contract. The signing date cannot be later than the start, because a retroactive salary agreement can be a hidden profit distribution. Use 0 for an unpaid start.",
+    input: {
+      personId: z.number().int().positive(),
+      signedOn: z.string().describe("YYYY-MM-DD."),
+      validFrom: z.string().describe("YYYY-MM-DD."),
+      grossMonthly: z.string().trim().describe('Fixed monthly gross in euro, "0" for no salary.'),
+      endedOn: z.string().nullable().optional().describe("YYYY-MM-DD, or null while the contract runs."),
+      notes: z.string().trim().max(1000).optional(),
+      contractId: z.number().int().positive().optional().describe("Change an existing contract instead of adding one."),
+    },
+    run: (input) => {
+      const employee = requireEmployee(input.personId);
+      if (employee.kind !== "managing_director") throw new Error("A managing-director service contract belongs to a managing director.");
+      const signedOn = date(input.signedOn, "The signing date");
+      const validFrom = date(input.validFrom, "The contract start");
+      if (signedOn > validFrom) throw new Error("A service contract cannot start before it is signed. A retroactive agreement can be a hidden profit distribution.");
+      const endedOn = input.endedOn ? date(input.endedOn, "The contract end") : null;
+      if (endedOn && endedOn < validFrom) throw new Error("The contract ends before it starts.");
+      const grossMonthlyCents = cents(input.grossMonthly, "The fixed monthly gross");
+      if (grossMonthlyCents < 0) throw new Error("The fixed monthly gross cannot be negative.");
+      const db = getDb();
+      const values = { signedOn, validFrom, endedOn, grossMonthlyCents, notes: input.notes ?? "" };
+      if (input.contractId) {
+        const existing = db
+          .select()
+          .from(directorContracts)
+          .where(and(eq(directorContracts.id, input.contractId), eq(directorContracts.employeeId, employee.id)))
+          .get();
+        if (!existing) throw new Error("Service contract not found.");
+        db.update(directorContracts).set(values).where(eq(directorContracts.id, existing.id)).run();
+        return { id: existing.id, personId: employee.id, saved: true };
+      }
+      const created = db
+        .insert(directorContracts)
+        .values({ ...values, companyId: requireCompany().id, employeeId: employee.id, createdAt: new Date().toISOString() })
+        .run();
+      return { id: Number(created.lastInsertRowid), personId: employee.id, saved: true };
+    },
+  }),
+  tool({
+    name: "delete_director_contract",
+    description: "Remove a managing-director service contract record.",
+    input: idInput,
+    run: (input) => {
+      const row = getDb().select().from(directorContracts).where(and(eq(directorContracts.id, input.id), eq(directorContracts.companyId, requireCompany().id))).get();
+      if (!row) throw new Error("Service contract not found.");
+      getDb().delete(directorContracts).where(eq(directorContracts.id, row.id)).run();
+      return { id: row.id, removed: true };
     },
   }),
   tool({
