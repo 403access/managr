@@ -3,6 +3,7 @@
 import type { invoiceEditView, invoiceNewView } from "@/server/views";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { InvoiceForm } from "@/components/invoice-form";
+import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { PageHeader } from "@/components/ui";
@@ -17,7 +18,7 @@ export function InvoiceNewScreen() {
     <ViewGate query={query}>
       {(data) => (
         <>
-          <PageHeader title={t("invoices.newTitle")} lede={t("invoices.newLede")} />
+          <PageHeader title={t("invoices.newTitle")} lede={t("invoices.newLede")} info={<InfoButton topic="invoice" />} />
           <InvoiceForm seller={data.seller} customers={data.customers} today={data.today} termsDays={data.termsDays} defaultVatBps={data.defaultVatBps} />
         </>
       )}
@@ -32,7 +33,7 @@ export function InvoiceEditScreen({ id }: { id: number }) {
     <ViewGate query={query}>
       {(data) => (
         <>
-          <PageHeader title={t("invoices.editTitle")} lede={t("invoices.editLede")} />
+          <PageHeader title={t("invoices.editTitle")} lede={t("invoices.editLede")} info={<InfoButton topic="invoice" />} />
           <InvoiceForm seller={data.seller} customers={data.customers} today={data.today} termsDays={data.termsDays} defaultVatBps={data.defaultVatBps} draft={data.draft} />
         </>
       )}

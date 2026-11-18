@@ -9,6 +9,7 @@ import { queryKeys, viewPath } from "@/client/query-keys";
 import { euroInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { EmployeeForm } from "@/components/employee-form";
+import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { PayrollForm } from "@/components/payroll-form";
 import { PayslipTable } from "@/components/payslip-table";
@@ -27,7 +28,7 @@ export function PersonScreen({ id }: { id: number }) {
         const { employee, estimate } = loaded;
         return (
           <>
-            <PageHeader title={`${employee.firstName} ${employee.lastName}`} lede={employee.role || label(employee.kind)} action={estimate ? <Pill tone={estimate.regime}>{label(estimate.regime)}</Pill> : undefined} />
+            <PageHeader title={`${employee.firstName} ${employee.lastName}`} lede={employee.role || label(employee.kind)} info={<InfoButton topic="person" />} action={estimate ? <Pill tone={estimate.regime}>{label(estimate.regime)}</Pill> : undefined} />
             {loaded.estimateError ? <p className="mb-4 text-sm text-clay">{tx(loaded.estimateError)}</p> : null}
             <Tabs label={t("tabs.sections")}>
             <Tab id="overview" label={t("people.overview")}>

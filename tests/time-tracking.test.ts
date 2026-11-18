@@ -65,6 +65,12 @@ describe("time tracking with the recorded October and November 2026 days", () =>
     }
   });
 
+  it("requires a 60-minute break after more than nine hours", () => {
+    const warning = timeWarnings(541, 45).find((item) => item.message.includes("60-minute"));
+    expect(warning).toBeTruthy();
+    expect(timeWarnings(541, 60).filter((item) => item.message.includes("break"))).toEqual([]);
+  });
+
   it("keeps the entries of a day in order without overlap", () => {
     for (const day of TIME_TRACKING_DAYS) {
       const ordered = [...day.entries].sort((a, b) => a.start.localeCompare(b.start));

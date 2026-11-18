@@ -24,7 +24,7 @@ export function timeWarnings(netMinutes: number, breakMinutes: number): TimeWarn
   const warnings: TimeWarning[] = [];
   if (netMinutes > 600) warnings.push({ level: "stop", message: "Net working time is over 10 hours (§3 ArbZG)." });
   else if (netMinutes > 480) warnings.push({ level: "watch", message: "Above 8 hours. The average has to come back to 8 (§3 ArbZG)." });
-  if (netMinutes > 540 && breakMinutes < 45) warnings.push({ level: "watch", message: "A day over 9 hours needs a 45-minute break (§4 ArbZG)." });
+  if (netMinutes > 540 && breakMinutes < 60) warnings.push({ level: "watch", message: "A day over 9 hours needs a 60-minute break (§4 ArbZG)." });
   else if (netMinutes > 360 && breakMinutes < 30) warnings.push({ level: "watch", message: "A day over 6 hours needs a 30-minute break (§4 ArbZG)." });
   return warnings;
 }

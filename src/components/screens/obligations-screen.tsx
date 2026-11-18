@@ -6,6 +6,7 @@ import type { obligationsView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { Tab, Tabs } from "@/components/tabs";
@@ -24,6 +25,7 @@ export function ObligationsScreen({ year }: { year: number }) {
           <PageHeader
             title={t("dates.title")}
             lede={t("dates.lede")}
+            info={<InfoButton topic="obligations" />}
             action={
               <span className="flex gap-2">
                 <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={`/obligations?year=${data.year - 1}`}>

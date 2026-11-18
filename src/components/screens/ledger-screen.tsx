@@ -6,6 +6,7 @@ import { formatDate } from "@/domain/calendar";
 import { formatEuro } from "@/domain/money";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { InfoButton } from "@/components/info-sheet";
 import { JournalForm } from "@/components/journal-form";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
@@ -24,6 +25,7 @@ export function LedgerScreen({ all }: { all: boolean }) {
           <PageHeader
             title={t("ledger.title")}
             lede={t("ledger.lede", { label: data.fy.label, start: formatDate(data.fy.start), end: formatDate(data.fy.end) })}
+            info={<InfoButton topic="ledger" />}
           />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label={t("ledger.revenue")} value={formatEuro(data.profit.revenueCents)} />

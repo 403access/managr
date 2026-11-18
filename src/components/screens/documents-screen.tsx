@@ -5,6 +5,7 @@ import type { documentsView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { Tab, Tabs } from "@/components/tabs";
@@ -21,7 +22,7 @@ export function DocumentsScreen() {
     <ViewGate query={query}>
       {(data) => (
         <>
-          <PageHeader title={t("docs.title")} lede={t("docs.lede")} />
+          <PageHeader title={t("docs.title")} lede={t("docs.lede")} info={<InfoButton topic="documents" />} />
           <Tabs label={t("tabs.sections")}>
           <Tab id="files" label={t("docs.title")}>
           {data.documents.length === 0 ? (

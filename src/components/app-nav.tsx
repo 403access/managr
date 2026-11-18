@@ -27,6 +27,7 @@ function Icon({ name }: { name: NavIcon }) {
       {name === "legal" ? <path {...common} d="M12 3.5v3M8 6.5h8M7 10.5 5 18h6l-2-7.5M17 10.5 15 18h6l-2-7.5M4 20.5h16" /> : null}
       {name === "projects" ? <path {...common} d="M4 7.5h6l2 2h8v9H4zM4 7.5v-2h6l2 2" /> : null}
       {name === "analytics" ? <path {...common} d="M4 20.5h16M7 20.5v-6M12 20.5V8M17 20.5V4.5" /> : null}
+      {name === "sources" ? <path {...common} d="M4 5.5h6.5a1.5 1.5 0 0 1 1.5 1.5v13a1.5 1.5 0 0 0-1.5-1.5H4zM20 5.5h-6.5A1.5 1.5 0 0 0 12 7v13a1.5 1.5 0 0 1 1.5-1.5H20zM7 9h2.5M7 12h2.5M14.5 9H17M14.5 12H17" /> : null}
     </svg>
   );
 }

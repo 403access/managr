@@ -8,6 +8,7 @@ import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { Card, Empty, Field, PageHeader, Pill, SelectInput, TextArea, TextInput } from "@/components/ui";
@@ -101,6 +102,7 @@ export function ProjectsScreen() {
           <PageHeader
             title={t("projects.title")}
             lede={t("projects.lede")}
+            info={<InfoButton topic="projects" />}
             action={<Link href="/analytics" className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm">{t("projects.analytics")}</Link>}
           />
           {data.projects.length === 0 ? <Empty>{t("projects.empty")}</Empty> : null}

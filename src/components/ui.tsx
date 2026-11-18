@@ -62,11 +62,14 @@ export function Card({ children, className = "", id }: { children: ReactNode; cl
   return <div id={id} className={`rounded-2xl border border-line bg-card p-4 ${className}`}>{children}</div>;
 }
 
-export function PageHeader({ title, lede, action }: { title: string; lede?: string; action?: ReactNode }) {
+export function PageHeader({ title, lede, action, info }: { title: string; lede?: string; action?: ReactNode; info?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div className="max-w-2xl">
-        <h1 className="text-3xl leading-tight text-ink md:text-4xl">{title}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-3xl leading-tight text-ink md:text-4xl">{title}</h1>
+          {info}
+        </div>
         {lede ? <p className="mt-2 text-sm leading-relaxed text-muted">{lede}</p> : null}
       </div>
       {action}

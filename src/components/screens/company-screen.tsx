@@ -11,6 +11,7 @@ import { FEDERAL_STATES } from "@/domain/states";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { euroInput, percentInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { ReserveHint } from "@/components/reserve-hint";
 import { useView, ViewGate } from "@/components/use-view";
@@ -40,7 +41,7 @@ export function CompanyScreen() {
         const { company } = data;
         return (
           <>
-            <PageHeader title={t("company.title")} lede={t("company.lede")} />
+            <PageHeader title={t("company.title")} lede={t("company.lede")} info={<InfoButton topic="company" />} />
             <Tabs label={t("tabs.sections")}>
             <Tab id="companies" label={t("company.companies")}>
               <div className="grid gap-2">

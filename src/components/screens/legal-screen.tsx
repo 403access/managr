@@ -7,6 +7,7 @@ import { formatEuro } from "@/domain/money";
 import { GMBH_MINIMUM_CAPITAL_CENTS } from "@/domain/rates-2026";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { Tab, Tabs } from "@/components/tabs";
@@ -23,7 +24,7 @@ export function LegalScreen() {
         const areas = [...new Set(data.items.map((item) => item.area))];
         return (
           <>
-            <PageHeader title={t("legal.title")} lede={t("legal.lede", { amount: formatEuro(GMBH_MINIMUM_CAPITAL_CENTS) })} />
+            <PageHeader title={t("legal.title")} lede={t("legal.lede", { amount: formatEuro(GMBH_MINIMUM_CAPITAL_CENTS) })} info={<InfoButton topic="legal" />} />
             <Tabs label={t("tabs.sections")}>
             {areas.map((area) => (
               <Tab key={area} id={area} label={label(area) === area ? area : label(area)}>

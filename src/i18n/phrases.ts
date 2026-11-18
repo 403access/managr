@@ -197,7 +197,7 @@ const exact: Record<string, string> = {
   "The break must be shorter than the recorded span.": "Die Pause muss kürzer sein als die erfasste Spanne.",
   "Net working time is over 10 hours (§3 ArbZG).": "Die Nettoarbeitszeit liegt über 10 Stunden (§ 3 ArbZG).",
   "Above 8 hours. The average has to come back to 8 (§3 ArbZG).": "Über 8 Stunden. Der Durchschnitt muss wieder auf 8 Stunden zurück (§ 3 ArbZG).",
-  "A day over 9 hours needs a 45-minute break (§4 ArbZG).": "Ein Arbeitstag über 9 Stunden braucht eine Pause von 45 Minuten (§ 4 ArbZG).",
+  "A day over 9 hours needs a 60-minute break (§4 ArbZG).": "Ein Arbeitstag über 9 Stunden braucht eine Pause von 60 Minuten (§ 4 ArbZG).",
   "A day over 6 hours needs a 30-minute break (§4 ArbZG).": "Ein Arbeitstag über 6 Stunden braucht eine Pause von 30 Minuten (§ 4 ArbZG).",
 
   "The legal name must contain Unternehmergesellschaft (haftungsbeschränkt) or UG (haftungsbeschränkt).": "Die Firma muss „Unternehmergesellschaft (haftungsbeschränkt)“ oder „UG (haftungsbeschränkt)“ enthalten.",

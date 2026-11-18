@@ -10,6 +10,7 @@ import { allocateLineVat } from "@/domain/vat";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { euroInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { XRechnungCheck } from "@/components/xrechnung-check";
@@ -32,6 +33,7 @@ export function InvoiceScreen({ id }: { id: number }) {
             <PageHeader
               title={invoice.number ?? t("common.draft")}
               lede={`${customer.name} · ${t("invoices.issued", { date: formatDate(invoice.issueDate) })} · ${t("invoices.dueShort", { date: formatDate(invoice.dueDate) })}`}
+              info={<InfoButton topic="invoice" />}
               action={
                 <span className="flex flex-wrap gap-2">
                   <Pill tone={status}>{label(status)}</Pill>

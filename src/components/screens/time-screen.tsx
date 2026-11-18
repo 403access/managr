@@ -8,6 +8,7 @@ import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
 import { Tab, Tabs } from "@/components/tabs";
@@ -30,6 +31,7 @@ export function TimeScreen({ week }: { week: string }) {
           <PageHeader
             title={t("time.title")}
             lede={`${formatDate(data.start)} – ${formatDate(data.end)}`}
+            info={<InfoButton topic="time" />}
             action={
               <span className="flex flex-wrap gap-2">
                 <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href="/projects">
