@@ -3,6 +3,7 @@ import { CHART, ACCOUNTS, signedBalance } from "@/domain/accounts";
 import { addDays, fiscalYearContaining, todayIso } from "@/domain/calendar";
 import { currentDirectorContract, reviewDirectorContract } from "@/domain/director-contract";
 import { reviewDirectorSalary } from "@/domain/director-salary";
+import { reviewFounderHealth } from "@/domain/founder-health";
 import { reviewInvoice } from "@/domain/invoice";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
 import { policyReminders } from "@/domain/obligations";
@@ -18,6 +19,7 @@ import { durationMinutes, minimumVacationDays, timeWarnings, vacationShortfall }
 import { euroInput, quantityInput } from "@/components/amounts";
 import {
   accountBalances,
+  getFounderHealth,
   listCompliance,
   listCashMovements,
   listCustomers,
@@ -374,6 +376,7 @@ export function personView(id: number) {
   const salaryResolutionDate = salaryResolutionDates[0] ?? null;
   const contracts = listDirectorContracts(employee.id);
   const currentContract = currentDirectorContract(contracts, todayIso());
+  const founderHealthCover = getFounderHealth(employee.id);
   return {
     employee,
     company: { stateCode: company.stateCode, additionalKvBps: company.additionalKvBps },
@@ -392,6 +395,14 @@ export function personView(id: number) {
     shareholder,
     contracts,
     currentContract,
+    founderHealth: founderHealthCover,
+    healthReview: reviewFounderHealth({
+      kind: employee.kind,
+      ownershipBps: employee.ownershipBps,
+      cover: founderHealthCover,
+      startDate: employee.startDate,
+      today: todayIso(),
+    }),
     salaryResolutionDate,
     contractReview: reviewDirectorContract({
       kind: employee.kind,

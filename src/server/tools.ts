@@ -10,6 +10,7 @@ import {
   customDeadlines,
   directorContracts,
   employees,
+  founderHealth,
   invoiceLines,
   invoices,
   journalEntries,
@@ -108,6 +109,9 @@ const ABSENCE_STATUS = ["approved", "requested", "rejected"] as const;
 const POLICY_KIND = ["health", "liability", "contents", "legal", "other"] as const;
 const RESOLUTION_KIND = ["formation", "profit", "salary", "appointment", "other"] as const;
 const LOAN_KIND = ["drawdown", "repayment", "interest"] as const;
+const FOUNDER_HEALTH_KIND = ["private", "voluntary_statutory"] as const;
+const STATUS_PROCEDURE = ["not_required", "requested", "completed"] as const;
+const STATUS_OUTCOME = ["open", "not_socially_insured", "socially_insured"] as const;
 const RECURRENCE = ["none", "monthly", "quarterly", "yearly"] as const;
 
 export type DeskTool = {
@@ -1386,6 +1390,66 @@ export const tools: DeskTool[] = [
       if (!row) throw new Error("Service contract not found.");
       getDb().delete(directorContracts).where(eq(directorContracts.id, row.id)).run();
       return { id: row.id, removed: true };
+    },
+  }),
+  tool({
+    name: "save_founder_health",
+    description:
+      "Record a managing director's health cover: private or voluntary statutory, the premium, the start, and the Statusfeststellungsverfahren. This is not a payroll deduction.",
+    input: {
+      personId: z.number().int().positive(),
+      kind: z.string().trim().describe("private or voluntary_statutory."),
+      provider: z.string().trim().max(160).optional(),
+      monthlyPremium: z.string().trim().optional().describe('Monthly premium in euro, for example "486,00".'),
+      startsOn: z.string().describe("YYYY-MM-DD."),
+      statusProcedure: z.string().trim().optional().describe("not_required, requested, or completed."),
+      statusOn: z.string().optional().describe("YYYY-MM-DD."),
+      statusOutcome: z.string().trim().optional().describe("open, not_socially_insured, or socially_insured."),
+      notes: z.string().trim().max(1000).optional(),
+    },
+    run: (input) => {
+      const employee = requireEmployee(input.personId);
+      if (employee.kind !== "managing_director") throw new Error("Health cover of a founder belongs to a managing director.");
+      const values = {
+        kind: oneOf(input.kind, FOUNDER_HEALTH_KIND, "Health cover"),
+        provider: input.provider ?? "",
+        monthlyPremiumCents: input.monthlyPremium ? cents(input.monthlyPremium, "The monthly premium") : 0,
+        startsOn: date(input.startsOn, "The cover start"),
+        statusProcedure: oneOf(input.statusProcedure ?? "not_required", STATUS_PROCEDURE, "Status procedure"),
+        statusOn: input.statusOn ? date(input.statusOn, "The status procedure") : null,
+        statusOutcome: oneOf(input.statusOutcome ?? "open", STATUS_OUTCOME, "Status outcome"),
+        notes: input.notes ?? "",
+      };
+      if (values.monthlyPremiumCents < 0) throw new Error("The monthly premium cannot be negative.");
+      const db = getDb();
+      const company = requireCompany();
+      const existing = db
+        .select()
+        .from(founderHealth)
+        .where(and(eq(founderHealth.employeeId, employee.id), eq(founderHealth.companyId, company.id)))
+        .get();
+      if (existing) {
+        db.update(founderHealth).set(values).where(eq(founderHealth.id, existing.id)).run();
+        return { id: existing.id, personId: employee.id, saved: true };
+      }
+      const created = db
+        .insert(founderHealth)
+        .values({ ...values, companyId: company.id, employeeId: employee.id, createdAt: new Date().toISOString() })
+        .run();
+      return { id: Number(created.lastInsertRowid), personId: employee.id, saved: true };
+    },
+  }),
+  tool({
+    name: "delete_founder_health",
+    description: "Remove a managing director's health-cover record.",
+    input: { personId: z.number().int().positive() },
+    run: (input) => {
+      const employee = requireEmployee(input.personId);
+      const db = getDb();
+      db.delete(founderHealth)
+        .where(and(eq(founderHealth.employeeId, employee.id), eq(founderHealth.companyId, requireCompany().id)))
+        .run();
+      return { personId: employee.id, removed: true };
     },
   }),
   tool({

@@ -109,6 +109,17 @@ A salary can change over time. `salary_periods` holds one row per change: the da
 
 Health insurance for a controlling shareholder-director is a policy record (private or voluntary statutory), not a payroll deduction. Renewal dates surface as reminders.
 
+`founder_health` adds the founder-specific view of that cover: the kind (`private` or `voluntary_statutory`), the provider, the monthly premium, the start of cover, the Statusfeststellungsverfahren (`not_required`, `requested`, `completed`), its date, and the outcome (`open`, `not_socially_insured`, `socially_insured`). It holds one row per managing director in a company.
+
+`reviewFounderHealth` in `src/domain/founder-health.ts` is a reminder list:
+
+- No cover, or cover without a monthly premium, is called out.
+- An open status procedure is called out.
+- A completed procedure without a date is called out.
+- A managing director with half the shares or less often needs a Statusfeststellungsverfahren; `not_required` is then called out.
+
+The premium is not posted to payroll and not withheld. The health insurer decides the status; managr records what the user confirms and does not decide social-insurance status.
+
 ## Managing-director service contract
 
 A managing director's written service contract fixes the salary in advance. `director_contracts` stores the signing date (`signed_on`), the start of the term (`valid_from`), an optional end (`ended_on`), and the fixed monthly gross. A person can have several contracts in sequence; `currentDirectorContract` in `src/domain/director-contract.ts` returns the contract that applies on a date and ignores a future contract.

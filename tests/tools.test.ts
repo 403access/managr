@@ -219,6 +219,43 @@ describe("shareholder loans", () => {
   });
 });
 
+describe("founder health cover", () => {
+  it("saves the cover and its status procedure on a managing director", async () => {
+    const people = data<{ people: { id: number; lastName: string; kind: string }[] }>(await runTool("read_people", {}));
+    const mara = people.people.find((person) => person.lastName === "Elling")!;
+    const jonas = people.people.find((person) => person.lastName === "Rehberg")!;
+
+    const saved = data<{ id: number; personId: number; saved: boolean }>(
+      await runTool("save_founder_health", {
+        personId: mara.id,
+        kind: "voluntary_statutory",
+        provider: "Testkasse",
+        monthlyPremium: "520,00",
+        startsOn: "2024-03-15",
+        statusProcedure: "completed",
+        statusOn: "2024-04-01",
+        statusOutcome: "not_socially_insured",
+      }),
+    );
+    expect(saved.saved).toBe(true);
+
+    const person = data<{ founderHealth: { kind: string; monthlyPremiumCents: number; statusProcedure: string }; healthReview: { warnings: string[] } }>(
+      await runTool("read_person", { personId: mara.id }),
+    );
+    expect(person.founderHealth.kind).toBe("voluntary_statutory");
+    expect(person.founderHealth.monthlyPremiumCents).toBe(52_000);
+    expect(person.founderHealth.statusProcedure).toBe("completed");
+
+    const wrongPerson = await runTool("save_founder_health", {
+      personId: jonas.id,
+      kind: "private",
+      startsOn: "2024-03-15",
+    });
+    expect(wrongPerson.ok).toBe(false);
+    expect(wrongPerson.ok === false ? wrongPerson.error : "").toMatch(/managing director/);
+  });
+});
+
 describe("director contract", () => {
   it("records a prospective contract and refuses a retroactive one", async () => {
     const people = data<{ people: { id: number; lastName: string }[] }>(await runTool("read_people", {}));

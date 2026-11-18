@@ -11,6 +11,7 @@ import {
   directorContracts,
   documents,
   employees,
+  founderHealth,
   invoiceLines,
   invoices,
   journalEntries,
@@ -301,6 +302,14 @@ export function listOrgMembers() {
 
 export function listSalaryPeriods(employeeId: number) {
   return getDb().select().from(salaryPeriods).where(eq(salaryPeriods.employeeId, employeeId)).orderBy(desc(salaryPeriods.validFrom)).all();
+}
+
+export function getFounderHealth(employeeId: number) {
+  return getDb()
+    .select()
+    .from(founderHealth)
+    .where(and(eq(founderHealth.employeeId, employeeId), eq(founderHealth.companyId, loadCompany().id)))
+    .get() ?? null;
 }
 
 export function listShareholderLoans() {

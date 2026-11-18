@@ -1,6 +1,6 @@
 "use client";
 
-import { addAbsence, deleteAbsence, deleteDirectorContract, deleteSalaryPeriod, payShareholder, saveDirectorContract, saveSalaryPeriod } from "@/server/actions";
+import { addAbsence, deleteAbsence, deleteDirectorContract, deleteFounderHealth, deleteSalaryPeriod, payShareholder, saveDirectorContract, saveFounderHealth, saveSalaryPeriod } from "@/server/actions";
 import type { personView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { formatEuro, formatPercentBps } from "@/domain/money";
@@ -15,7 +15,7 @@ import { PayrollForm } from "@/components/payroll-form";
 import { PayslipTable } from "@/components/payslip-table";
 import { useView, ViewGate } from "@/components/use-view";
 import { Tab, Tabs } from "@/components/tabs";
-import { Card, Disclaimer, Field, PageHeader, Pill, SelectInput, TextInput } from "@/components/ui";
+import { Card, Disclaimer, Field, PageHeader, Pill, SelectInput, TextArea, TextInput } from "@/components/ui";
 
 type Person = NonNullable<ReturnType<typeof personView>>;
 
@@ -76,6 +76,71 @@ export function PersonScreen({ id }: { id: number }) {
                 <div className="mt-3">
                   <Disclaimer>{t("people.shareholderNote")}</Disclaimer>
                 </div>
+              </Card>
+            ) : null}
+            {employee.kind === "managing_director" ? (
+              <Card className="mt-6">
+                <h2 className="text-xl">{t("people.healthTitle")}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted">{t("people.healthBody")}</p>
+                {loaded.healthReview.warnings.map((warning) => (
+                  <p key={warning} className="mt-2 text-sm text-amber">{tx(warning)}</p>
+                ))}
+                {loaded.founderHealth ? (
+                  <div className="mt-3 rounded-xl border border-line bg-white p-3">
+                    <p className="text-sm font-medium">
+                      {t("people.healthLine", {
+                        kind: label(loaded.founderHealth.kind),
+                        premium: formatEuro(loaded.founderHealth.monthlyPremiumCents),
+                        date: formatDate(loaded.founderHealth.startsOn),
+                      })}
+                    </p>
+                    <p className="mt-1 text-sm text-muted">
+                      {t("people.healthStatus", {
+                        procedure: label(loaded.founderHealth.statusProcedure),
+                        date: loaded.founderHealth.statusOn ? formatDate(loaded.founderHealth.statusOn) : t("people.healthNoDate"),
+                        outcome: label(loaded.founderHealth.statusOutcome),
+                      })}
+                    </p>
+                    {loaded.founderHealth.provider ? <p className="mt-1 text-xs text-muted">{loaded.founderHealth.provider}</p> : null}
+                    {loaded.founderHealth.notes ? <p className="mt-1 text-xs text-muted">{loaded.founderHealth.notes}</p> : null}
+                    <ActionForm action={deleteFounderHealth} compact confirm={t("people.healthRemove")} className="mt-2 flex flex-wrap items-center gap-2">
+                      <input type="hidden" name="employeeId" value={employee.id} />
+                      <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
+                    </ActionForm>
+                  </div>
+                ) : <p className="mt-3 text-sm text-muted">{t("people.healthNone")}</p>}
+                <ActionForm action={saveFounderHealth} className="mt-4 grid gap-3">
+                  <input type="hidden" name="employeeId" value={employee.id} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label={t("people.healthKind")}>
+                      <SelectInput name="kind" defaultValue={loaded.founderHealth?.kind ?? "private"}>
+                        <option value="private">{label("private")}</option>
+                        <option value="voluntary_statutory">{label("voluntary_statutory")}</option>
+                      </SelectInput>
+                    </Field>
+                    <Field label={t("people.healthProvider")}><TextInput name="provider" defaultValue={loaded.founderHealth?.provider ?? ""} /></Field>
+                    <Field label={t("people.healthPremium")}><TextInput name="premium" inputMode="decimal" defaultValue={loaded.founderHealth ? euroInput(loaded.founderHealth.monthlyPremiumCents) : ""} /></Field>
+                    <Field label={t("people.healthStart")}><TextInput name="startsOn" type="date" defaultValue={loaded.founderHealth?.startsOn ?? loaded.today} /></Field>
+                    <Field label={t("people.healthProcedure")}>
+                      <SelectInput name="statusProcedure" defaultValue={loaded.founderHealth?.statusProcedure ?? "not_required"}>
+                        <option value="not_required">{label("not_required")}</option>
+                        <option value="requested">{label("requested")}</option>
+                        <option value="completed">{label("completed")}</option>
+                      </SelectInput>
+                    </Field>
+                    <Field label={t("people.healthStatusOn")}><TextInput name="statusOn" type="date" defaultValue={loaded.founderHealth?.statusOn ?? ""} /></Field>
+                    <Field label={t("people.healthOutcome")}>
+                      <SelectInput name="statusOutcome" defaultValue={loaded.founderHealth?.statusOutcome ?? "open"}>
+                        <option value="open">{label("open")}</option>
+                        <option value="not_socially_insured">{label("not_socially_insured")}</option>
+                        <option value="socially_insured">{label("socially_insured")}</option>
+                      </SelectInput>
+                    </Field>
+                  </div>
+                  <Field label={t("common.notes")}><TextArea name="notes" defaultValue={loaded.founderHealth?.notes ?? ""} /></Field>
+                  <SubmitButton>{t("people.healthSave")}</SubmitButton>
+                </ActionForm>
+                <p className="mt-3 text-xs leading-relaxed text-muted">{t("people.healthNote")}</p>
               </Card>
             ) : null}
             <h2 className={`${estimate ? "mt-6" : ""} mb-3 text-2xl`}>{t("people.vacation")}</h2>

@@ -13,6 +13,7 @@ import {
   directorContracts,
   documents,
   employees,
+  founderHealth,
   invoiceLines,
   invoices,
   journalEntries,
@@ -80,6 +81,9 @@ const ABSENCE_STATUS = ["approved", "requested", "rejected"] as const;
 const POLICY_KIND = ["health", "liability", "contents", "legal", "other"] as const;
 const RESOLUTION_KIND = ["formation", "profit", "salary", "appointment", "other"] as const;
 const LOAN_KIND = ["drawdown", "repayment", "interest"] as const;
+const FOUNDER_HEALTH_KIND = ["private", "voluntary_statutory"] as const;
+const STATUS_PROCEDURE = ["not_required", "requested", "completed"] as const;
+const STATUS_OUTCOME = ["open", "not_socially_insured", "socially_insured"] as const;
 const DOCUMENT_CATEGORY = ["corporate", "tax", "invoice", "employment", "insurance", "other"] as const;
 const MILESTONE_STATUS = MILESTONE_STATUSES;
 const MILESTONE_CATEGORY = MILESTONE_CATEGORIES;
@@ -1021,6 +1025,59 @@ export async function saveDirectorContract(_state: ActionState, formData: FormDa
     }
     db.insert(directorContracts).values({ ...values, companyId: requireCompany().id, employeeId: employee.id, createdAt: new Date().toISOString() }).run();
     return saved("Managing-director service contract saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function saveFounderHealth(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const employee = requireEmployee(formData);
+    if (employee.kind !== "managing_director") {
+      throw new Error("Health cover of a founder belongs to a managing director.");
+    }
+    const kind = oneOf(text(formData, "kind"), FOUNDER_HEALTH_KIND, "Health cover");
+    const startsOn = requireDate(text(formData, "startsOn"), "The cover start");
+    const premium = euros(formData, "premium");
+    if (premium === null || premium < 0) throw new Error("Enter the monthly premium. Use 0 if it is not known.");
+    const statusOnRaw = text(formData, "statusOn");
+    const statusOn = statusOnRaw ? requireDate(statusOnRaw, "The status procedure") : null;
+    const values = {
+      kind,
+      provider: text(formData, "provider"),
+      monthlyPremiumCents: premium,
+      startsOn,
+      statusProcedure: oneOf(text(formData, "statusProcedure") || "not_required", STATUS_PROCEDURE, "Status procedure"),
+      statusOn,
+      statusOutcome: oneOf(text(formData, "statusOutcome") || "open", STATUS_OUTCOME, "Status outcome"),
+      notes: text(formData, "notes"),
+    };
+    const db = getDb();
+    const company = requireCompany();
+    const existing = db
+      .select()
+      .from(founderHealth)
+      .where(and(eq(founderHealth.employeeId, employee.id), eq(founderHealth.companyId, company.id)))
+      .get();
+    if (existing) {
+      db.update(founderHealth).set(values).where(eq(founderHealth.id, existing.id)).run();
+      return saved("Founder health cover saved.");
+    }
+    db.insert(founderHealth).values({ ...values, companyId: company.id, employeeId: employee.id, createdAt: new Date().toISOString() }).run();
+    return saved("Founder health cover saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function deleteFounderHealth(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const employee = requireEmployee(formData);
+    getDb()
+      .delete(founderHealth)
+      .where(and(eq(founderHealth.employeeId, employee.id), eq(founderHealth.companyId, requireCompany().id)))
+      .run();
+    return saved("Founder health cover removed.");
   } catch (error) {
     return failed(error);
   }

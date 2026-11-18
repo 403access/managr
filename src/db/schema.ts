@@ -190,6 +190,25 @@ export const directorContracts = sqliteTable("director_contracts", {
   createdAt: text("created_at").notNull(),
 });
 
+export const founderHealth = sqliteTable(
+  "founder_health",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    employeeId: integer("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    provider: text("provider").notNull().default(""),
+    monthlyPremiumCents: integer("monthly_premium_cents").notNull().default(0),
+    startsOn: text("starts_on").notNull(),
+    statusProcedure: text("status_procedure").notNull().default("not_required"),
+    statusOn: text("status_on"),
+    statusOutcome: text("status_outcome").notNull().default("open"),
+    notes: text("notes").notNull().default(""),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("founder_health_employee_unique").on(table.companyId, table.employeeId)],
+);
+
 export const shareholderLoans = sqliteTable("shareholder_loans", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),

@@ -27,6 +27,7 @@ import {
   directorContracts,
   documents,
   employees,
+  founderHealth,
   journalEntries,
   invoiceLines,
   invoices,
@@ -276,6 +277,21 @@ export function seedIfEmpty(db: DB) {
       { companyId, label: "Kranken- und Pflegeversicherung Mara", kind: "health", provider: "Nordstern Kranken", policyNumber: "PKV-44021", monthlyPremiumCents: 48_600, renewalDate: on(120), notes: "Private Krankenversicherung der Geschäftsführerin. Keine Lohnabzugsposition." },
       { companyId, label: "Betriebshaftpflicht", kind: "liability", provider: "Nordstern Versicherung", policyNumber: "BH-1882", monthlyPremiumCents: 3_500, renewalDate: on(26), notes: "Beispielpolice. Die echte Verlängerung prüfen." },
     ]).run();
+    tx.insert(founderHealth)
+      .values({
+        companyId,
+        employeeId: maraId,
+        kind: "private",
+        provider: "Nordstern Kranken",
+        monthlyPremiumCents: 48_600,
+        startsOn: "2024-03-15",
+        statusProcedure: "not_required",
+        statusOn: null,
+        statusOutcome: "not_socially_insured",
+        notes: "Beispiel: beherrschende Gesellschafter-Geschäftsführerin, private Krankenversicherung. Keine Lohnabzugsposition.",
+        createdAt: new Date().toISOString(),
+      })
+      .run();
 
     insertId(tx.insert(tasks).values({ companyId, title: "Überfällige Rechnung Havel nachfassen", notes: "Eine Erinnerung, dann eine zweite, bevor eine Mahnung in Betracht kommt.", dueDate: on(2), status: "open", area: "invoices", taskType: "communication" }).run());
     insertId(tx.insert(tasks).values({ companyId, title: "Umsatzsteuerzahlen für Oktober zusammenstellen", notes: "Umsatzsteuer, Vorsteuer und die Vorauszahlung.", dueDate: on(12), status: "open", area: "tax", taskType: "admin" }).run());

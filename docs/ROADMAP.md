@@ -67,8 +67,8 @@ This roadmap turns the founder's questions into work items: paying yourself from
 
 - [x] A managing director with more than half the shares is treated as not socially insured by default. This is not a Statusfeststellung.
 - [x] Health cover is a policy record with a renewal reminder; it is not a payroll deduction.
-- [ ] Record the founder's cover as private or voluntary statutory, with premium and start date.
-- [ ] Record the Statusfeststellungsverfahren and its outcome, and remind when it is still open.
+- [x] Record the founder's cover as private or voluntary statutory, with premium and start date.
+- [x] Record the Statusfeststellungsverfahren and its outcome, and remind when it is still open.
 - [x] The social-insurance estimate states that health and care cover sit outside payroll.
 
 ### 4. Tax, payroll, and bookkeeping
@@ -87,7 +87,7 @@ This roadmap turns the founder's questions into work items: paying yourself from
 - [x] A service contract dated after its start is refused, and a contract gross that differs from the person record is called out.
 - [x] Every salary change needs a resolution dated on or before the change.
 - [x] The loan records keep their own dates and notes, so the paperwork is traceable.
-- [ ] The health record keeps its own start date, premium, and status-procedure outcome.
+- [x] The health record keeps its own start date, premium, and status-procedure outcome.
 
 ### 6. Reserve and the step to a GmbH
 
