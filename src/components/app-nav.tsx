@@ -32,22 +32,24 @@ function Icon({ name }: { name: NavIcon }) {
   );
 }
 
-function Item({ item, pathname, label, onNavigate }: { item: NavItem; pathname: string; label: string; onNavigate?: () => void }) {
+function Item({ item, pathname, label, collapsed, onNavigate }: { item: NavItem; pathname: string; label: string; collapsed?: boolean; onNavigate?: () => void }) {
   const on = active(pathname, item.href);
   return (
     <Link
       href={item.href}
       onClick={onNavigate}
-      className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm ${on ? "bg-pine text-paper" : "text-ink hover:bg-white"}`}
+      title={collapsed ? label : undefined}
+      aria-label={collapsed ? label : undefined}
+      className={`flex min-h-11 items-center rounded-xl text-sm ${collapsed ? "w-11 justify-center" : "gap-3 px-3"} ${on ? "bg-pine text-paper" : "text-ink hover:bg-white"}`}
       aria-current={on ? "page" : undefined}
     >
       <Icon name={item.icon} />
-      {label}
+      {collapsed ? null : label}
     </Link>
   );
 }
 
-export function AppNav({ variant }: { variant: "side" | "bottom" }) {
+export function AppNav({ variant, collapsed = false }: { variant: "side" | "bottom"; collapsed?: boolean }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -56,17 +58,21 @@ export function AppNav({ variant }: { variant: "side" | "bottom" }) {
   if (variant === "side") {
     return (
       <div className="mt-6 flex min-h-0 flex-1 flex-col">
-        <nav className="grid gap-1" aria-label={t("nav.sections")}>
+        <nav className={`grid gap-1 ${collapsed ? "justify-items-center" : ""}`} aria-label={t("nav.sections")}>
           {primaryNav.map((item) => (
-            <Item key={item.href} item={item} pathname={pathname} label={t(item.labelKey)} />
+            <Item key={item.href} item={item} pathname={pathname} label={t(item.labelKey)} collapsed={collapsed} />
           ))}
-          <p className="mt-4 px-3 text-xs font-medium tracking-wide text-muted uppercase">{t("nav.more")}</p>
+          {collapsed ? (
+            <span className="my-2 h-px w-8 justify-self-center bg-line" aria-hidden="true" />
+          ) : (
+            <p className="mt-4 px-3 text-xs font-medium tracking-wide text-muted uppercase">{t("nav.more")}</p>
+          )}
           {moreNav.map((item) => (
-            <Item key={item.href} item={item} pathname={pathname} label={t(item.labelKey)} />
+            <Item key={item.href} item={item} pathname={pathname} label={t(item.labelKey)} collapsed={collapsed} />
           ))}
         </nav>
-        <div className="mt-auto pt-4">
-          <LanguageSwitch />
+        <div className={`mt-auto pt-4 ${collapsed ? "flex justify-center" : ""}`}>
+          <LanguageSwitch compact={collapsed} />
         </div>
       </div>
     );

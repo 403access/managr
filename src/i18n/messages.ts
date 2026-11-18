@@ -40,6 +40,8 @@ export const de = {
   "nav.sections": "Bereiche",
   "nav.moreSections": "Weitere Bereiche",
   "nav.primary": "Hauptnavigation",
+  "nav.collapse": "Seitenleiste einklappen",
+  "nav.expand": "Seitenleiste ausklappen",
   "tabs.sections": "Abschnitte",
 
   "info.open": "Erklärungen zu {topic} öffnen",
@@ -768,6 +770,8 @@ export const en: { [K in MessageKey]: string } = {
   "nav.sections": "Sections",
   "nav.moreSections": "More sections",
   "nav.primary": "Primary",
+  "nav.collapse": "Collapse sidebar",
+  "nav.expand": "Expand sidebar",
   "tabs.sections": "Sections",
 
   "info.open": "Open explanations for {topic}",

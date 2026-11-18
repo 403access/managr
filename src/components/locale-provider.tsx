@@ -45,10 +45,10 @@ export function useI18n(): I18n {
   return value;
 }
 
-export function LanguageSwitch() {
+export function LanguageSwitch({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale, t: translate } = useI18n();
   return (
-    <div className="flex gap-1" role="group" aria-label={translate("lang.label")}>
+    <div className={`flex gap-1 ${compact ? "flex-col" : ""}`} role="group" aria-label={translate("lang.label")}>
       {(["de", "en"] as const).map((code) => (
         <button
           key={code}
