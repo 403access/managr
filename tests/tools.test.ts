@@ -30,10 +30,16 @@ describe("tool registry", () => {
     expect(tools.length).toBeGreaterThan(30);
     expect(tools.some((tool) => tool.name === "create_invoice")).toBe(true);
     expect(tools.some((tool) => tool.name === "daily_briefing")).toBe(true);
+    expect(tools.some((tool) => tool.name === "read_org")).toBe(true);
+    expect(tools.some((tool) => tool.name === "read_guides")).toBe(true);
+    expect(tools.some((tool) => tool.name === "read_sources")).toBe(true);
     const schema = toolJsonSchema(tools.find((tool) => tool.name === "record_invoice_payment")!);
     expect(schema.type).toBe("object");
     expect(Object.keys(schema.properties as Record<string, unknown>)).toEqual(["invoiceId", "amount", "paidOn"]);
     expect(schema).not.toHaveProperty("$schema");
+    const guides = toolJsonSchema(tools.find((tool) => tool.name === "read_guides")!);
+    expect(guides.type).toBe("object");
+    expect(Object.keys(guides.properties as Record<string, unknown>)).toEqual(["topic", "locale"]);
   });
 
   it("refuses an unknown tool and a malformed input", async () => {
@@ -59,6 +65,17 @@ describe("tool registry", () => {
     const bank = data<{ connection: unknown; accounts: unknown[] }>(await runTool("read_bank", {}));
     expect(bank.connection).toBeNull();
     expect(bank.accounts).toEqual([]);
+    const org = data<{ roots: { firstName: string }[]; total: number }>(await runTool("read_org", {}));
+    expect(org.total).toBeGreaterThan(0);
+    expect(org.roots.length).toBeGreaterThan(0);
+    const guide = data<{ sections: unknown[]; sources: { url: string }[] }>(await runTool("read_guides", { topic: "invoice" }));
+    expect(guide.sections.length).toBeGreaterThan(0);
+    expect(guide.sources.every((source) => source.url.startsWith("https://"))).toBe(true);
+    const register = data<{ total: number; groups: { domain: string }[] }>(await runTool("read_sources", {}));
+    expect(register.total).toBeGreaterThan(0);
+    expect(register.groups.length).toBeGreaterThan(0);
+    const cited = data<{ total: number }>(await runTool("read_sources", { topic: "invoice" }));
+    expect(cited.total).toBe(guide.sources.length);
   });
 });
 
@@ -170,6 +187,18 @@ describe("payroll and the shareholder director", () => {
     expect(paid.amountCents).toBe(270_000);
     const person = data<{ shareholderPayableCents: number }>(await runTool("read_person", { personId: mara.id }));
     expect(person.shareholderPayableCents).toBe(0);
+  });
+
+  it("removes a scheduled salary change", async () => {
+    const people = data<{ people: { id: number; lastName: string }[] }>(await runTool("read_people", {}));
+    const jonas = people.people.find((person) => person.lastName === "Rehberg")!;
+    const change = data<{ id: number }>(
+      await runTool("add_salary_change", { personId: jonas.id, validFrom: "2028-01-01", grossMonthly: "1900,00" }),
+    );
+    const removed = data<{ removed: boolean }>(await runTool("delete_salary_change", { personId: jonas.id, salaryChangeId: change.id }));
+    expect(removed.removed).toBe(true);
+    const person = data<{ salaryPeriods: { id: number }[] }>(await runTool("read_person", { personId: jonas.id }));
+    expect(person.salaryPeriods.some((period) => period.id === change.id)).toBe(false);
   });
 
   it("refuses a second payroll for the same person and month", async () => {

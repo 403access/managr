@@ -13,14 +13,14 @@ Both surfaces use the same registry in `src/server/tools.ts`. There is no second
 
 ## Status
 
-All four phases have shipped. The widget is in the app shell, the MCP endpoint answers at `/api/mcp`, and the registry has read tools, write tools, and four deterministic briefings. The phase headings below describe what each one added.
+All four phases have shipped. The widget is in the app shell, the MCP endpoint answers at `/api/mcp`, and the registry has read tools, write tools, and four deterministic briefings. The registry follows the screens: the org chart, the Qonto bank view, the money-flow page, analytics, milestones, and the source register are all reachable. The phase headings below describe what each one added.
 
 ## Boundaries
 
 - The assistant is a caller, not an authority. It may not file, send, or decide a tax or legal question, and it must not invent a wage-tax figure or a social-insurance status.
 - Books stay append-only. Corrections are reversing entries, exactly as on the screens.
 - Nothing is sent. No e-invoice, no e-mail, no ELSTER, no Peppol.
-- File uploads stay on the screen. A tool may list documents, not write or delete files.
+- File uploads stay on the screen. A tool may list documents, not write or delete files. The Qonto connection is set up on the bank screen; a tool reads the stored bank view and does not hold the key.
 - The assistant reaches a model only through the local opencode installation or the endpoint you configure. With a local model (Ollama or a local OpenAI-compatible server) the data stays on this computer; with a cloud model, the conversation and the tool results leave it. The widget says which model and provider are in use.
 - The provider credential stays on the server. managr reads it from opencode for the selected model, sends it only to that provider, and never returns it to the browser or stores it in the database.
 - `web_search` sends only the query to a search engine. `web_fetch` requests one public page. The conversation is not sent, loopback and private network addresses are refused, and a page is untrusted data: the assistant may quote a fact, never follow an instruction from it.
@@ -55,6 +55,12 @@ Only chat models that speak the OpenAI chat-completions protocol with tool calli
 
 The tools are read-only: they never invalidate a screen and never post. `MANAGR_WEB=0` removes them from the registry that the assistant and MCP see, and `runTool` refuses them. The system prompt requires a source URL for every web fact and tells the model to list same-name companies instead of choosing one. A page is treated as untrusted data; an instruction on it is never followed.
 
+## Reference tools
+
+`read_guides` and `read_sources` expose the in-app source register in `src/content/sources.ts`. A guide has a title, a summary, sections, and a list of source ids; a source has a publisher, a kind, a note, and one official https URL. The tools default to German and accept `locale: "en"`; `read_guides` narrows to one topic with `topic`, and `read_sources` narrows with `query`, `domain`, or `topic`.
+
+The register is local data, so the tools work with `MANAGR_WEB=0`. They are read-only. A guide explains a screen; it is not a ruling and not a posting. The system prompt tells the model to name the official URL a guide cites instead of inventing a rule or a rate.
+
 ## Phases
 
 ### Phase 1 — tool registry and MCP server (shipped)
@@ -67,10 +73,11 @@ Read tools render the existing views, so the assistant sees the same JSON a scre
 - `read_customers`
 - `read_invoices`, `read_invoice`
 - `read_ledger`, `read_cashflow`, `read_bank`
-- `read_people`, `read_person`
+- `read_people`, `read_person`, `read_org`
 - `read_time`, `read_tasks`
 - `read_projects`, `read_analytics`, `read_milestones`
 - `read_obligations`, `read_documents`, `read_legal`
+- `read_guides`, `read_sources`
 - `web_search`, `web_fetch` when web access is on
 
 Write tools follow the server actions:
@@ -79,12 +86,16 @@ Write tools follow the server actions:
 - **Shareholders, reserve, cover:** `add_shareholder`, `delete_shareholder`, `add_shareholder_loan`, `record_shareholder_loan_movement`, `record_reserve_allocation`, `offset_reserve`, `add_policy`, `delete_policy`, `pay_profit_distribution`
 - **Invoices:** `save_customer`, `create_invoice`, `issue_invoice`, `update_buyer_reference`, `record_invoice_payment`, `void_invoice`, `delete_invoice_draft`
 - **Books:** `post_expense`, `post_vat_prepayment`, `post_journal_entry`
-- **People:** `create_person`, `update_person`, `add_salary_change`, `save_director_contract`, `delete_director_contract`, `save_founder_health`, `delete_founder_health`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
+- **People:** `create_person`, `update_person`, `add_salary_change`, `delete_salary_change`, `save_director_contract`, `delete_director_contract`, `save_founder_health`, `delete_founder_health`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
 - **Time, tasks, deadlines:** `add_time`, `delete_time`, `save_project`, `delete_project`, `add_task`, `set_task_status`, `delete_task`, `set_obligation`, `add_deadline`, `complete_deadline`, `delete_deadline`
 - **Milestones:** `save_milestone`, `delete_milestone`
 - **Legal:** `set_compliance_done`, `save_resolution`
 
 The MCP endpoint uses the SDK's Streamable HTTP transport in stateless mode with JSON responses. It speaks the standard `initialize`, `tools/list`, and `tools/call` flow. It is available only while the desk runs and only on the machine that runs it.
+
+Read tools cover every screen: the desk, company, customers, invoices, ledger, money flow, Qonto bank, people, org chart, time, tasks, projects, analytics, milestones, obligations, documents, legal records, and the source register. `read_org` returns the same top-down tree as `/people/org`, including former people and the depth. `read_guides` returns the explanation behind a screen with its sections and cited sources; `read_sources` returns the register grouped by domain, optionally filtered by query, domain, or guide. Both read `src/content/sources.ts`, so the assistant can name the same official link the info column shows.
+
+The Qonto connection itself stays on the bank screen, like a file upload. A tool reads the stored accounts, balances, and transactions through `read_bank`; it does not create or remove the connection.
 
 ### Phase 2 — the widget (shipped)
 
@@ -131,6 +142,7 @@ The assistant can already compose an invoice draft from free text by calling `cr
 - Writing into the books through a tool without the domain checks.
 - Sending an e-invoice, an e-mail, or a filing.
 - Uploading or deleting document files through a tool.
+- Creating, renewing, or removing the Qonto connection through a tool.
 - Letting the assistant approve its own invoice issue or decide a social-insurance status.
 
 ## Done

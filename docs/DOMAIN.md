@@ -161,3 +161,11 @@ Working-time warnings follow §3 and §4 ArbZG (8 hours, 10-hour cap, 30- and 45
 ## Documents and legal records
 
 Documents are files plus a category. Resolutions and the compliance checklist are records, not generated legal documents.
+
+## Sources and explanations
+
+`src/content/sources.ts` holds the curated source register and the in-app explanations. A source names one official https address, its publisher, and what it covers; the register is grouped by domain at `/sources`. A guide is attached to a screen, has a short summary and sections, and lists the sources it relies on. The info column and the register read the same data.
+
+The register is a reading aid. A source is authoritative only for what its publisher says, and a guide is not a legal or tax ruling. Where this file and a guide disagree, this file and the TypeScript module named here win. Figures remain in `src/domain/rates-2026.ts`.
+
+The assistant and MCP clients read the same data through `read_guides` and `read_sources`. Both tools work without web access, and neither posts to the journal.

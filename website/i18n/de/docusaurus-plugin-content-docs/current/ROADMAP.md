@@ -43,6 +43,10 @@ Nach der ersten Version ausgeliefert, in dieser Reihenfolge:
 10. Ein Geschäftsführervertrag erfasst Unterschriftsdatum, festes Brutto und Laufzeit; eine rückwirkende Unterschrift wird abgelehnt, und Gehaltsänderungen werden gegen einen Beschluss mit Datum an oder vor der Änderung geprüft.
 11. Ein Gesellschafterdarlehen erfasst Auszahlungen, Tilgungen und Zinsen über das Journal. Der offene Betrag wird gezeigt, eine Überzahlung wird abgelehnt, und ein zinsloses Darlehen trägt einen steuerlichen Hinweis.
 12. Die Krankenversicherung des Gründers erfasst private oder freiwillig gesetzliche Versicherung, den Beitrag und das Statusfeststellungsverfahren. Der Beitrag bleibt außerhalb der Lohnabrechnung; ein offenes oder fehlendes Statusverfahren wird gemeldet.
+13. Eine schreibgeschützte Qonto-Bankverbindung je Unternehmen speichert Konten und Umsätze aus der Qonto-API und zeigt Salden, ein Jahr Umsätze und Filter. Die Umsätze werden nicht ins Journal gebucht.
+14. Eine Geldflussseite folgt einem Jahr von der Rechnung bis zum Finanzamt: Bruttoumsatz geteilt in Einkäufe, Nettolöhne, Lohnsteuer, Sozialversicherung, Umsatzsteuer, Körperschaftsteuer, Solidaritätszuschlag, Gewerbesteuer und Gewinn, dazu die Umsatzsteuerkette und tatsächliche Bankbewegungen. Der MCP-Server stellt sie als `read_cashflow` bereit.
+15. Ein Organigramm zeichnet die Berichtslinien aus der Führungskraft jeder Person, lässt ehemalige Personen aus dem Baum und lehnt Selbstverweis oder Schleife ab. `/people/org` und `read_org` nutzen dieselbe Ansicht.
+16. Ein Quellenregister stellt jeder Erklärung die offiziellen Websites zur Seite und gruppiert die Quellen nach Domain. `/sources`, `read_guides` und `read_sources` lesen dieselben typisierten Daten.
 
 ## Gründervergütung — Roadmap aus dem Gespräch
 
@@ -103,9 +107,9 @@ Diese Roadmap übersetzt die Fragen des Gründers in Arbeitspakete: sich selbst 
 Diese Punkte brauchen ein externes System oder eine andere Produktentscheidung. Sie werden nicht als funktionierend vorgetäuscht.
 
 - Anmeldung und Rollen.
-- ZUGFeRD und die Übermittlung einer E-Rechnung (Peppol, ein Portal oder E-Mail). Der KoSIT-Validator wird nicht ausgeführt.
+- ZUGFeRD und die Übermittlung einer E-Rechnung (Peppol, ein Portal oder E-Mail). Der KoSIT-Validator läuft nur auf diesem Computer, wenn die Prüfschaltfläche benutzt wird; kein Werkzeug reicht eine Datei ein.
 - DATEV-EXTF-Export und eine gesperrte DATEV-Kontenzuordnung.
-- Bank-CSV oder ein Bank-Feed.
+- Bank-CSV-Import. Die Qonto-Verbindung ist lesend und bucht nichts.
 - ELSTER-Übermittlung.
 - Lohnsteuer aus ELStAM, Kirchensteuer und Faktorregeln.
 - DEÜV-Meldungen, Beitragsnachweise und U1/U2-Sätze (diese Sätze legt die einziehende Stelle fest).

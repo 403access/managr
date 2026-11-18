@@ -157,3 +157,11 @@ Arbeitszeitwarnungen folgen §3 und §4 ArbZG (8 Stunden, 10-Stunden-Grenze, 30-
 ## Dokumente und rechtliche Unterlagen
 
 Dokumente sind Dateien plus eine Kategorie. Beschlüsse und die Compliance-Checkliste sind Aufzeichnungen, keine erzeugten Rechtsdokumente.
+
+## Quellen und Erklärungen
+
+`src/content/sources.ts` enthält das kuratierte Quellenregister und die Erklärungen in der App. Eine Quelle nennt genau eine offizielle https-Adresse, ihren Herausgeber und ihren Gegenstand; das Register ist unter `/sources` nach Domain gruppiert. Ein Leitfaden gehört zu einem Bildschirm, hat eine kurze Zusammenfassung und Abschnitte und listet die Quellen, auf die er sich stützt. Die Info-Spalte und das Register lesen dieselben Daten.
+
+Das Register ist eine Lesehilfe. Eine Quelle ist nur für das maßgeblich, was ihr Herausgeber sagt, und ein Leitfaden ist kein rechtliches oder steuerliches Urteil. Widersprechen sich diese Datei und ein Leitfaden, gewinnen diese Datei und das hier genannte TypeScript-Modul. Zahlen stehen weiterhin nur in `src/domain/rates-2026.ts`.
+
+Der Assistent und MCP-Clients lesen dieselben Daten über `read_guides` und `read_sources`. Beide Werkzeuge funktionieren ohne Web-Zugriff, und keines bucht ins Journal.

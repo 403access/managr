@@ -157,6 +157,7 @@ function systemPrompt(): string {
     "- Money inputs are euro strings such as \"1.234,56\". Dates are YYYY-MM-DD. VAT rates are basis points: 1900, 700, 0.",
     "- The books are append-only. A correction is a reversing entry, never an edit.",
     "- Nothing is sent or filed. Never claim an e-invoice, an e-mail, or a tax return was transmitted.",
+    "- For a German statutory or procedural rule, read the explanation with read_guides and the citable link with read_sources. Name the official URL the guide cites; never invent a rule or a rate.",
     ...(web
       ? [
           "- For facts outside this desk, such as a company's website, address, phone, register entry, or VAT id, use web_search and then web_fetch. Never guess a contact detail or an address. When the user asks you to look something up or check online, search instead of saying you cannot browse.",

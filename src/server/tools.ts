@@ -29,6 +29,7 @@ import {
   tasks,
   timeEntries,
 } from "@/db/schema";
+import { GUIDE_IDS, filterSourceGroups, guides, guideSources, pick, type Localized, type Source } from "@/content/sources";
 import { ACCOUNTS, CHART, type DraftLine } from "@/domain/accounts";
 import { TASK_TYPES } from "@/domain/analytics";
 import { addDays, nextDueDate, todayIso, type Recurrence } from "@/domain/calendar";
@@ -96,6 +97,7 @@ import {
   projectsView,
   analyticsView,
   milestonesView,
+  orgView,
   shellView,
   timeView,
   obligationsView,
@@ -231,6 +233,22 @@ function priceLines(lines: z.infer<typeof lineInput>[], klein: boolean): PricedL
   });
 }
 
+function localized(value: Localized, locale: "de" | "en"): string {
+  return pick(value, locale);
+}
+
+function sourceEntry(source: Source, locale: "de" | "en") {
+  return {
+    id: source.id,
+    title: localized(source.title, locale),
+    publisher: localized(source.publisher, locale),
+    kind: localized(source.kind, locale),
+    note: localized(source.note, locale),
+    url: source.url,
+    domain: source.domain,
+  };
+}
+
 /** The same §14/§35a review the invoice screen runs before issue. */
 function reviewFor(
   company: ReturnType<typeof loadCompany>,
@@ -364,6 +382,13 @@ export const tools: DeskTool[] = [
     run: (input) => personView(input.personId) ?? { error: "Person not found." },
   }),
   tool({
+    name: "read_org",
+    description:
+      "The org chart of the active company: active people as a top-down tree with role and employment kind, former people, and the depth. It is built from the manager on each person; nothing here is posted to the journal.",
+    input: {},
+    run: () => orgView(),
+  }),
+  tool({
     name: "read_time",
     description: "The time entries of one week and the open tasks.",
     input: { anyDayInWeek: z.string().optional().describe("Any date in the week, YYYY-MM-DD. Defaults to today.") },
@@ -392,6 +417,71 @@ export const tools: DeskTool[] = [
     description: "The legal checklist, recorded shareholder resolutions, and the people a resolution can name.",
     input: {},
     run: () => legalView(),
+  }),
+  tool({
+    name: "read_guides",
+    description:
+      "The explanations behind the screens, with the official source each section cites. Use it for German company, VAT, invoice, payroll, time, ledger, obligations, documents, legal, and project rules. It explains; a figure from here is never a posting or a decision.",
+    input: {
+      topic: z.enum(GUIDE_IDS).optional().describe("One guide. Without it the tool lists every guide with its summary."),
+      locale: z.enum(["de", "en"]).optional().describe("Language for the text. Defaults to de."),
+    },
+    run: (input) => {
+      const locale = input.locale ?? "de";
+      if (input.topic) {
+        const guide = guides.find((entry) => entry.id === input.topic);
+        if (!guide) throw new Error("Guide not found.");
+        return {
+          id: guide.id,
+          href: guide.href,
+          title: localized(guide.title, locale),
+          summary: localized(guide.summary, locale),
+          sections: guide.sections.map((section) => ({
+            heading: localized(section.heading, locale),
+            body: localized(section.body, locale),
+          })),
+          sources: guideSources(guide).map((source) => sourceEntry(source, locale)),
+        };
+      }
+      return {
+        locale,
+        topics: guides.map((guide) => ({
+          id: guide.id,
+          href: guide.href,
+          title: localized(guide.title, locale),
+          summary: localized(guide.summary, locale),
+          sectionCount: guide.sections.length,
+          sourceCount: guide.sourceIds.length,
+        })),
+      };
+    },
+  }),
+  tool({
+    name: "read_sources",
+    description:
+      "The source register: official websites for company law, tax, social insurance, the register, e-invoicing, and data protection, grouped by domain and linked to the screens they explain. Use it to name a citable URL; never use a source as a posting.",
+    input: {
+      query: z.string().trim().max(120).optional().describe("Free text across title, publisher, kind, note, domain, and topic."),
+      domain: z.string().trim().max(120).optional().describe("One domain such as bmf.de or gesetze-im-internet.de."),
+      topic: z.enum(GUIDE_IDS).optional().describe("Limit the register to the sources of one guide."),
+      locale: z.enum(["de", "en"]).optional().describe("Language for the text. Defaults to de."),
+    },
+    run: (input) => {
+      const locale = input.locale ?? "de";
+      const groups = filterSourceGroups(locale, {
+        query: input.query ?? "",
+        domain: input.domain ?? "",
+        topic: input.topic ?? "",
+      });
+      return {
+        locale,
+        total: groups.reduce((sum, group) => sum + group.sources.length, 0),
+        groups: groups.map((group) => ({
+          domain: group.domain,
+          sources: group.sources.map((source) => sourceEntry(source, locale)),
+        })),
+      };
+    },
   }),
   tool({
     name: "read_projects",
@@ -1347,6 +1437,25 @@ export const tools: DeskTool[] = [
         .values({ employeeId: employee.id, validFrom, grossMonthlyCents: positiveCents(input.grossMonthly, "The monthly gross"), note: input.note ?? "" })
         .run();
       return { id: Number(created.lastInsertRowid), personId: employee.id, validFrom };
+    },
+  }),
+  tool({
+    name: "delete_salary_change",
+    description: "Remove a scheduled salary change from a person. A payroll posting that already used it stays in the journal.",
+    input: {
+      personId: z.number().int().positive(),
+      salaryChangeId: z.number().int().positive().describe("The id returned by add_salary_change or read_person."),
+    },
+    run: (input) => {
+      const employee = requireEmployee(input.personId);
+      const row = getDb()
+        .select()
+        .from(salaryPeriods)
+        .where(and(eq(salaryPeriods.id, input.salaryChangeId), eq(salaryPeriods.employeeId, employee.id)))
+        .get();
+      if (!row) throw new Error("Salary change not found.");
+      getDb().delete(salaryPeriods).where(eq(salaryPeriods.id, row.id)).run();
+      return { id: row.id, personId: employee.id, removed: true };
     },
   }),
   tool({

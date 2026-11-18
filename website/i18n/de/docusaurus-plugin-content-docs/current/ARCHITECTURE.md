@@ -14,6 +14,7 @@ src/client        von Server und Browser gemeinsam genutzte TanStack-Query-Keys
 src/app           Routen, einschließlich GET /api/views/[name]
 src/components    Layout, Formulare und Bildschirme
 src/i18n          deutsche und englische Kataloge, Labels und Phrasenübersetzung
+src/content       kuratiertes Quellenregister und die Erklärungen hinter den Bildschirmen
 docs/             Notizen, die die Docusaurus-Website veröffentlicht
 website/          veröffentlichte Website; Marketingseite, Docs unter /docs
 data/managr.db    wird beim ersten Start angelegt (von Git ignoriert)
@@ -42,6 +43,20 @@ Beim ersten Start einer leeren Datenbank wird die Beispielgesellschaft Atelier N
 
 Zwei gespeicherte Kopien, `data/managr.demo.db` und `data/managr.production.db`, können mit der geöffneten `data/managr.db` getauscht werden. `bun run db:demo` und `bun run db:prod` laden eine Kopie; `bun run db:demo:set` und `bun run db:prod:set` speichern die geöffnete Datenbank in eine Kopie. `bun run db:prod:init` erstellt eine saubere Produktionsdatenbank mit Schema und Kontenrahmen, aber ohne Beispielbuchungen. Produktion akzeptiert `db:prod:set` ohne `--from` nur, während sie bereits aktiv ist, und das Skript lehnt eine Demo- oder Beispieldatenbank ab, sodass Produktion nie mit Demo-Buchungen startet. `data/managr.active` zeichnet auf, welche Kopie geöffnet ist, und `bun run db:status` zeigt sie an. Beim Wechsel wird die geöffnete Datenbank zuerst in ihre gespeicherte Kopie zurückgeschrieben; beende den Schreibtisch daher vor dem Wechsel und starte ihn danach neu. Uploads werden nicht kopiert und bleiben gemeinsam in `data/uploads`.
 
+## Personen und Organigramm
+
+**Personen** hält den Beschäftigungsdatensatz jeder Person, einschließlich der Führungskraft. `employees.manager_id` ist ein Selbstverweis aus `0009_org_chart.sql`; eine Person ohne ihn steht oben. Die Führungskraft wird auf dem Tab **Beschäftigung** der Person gewählt, und das Speichern lehnt einen Selbstverweis oder eine Schleife ab.
+
+**Organigramm** unter `/people/org` liest `orgView` in `src/server/views.ts`. `src/domain/org.ts` baut den Baum, sortiert jede Ebene nach Namen, lässt Personen mit einem Enddatum aus dem Baum und bricht eine bestehende Schleife an ihrer niedrigsten ID, damit die Seite weiterhin rendert. Eine Führungskraft außerhalb des aktiven Unternehmens lässt die Person oben. Nichts im Organigramm wird ins Journal gebucht. `read_org` gibt denselben Baum an Assistent und MCP-Clients weiter.
+
+## Projekte und Auswertung
+
+`/projects` pflegt Projekte und zeigt Zeit, Aufgaben und Ergebnisse je Projekt. `/analytics` liest `analyticsView` in `src/server/views.ts`: Zeit je Projekt, Projektstarts und -abschlüsse im gewählten Jahr, die monatliche Aufteilung in produktive und unproduktive Zeit, Aufgabenarten, die Personen und Kunden hinter der Zeit sowie offene und erledigte Ergebnisse. Projektstarts und -abschlüsse sind Ereignisse im gewählten Jahr; „laufend“ und „pausiert“ sind der Zustand heute. `read_analytics` und `read_projects` geben dieselben Ansichten an Assistent und MCP-Clients weiter.
+
+## Meilensteine
+
+`milestones` ist bewusst nicht an ein Unternehmen gebunden: Die Seite vergleicht Ziele über den ganzen Schreibtisch. `milestone_companies` verknüpft ein Ziel mit beliebig vielen Unternehmen; keine Zeile bedeutet, das Ziel gilt für die Gruppe als Ganzes. `/milestones` liest `milestonesView` in `src/server/views.ts`, das die verknüpften Unternehmen, die Überfällig-Markierung und den effektiven Fortschritt ergänzt. `src/domain/milestones.ts` enthält die Filter, die Quartalsgruppierung und die Auswertung nach Status, Kategorie, Unternehmen und Quartal; `read_milestones`, `save_milestone` und `delete_milestone` geben dieselben Daten und Regeln an Assistent und MCP-Clients weiter. Ein Meilenstein bucht nie ins Journal und ändert die Bücher nicht.
+
 ## Gründervergütung
 
 Drei Datensätze stehen neben den vorhandenen Lohn- und Gesellschafterdaten:
@@ -51,6 +66,24 @@ Drei Datensätze stehen neben den vorhandenen Lohn- und Gesellschafterdaten:
 - `founder_health` speichert die private oder freiwillig gesetzliche Versicherung der Geschäftsführung, den Beitrag und das Statusfeststellungsverfahren. `src/domain/founder-health.ts` erstellt die Erinnerungsliste. Der Beitrag ist nie eine Lohnzeile.
 
 Die Personenansicht und die Gesellschaftsansicht stellen diese Datensätze den Bildschirmen bereit. Dieselben Daten sind über `read_person`, `read_company`, `save_director_contract`, `save_founder_health`, `add_shareholder_loan` und `record_shareholder_loan_movement` erreichbar.
+
+## Geldfluss
+
+`/cashflow` liest `cashflowView` in `src/server/views.ts`. Die Ansicht kombiniert die Rechnungen eines Kalenderjahres mit den Journalzeilen des Jahres: Abrechnung und Zahlungsstand, dann teilt `moneyFlow` aus `src/domain/money-flow.ts` den Bruttoumsatz in Einkäufe, Nettolöhne, Lohnsteuer, Sozialversicherung, Umsatzsteuer-Zahllast, Körperschaftsteuer, Solidaritätszuschlag, Gewerbesteuer und Gewinn nach Steuern. Die Domänenfunktion hält die Anteile ausgeglichen; eine Umsatzsteuer-Gutschrift oder ein Verlust wird zu zusätzlicher Finanzierung statt zu einem negativen Band. Die Ansicht führt außerdem die Umsatzsteuerkette, gruppiert tatsächliche Bankbewegungen nach Buchungsquelle und zählt die als erledigt markierten Umsatzsteuer- und Lohnsteuererklärungen. Körperschaft- und Gewerbesteuer bleiben dieselbe Planungsschätzung wie im Journal. `read_cashflow` gibt die Ansicht an Assistent und MCP-Clients weiter.
+
+## Bank (Qonto)
+
+`/bank` verbindet ein Qonto-Geschäftskonto je Unternehmen. `src/server/qonto.ts` spricht die Qonto-API, und `src/server/bank.ts` speichert Verbindung, Konten und Umsätze in `bank_connections`, `bank_accounts` und `bank_transactions`. Die Verbindung ist schreibgeschützt: Der Schlüssel wird in der Datenbank gespeichert und nie an den Browser zurückgegeben; die Ansicht zeigt nur die letzten vier Zeichen. Der erste Sync liest zwölf Monate, spätere Syncs fragen mit einem Tag Überlappung nur Änderungen ab. Das Transaktionsdatum ist der Berliner Kalendertag von `settled_at`, dann `emitted_at`, dann `created_at`. Kontosalden werden bei jedem Sync aktualisiert.
+
+Die Bankseite ist reine Anzeige. Keine Bankzeile läuft durch `src/server/posting.ts`, und das Journal bleibt die Quelle der Bücher. Dieselbe Ansicht ist als `read_bank` für Assistent und MCP-Clients verfügbar. Die Verbindung wird am Bildschirm angelegt und entfernt; kein Werkzeug erhält den Qonto-Schlüssel. Ein Bank-CSV-Import steht weiterhin auf der Roadmap.
+
+## Quellenregister und Erklärungen
+
+`src/content/sources.ts` enthält zwei kuratierte Datensätze. `sources` ist das Register: eine stabile ID, ein deutscher und englischer Titel, Herausgeber, Art, Hinweis und genau eine offizielle https-Adresse. `guides` ordnet einem Bildschirm eine Zusammenfassung, Abschnitte und die zitierten Quellen-IDs zu. Die Info-Spalte der Bildschirme liest einen Leitfaden über `guideById`; die Seite `/sources` gruppiert das Register nach Domain und filtert nach Suchtext, Domain oder Thema.
+
+Die Datei ist typisiert und getestet: Jede Domain stammt aus der URL, jede referenzierte Quellen-ID löst sich auf, jede Quelle wird von mindestens einem Leitfaden genutzt, und jede Quelle gehört zu genau einer Domaingruppe. Es gibt keine Datenbanktabelle und keinen Netzwerkzugriff. Der Text erklärt eine Regel und verlinkt die Behörde; er ist keine erzeugte Rechtsberatung.
+
+`read_guides` und `read_sources` geben dieselben Daten an Assistent und MCP-Clients weiter. Sie akzeptieren `locale` (`de` oder `en`) und optionale Filter nach Thema, Suchtext oder Domain. Sie funktionieren auch mit `MANAGR_WEB=0`, weil das Register lokal ist. Ein Leitfadenergebnis ist Referenzmaterial, nie eine Buchung.
 
 ## Anfragefluss
 
@@ -66,11 +99,15 @@ Die Prüfschaltfläche ruft die Server Action `checkInvoiceXRechnung` auf. `src/
 
 ## Assistent und MCP
 
-`src/server/tools.ts` ist die einzige Werkzeugregistrierung. Ein Werkzeug hat einen Namen, eine Beschreibung, ein Zod-Eingabeschema und eine Ausführungsfunktion. Lese-Werkzeuge rufen die Ansichts-Funktionen in `src/server/views.ts` auf, damit der Assistent dasselbe JSON sieht wie ein Bildschirm. Schreib-Werkzeuge rufen dieselben Domänenfunktionen wie die Server-Actions auf und buchen über `src/server/posting.ts`; die Bücher bleiben fortgeschrieben, Korrekturen bleiben Stornobuchungen. `src/server/tools.ts` importiert kein Next.js und wird auf einer temporären Datenbank getestet.
+`src/server/tools.ts` ist die einzige Werkzeugregistrierung. Ein Werkzeug hat einen Namen, eine Beschreibung, ein Zod-Eingabeschema und eine Ausführungsfunktion. Lese-Werkzeuge rufen die Ansichts-Funktionen in `src/server/views.ts` auf, damit der Assistent dasselbe JSON sieht wie ein Bildschirm. Die Lese-Werkzeuge decken jeden Bildschirm ab, einschließlich `read_org` für das Organigramm und `read_guides` / `read_sources` für das Quellenregister in `src/content/sources.ts`. Schreib-Werkzeuge rufen dieselben Domänenfunktionen wie die Server-Actions auf und buchen über `src/server/posting.ts`; die Bücher bleiben fortgeschrieben, Korrekturen bleiben Stornobuchungen. `src/server/tools.ts` importiert kein Next.js und wird auf einer temporären Datenbank getestet.
 
 `src/app/api/mcp/route.ts` stellt die Registrierung als MCP-Server bereit. Er nutzt den Streamable-HTTP-Transport des SDK im zustandslosen Modus mit JSON-Antworten, ein POST je Anfrage. Es ist eine Route im selben Next-Prozess, kein zweiter Server und kein zweiter Port. Er ist nur auf diesem Computer erreichbar, solange der Schreibtisch läuft.
 
-Der Assistent in der App nutzt dasselbe `runTool`. `src/app/api/assistant/route.ts` prüft das Gespräch und streamt zeilengetrennte Ereignisse aus `streamAssistant` in `src/server/assistant.ts`. Dieses Modul liest `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL` und `MANAGR_AI_API_KEY` bei jeder Anfrage, fragt einen OpenAI-kompatiblen Endpunkt mit `stream: true`, sammelt Werkzeugaufruf-Deltas, führt jeden Aufruf mit `runTool` aus und liefert `tool`- und `tool_result`-Ereignisse mit einer gekürzten Datenkopie für das Panel. Das Widget in `src/components/assistant.tsx` liest diese Zeilen, zeigt jeden Schritt, zeichnet aus dem Ergebnis eine Rechnungs- oder Lohnkarte und leert nach einem Schreibvorgang den Ansichtscache. Es führt selbst kein Werkzeug aus. Ein Anbieter, der `stream` ignoriert, wird als einfache JSON-Antwort behandelt. Ein GET auf der Route meldet, ob ein Modell eingestellt ist, ohne den Schlüssel. Siehe `docs/MCP-ASSISTANT.md`.
+Der Assistent in der App nutzt dasselbe `runTool`. `src/app/api/assistant/route.ts` prüft das Gespräch und streamt zeilengetrennte Ereignisse aus `streamAssistant` in `src/server/assistant.ts`. Dieses Modul löst das Modell aus `src/server/opencode.ts` oder aus `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL` und `MANAGR_AI_API_KEY` auf, fragt einen OpenAI-kompatiblen Endpunkt mit `stream: true`, sammelt Werkzeugaufruf-Deltas, führt jeden Aufruf mit `runTool` aus und liefert `tool`- und `tool_result`-Ereignisse mit einer gekürzten Datenkopie für das Panel. Das Widget in `src/components/assistant.tsx` liest diese Zeilen, zeigt jeden Schritt, zeichnet aus dem Ergebnis eine Rechnungs- oder Lohnkarte und leert nach einem Schreibvorgang den Ansichtscache. Es führt selbst kein Werkzeug aus. Ein Anbieter, der `stream` ignoriert, wird als einfache JSON-Antwort behandelt. Ein GET auf der Route meldet, ob ein Modell eingestellt ist, ohne den Schlüssel. Siehe `docs/MCP-ASSISTANT.md`.
+
+`src/server/opencode.ts` liest die lokale opencode-CLI (`opencode api get /api/model`, `/api/provider`, `/api/credential`, `/api/model/default`) und cacht das Ergebnis eine Minute. `GET /api/assistant/models` liefert die Anbieter und die Chat-Modelle mit Werkzeugunterstützung, die über das OpenAI-Chat-Completions-Protokoll erreichbar sind. Das Widget zeigt sie als zwei durchsuchbare Felder und sendet die Wahl mit jeder Nachricht; die Route prüft sie erneut, damit der Browser eine Anfrage nicht an einen beliebigen Endpunkt umleiten kann. Die Zugangsdaten des Anbieters werden auf dem Server gelesen, verlassen ihn nie und werden von managr nicht gespeichert. Die Umgebungsvariablen bleiben der Ausweichweg, wenn opencode nicht installiert ist, was im Docker-Image der Normalfall ist.
+
+`src/server/web.ts` ergänzt `web_search` und `web_fetch` in derselben Registrierung. Eine Suche fragt den HTML-Endpunkt von DuckDuckGo, weicht auf Bing aus oder nutzt einen SearXNG-Endpunkt aus `MANAGR_WEB_SEARCH_URL`; ein Abruf löst den Host auf, lehnt Loopback- und private Adressen ab, folgt höchstens fünf geprüften Weiterleitungen, begrenzt den Body auf 2 MB und liefert extrahierten Text plus E-Mail-Adressen. Beide cachen fünf Minuten. `MANAGR_WEB=0` entfernt die zwei Werkzeuge aus `enabledTools()`, sodass die Werkzeugliste des Assistenten, der MCP-Server und `runTool` sie nicht mehr sehen. Die Werkzeuge sind schreibgeschützt und berühren die Datenbank nicht. Eine Seite ist nicht vertrauenswürdige Eingabe: Der System-Prompt verbietet, Anweisungen daraus zu folgen.
 
 ## Oberfläche
 

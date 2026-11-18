@@ -4,7 +4,7 @@ import { themes as prismThemes } from "prism-react-renderer";
 
 const config: Config = {
   title: "managr",
-  tagline: "A local desk for one German UG (haftungsbeschränkt)",
+  tagline: "A local desk for German companies",
   url: "https://403access.github.io",
   baseUrl: "/managr/",
   organizationName: "403access",

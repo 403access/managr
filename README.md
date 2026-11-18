@@ -29,7 +29,7 @@ The desk serves its tools as a Model Context Protocol server at `http://127.0.0.
 }
 ```
 
-The tools read the same views the screens read, and write through the same domain builders and the same journal. A client can list companies, invoices, people, and books, and it can create customers, draft and issue invoices, record payments, post expenses and payroll, record time and tasks, and maintain deadlines and resolutions. When web access is on, the same registry also offers `web_search` and `web_fetch`. The endpoint has no sign-in and is reachable only on this computer while the desk runs. See [docs/MCP-ASSISTANT.md](docs/MCP-ASSISTANT.md).
+The tools read the same views the screens read, and write through the same domain builders and the same journal. A client can list companies, invoices, customers, people, the org chart, books, money flow, the Qonto bank view, projects, analytics, milestones, obligations, legal records, and the source register: `read_org`, `read_cashflow`, `read_bank`, `read_analytics`, `read_milestones`, `read_guides`, and `read_sources` are part of the same registry. It can create customers, draft and issue invoices, record payments, post expenses and payroll, record time and tasks, maintain deadlines and resolutions, and remove a scheduled salary change with `delete_salary_change`. When web access is on, the same registry also offers `web_search` and `web_fetch`. The endpoint has no sign-in and is reachable only on this computer while the desk runs. The Qonto key is entered on the bank screen and is not part of a tool input. See [docs/MCP-ASSISTANT.md](docs/MCP-ASSISTANT.md).
 
 ## Assistant
 
@@ -98,6 +98,12 @@ The person screen records the written managing-director contract with its signin
 **Gesellschafterdarlehen** on the company screen records a loan from a shareholder: the initial drawdown, further drawdowns, repayments, and interest. The drawdown is a liability to the shareholder, not income; interest is a financing expense. A repayment cannot exceed the outstanding loan, and an interest-free loan is flagged for a tax review.
 
 The person screen also records the founder's health cover as private or voluntary statutory, with the premium, start date, and the Statusfeststellungsverfahren. The premium is not a payroll deduction. A managing director with half the shares or less is reminded when the status procedure is missing, and an open procedure stays visible. These records are planning aids; they do not decide social-insurance status.
+
+## Sources and explanations
+
+Each screen with a rule behind it has an info button that opens a short explanation and the official websites it rests on. **Quellen** under Mehr at `/sources` lists the whole register, grouped by domain, with filters for free text, domain, and topic. The entries come from `src/content/sources.ts`, are typed and tested, and link to the publisher's own page.
+
+The assistant and MCP clients read the same data with `read_guides` and `read_sources`, in German or English and optionally narrowed to one topic or domain. The register works without web access. It explains a rule and names the authority; it does not replace the rule, a filing, or advice.
 
 ## Demo and production books
 

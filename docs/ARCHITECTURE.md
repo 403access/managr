@@ -14,6 +14,7 @@ src/client        TanStack Query keys shared by the server and the browser
 src/app           routes, including GET /api/views/[name]
 src/components    layout, forms, and screens
 src/i18n          German and English catalogs, labels, and phrase translation
+src/content       curated source register and the explanations behind screens
 docs/             notes published by the Docusaurus site
 website/          published site; marketing page, docs served at /docs
 data/managr.db    created on first launch (gitignored)
@@ -46,7 +47,7 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 **Personen** holds the employment record of each person, including the manager. `employees.manager_id` is a self-reference added in `0009_org_chart.sql`; a person without one sits at the top. The manager is chosen on the person's **Beschäftigung** tab, and the save refuses a self-reference or a line that would loop.
 
-**Organigramm** at `/people/org` reads `orgView` in `src/server/views.ts`. `src/domain/org.ts` builds the tree, sorts each level by name, leaves people with an end date out of the tree, and breaks an existing loop at its lowest id so the page still renders. A manager outside the active company leaves the person at the top. Nothing in the org chart is posted to the journal.
+**Organigramm** at `/people/org` reads `orgView` in `src/server/views.ts`. `src/domain/org.ts` builds the tree, sorts each level by name, leaves people with an end date out of the tree, and breaks an existing loop at its lowest id so the page still renders. A manager outside the active company leaves the person at the top. Nothing in the org chart is posted to the journal. `read_org` exposes the same tree to the assistant and MCP clients.
 
 ## Projects and analysis
 
@@ -80,7 +81,15 @@ The person view and the company view expose these records to the screens. The sa
 
 The first sync reads twelve months. Later syncs use `updated_at_from` with a one-day overlap so a late status change is not missed. The transaction date is the Berlin calendar day of `settled_at`, then `emitted_at`, then `created_at`. Account balances are refreshed on every sync. The secret is never returned to the browser; the view exposes only the last four characters. Disconnecting deletes the connection, which cascades to the local accounts and transactions.
 
-The bank page is display-only. No bank row goes through `src/server/posting.ts`, and the journal stays the source for the books. The same view is available to the assistant and MCP clients as `read_bank`. A bank CSV import is still on the roadmap.
+The bank page is display-only. No bank row goes through `src/server/posting.ts`, and the journal stays the source for the books. The same view is available to the assistant and MCP clients as `read_bank`. The connection is created and removed on the screen; no tool receives the Qonto key. A bank CSV import is still on the roadmap.
+
+## Source register and explanations
+
+`src/content/sources.ts` holds two curated datasets. `sources` is the register: a stable id, a German and English title, publisher, kind, note, and one official https URL. `guides` maps a screen to a summary, sections, and the source ids it cites. The info column on the screens reads a guide through `guideById`; the `/sources` page groups the register by domain and filters by query, domain, or topic.
+
+The file is typed and tested: every domain comes from the URL, every referenced source id resolves, every source is used by at least one guide, and every source belongs to exactly one domain group. It has no database table and no network access. The text explains a rule and links to the authority; it is not generated legal advice.
+
+`read_guides` and `read_sources` expose the same data to the assistant and MCP clients. They accept `locale` (`de` or `en`) and optional topic, query, or domain filters. They work when `MANAGR_WEB=0`, because the register is local. A guide result is reference material, never a posting.
 
 ## Request flow
 
@@ -96,7 +105,7 @@ The check button calls the `checkInvoiceXRechnung` server action. `src/server/va
 
 ## Assistant and MCP
 
-`src/server/tools.ts` is the only tool registry. A tool has a name, a description, a Zod input schema, and a run function. Read tools call the view builders in `src/server/views.ts`, so the assistant sees the JSON a screen sees. Write tools call the same domain builders as the server actions and post through `src/server/posting.ts`; the books stay append-only and corrections stay reversals. `src/server/tools.ts` does not import Next.js and is tested on a temporary database.
+`src/server/tools.ts` is the only tool registry. A tool has a name, a description, a Zod input schema, and a run function. Read tools call the view builders in `src/server/views.ts`, so the assistant sees the JSON a screen sees. The read set covers every screen, including `read_org` for the org chart and `read_guides` / `read_sources` for the source register in `src/content/sources.ts`. Write tools call the same domain builders as the server actions and post through `src/server/posting.ts`; the books stay append-only and corrections stay reversals. `src/server/tools.ts` does not import Next.js and is tested on a temporary database.
 
 `src/app/api/mcp/route.ts` serves the registry as an MCP server. It uses the SDK's Streamable HTTP transport in stateless mode with JSON responses, one POST per request. It is a route in the same Next process, not a second server and not a second port. It is reachable only on this computer while the desk runs.
 

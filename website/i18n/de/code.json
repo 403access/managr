@@ -12,7 +12,7 @@
     "description": "The home page hero heading"
   },
   "home.hero.lead": {
-    "message": "managr hält Stammdaten, die gesetzliche Rücklage, Pflichten, Rechnungen, ein doppelt geführtes Journal, Personen, Zeit, Dokumente und rechtliche Notizen für jedes Unternehmen. Jedes Unternehmen führt eigene Bücher. Es läuft auf diesem Computer.",
+    "message": "managr hält Stammdaten, die gesetzliche Rücklage, Pflichten, Rechnungen, ein doppelt geführtes Journal, die Bankansicht, Personen, Zeit, Dokumente und rechtliche Notizen für jedes Unternehmen. Jedes Unternehmen führt eigene Bücher. Es läuft auf diesem Computer.",
     "description": "The home page hero introduction"
   },
   "home.hero.readDocs": {
@@ -72,15 +72,27 @@
     "description": "The books feature description"
   },
   "home.area.people": {
-    "message": "Anstellung, Minijob-, Midijob- und reguläre Beitragsschätzungen für 2026, Urlaub, Gehaltsverlauf, Krankenversicherung der Gründerin oder des Gründers und ein Lohnjournal. Die Lohnsteuer wird eingegeben, nicht berechnet.",
+    "message": "Anstellung, Minijob-, Midijob- und reguläre Beitragsschätzungen für 2026, Urlaub, Gehaltsverlauf, Krankenversicherung der Gründerin oder des Gründers, ein Lohnjournal und ein Organigramm aus den Berichtslinien jeder Person. Die Lohnsteuer wird eingegeben, nicht berechnet.",
     "description": "The people feature description"
+  },
+  "home.area.bank": {
+    "message": "Eine schreibgeschützte Qonto-Verbindung je Unternehmen speichert Geschäftskonten und Umsätze mit Salden, Gegenparteien, Kategorien und einem Jahr Verlauf. Nichts wird ins Journal gebucht, und der Schlüssel verlässt diesen Computer nicht."
+  },
+  "home.area.cashflow": {
+    "message": "Ein Jahr von der Rechnung bis zum Finanzamt: Bruttoumsatz geteilt in Einkäufe, Nettolöhne, Lohnsteuer, Sozialversicherung, Umsatzsteuer, Körperschaftsteuer, Solidaritätszuschlag, Gewerbesteuer und Gewinn, dazu die Umsatzsteuerkette und die tatsächlichen Bankbewegungen."
+  },
+  "home.area.milestones": {
+    "message": "Projekte, Zeit, Ergebnisse und eine jährliche Auswertung der produktiven Arbeit. Übergeordnete Meilensteine vergleichen Ziele über Unternehmen hinweg nach Status, Kategorie, Unternehmen und Quartal; ein Kundenbericht druckt dieselben Zahlen."
   },
   "home.area.records": {
     "message": "Zeitaufzeichnungen, Dokumente auf der Festplatte, eine rechtliche Checkliste und Gesellschafterbeschlüsse.",
     "description": "The records feature description"
   },
+  "home.area.sources": {
+    "message": "Jede Erklärung steht neben den offiziellen Websites, auf denen sie beruht. Das Quellenregister gruppiert sie nach Domain, und der Assistent nennt denselben Link."
+  },
   "home.area.assistant": {
-    "message": "Ein Chat-Panel, das mit denselben Werkzeugen wie die Bildschirme liest und bucht, jeden Schritt zeigt und den angelegten Datensatz als Karte vorlegt. Dazu ein MCP-Endpunkt für andere Agenten. Mit einem lokalen Modell bleibt das Gespräch auf diesem Computer. Ein Cloud-Endpunkt erhält es.",
+    "message": "Ein Chat-Panel, das mit denselben Werkzeugen wie die Bildschirme liest und bucht, einschließlich Bankansicht, Geldfluss, Meilensteinen, Organigramm und Quellenregister. Es zeigt jeden Schritt und legt den angelegten Datensatz als Karte vor. Dazu ein MCP-Endpunkt für andere Agenten. Mit einem lokalen Modell bleibt das Gespräch auf diesem Computer. Ein Cloud-Endpunkt erhält es.",
     "description": "The assistant feature description"
   },
   "home.split.aria": {
@@ -115,6 +127,9 @@
     "message": "Der Browser öffnet die Datenbank nie.",
     "description": "The runtime browser detail"
   },
+  "home.runs.bank": {
+    "message": "Die Qonto-Verbindung ist schreibgeschützt. Der Schlüssel bleibt in der lokalen Datenbank und wird nie vollständig angezeigt."
+  },
   "home.runs.assistant": {
     "message": "Der Assistent nutzt dieselben Werkzeuge wie die Bildschirme. Mit einem lokalen Modell bleibt das Gespräch auf diesem Computer.",
     "description": "The runtime assistant detail"
@@ -140,7 +155,7 @@
     "description": "The wage tax limit"
   },
   "home.refuses.datev": {
-    "message": "Kein DATEV-Export und kein Bank-Feed.",
+    "message": "Kein DATEV-Export und kein Bank-CSV-Import. Die Qonto-Verbindung ist schreibgeschützt.",
     "description": "The DATEV limit"
   },
   "home.refuses.xrechnung": {

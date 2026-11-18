@@ -37,7 +37,22 @@ const areas: { id: string; term: string; text: string }[] = [
   {
     id: "home.area.people",
     term: "Personen",
-    text: "Employment, 2026 minijob, midijob, and regular contribution estimates, vacation, salary history, founder health cover, and a payroll journal. Wage tax is entered, not calculated.",
+    text: "Employment, 2026 minijob, midijob, and regular contribution estimates, vacation, salary history, founder health cover, a payroll journal, and an org chart built from the reporting lines on each person. Wage tax is entered, not calculated.",
+  },
+  {
+    id: "home.area.bank",
+    term: "Bank",
+    text: "A read-only Qonto connection per company stores business accounts and transactions, with balances, counterparties, categories, and a year of history. Nothing is posted to the journal, and the key never leaves this computer.",
+  },
+  {
+    id: "home.area.cashflow",
+    term: "Geldfluss",
+    text: "One year from invoicing to the tax office: gross revenue split into purchases, net wages, wage tax, social insurance, VAT, corporate tax, solidarity surcharge, trade tax, and profit, with the VAT chain and the actual bank movements behind it.",
+  },
+  {
+    id: "home.area.milestones",
+    term: "Ziele",
+    text: "Projects, time, deliverables, and a yearly analysis of productive work. Overarching milestones compare goals across companies by status, category, company, and quarter; a customer report prints from the same figures.",
   },
   {
     id: "home.area.records",
@@ -45,9 +60,14 @@ const areas: { id: string; term: string; text: string }[] = [
     text: "Time records, documents on disk, a legal checklist, and shareholder resolutions.",
   },
   {
+    id: "home.area.sources",
+    term: "Quellen",
+    text: "Every explanation sits beside the official websites behind it. The source register groups them by domain, and the assistant names the same link.",
+  },
+  {
     id: "home.area.assistant",
     term: "Assistent",
-    text: "A chat panel that reads and posts with the same tools as the screens, shows each step as it happens, and puts the created record in front of you as a card. Plus an MCP endpoint for other agents. With a local model the conversation stays on this computer. A cloud endpoint receives it.",
+    text: "A chat panel that reads and posts with the same tools as the screens, including the bank view, money flow, milestones, org chart, and source register. It shows each step as it happens and puts the created record in front of you as a card. Plus an MCP endpoint for other agents. With a local model the conversation stays on this computer. A cloud endpoint receives it.",
   },
 ];
 
@@ -69,7 +89,7 @@ export default function Home(): ReactNode {
               <p className={styles.lead}>
                 {t(
                   "home.hero.lead",
-                  "managr keeps Stammdaten, the statutory reserve, obligations, invoices, a double-entry ledger, people, time, documents, and legal notes for each company. Every company has separate books. It runs on this computer.",
+                  "managr keeps Stammdaten, the statutory reserve, obligations, invoices, a double-entry ledger, the bank view, people, time, documents, and legal notes for each company. Every company has separate books. It runs on this computer.",
                 )}
               </p>
               <div className={styles.actions}>
@@ -168,6 +188,12 @@ export default function Home(): ReactNode {
                 <li>{t("home.runs.browser", "The browser never opens the database.")}</li>
                 <li>
                   {t(
+                    "home.runs.bank",
+                    "The Qonto connection is read-only. The key stays in the local database and is never shown in full.",
+                  )}
+                </li>
+                <li>
+                  {t(
                     "home.runs.assistant",
                     "The assistant uses the same tools as the screens. Point it at a local model to keep the conversation here.",
                   )}
@@ -191,7 +217,12 @@ export default function Home(): ReactNode {
                     "No Lohnsteuer calculation. Wage tax is a number you enter.",
                   )}
                 </li>
-                <li>{t("home.refuses.datev", "No DATEV export and no bank feed.")}</li>
+                <li>
+                  {t(
+                    "home.refuses.datev",
+                    "No DATEV export and no bank CSV import. The Qonto connection is read-only.",
+                  )}
+                </li>
                 <li>
                   {t(
                     "home.refuses.xrechnung",
