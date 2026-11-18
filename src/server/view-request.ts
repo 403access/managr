@@ -11,6 +11,7 @@ export const VIEW_NAMES = [
   "cashflow",
   "people",
   "person",
+  "org",
   "time",
   "obligations",
   "documents",

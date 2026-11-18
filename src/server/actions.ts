@@ -34,6 +34,7 @@ import { formatDate, nextDueDate, todayIso, type Recurrence } from "@/domain/cal
 import { DEFAULT_LEGAL_FORM, isCorporation, isLegalForm } from "@/domain/company";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, reviewInvoice } from "@/domain/invoice";
 import { MILESTONE_CATEGORIES, MILESTONE_STATUSES, clampProgress } from "@/domain/milestones";
+import { managerProblem } from "@/domain/org";
 import { buyerReferenceProblem } from "@/domain/xrechnung";
 import { parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import {
@@ -787,12 +788,24 @@ export async function saveEmployee(_state: ActionState, formData: FormData): Pro
     if (shareholderId && !db.select().from(shareholders).where(and(eq(shareholders.id, shareholderId), eq(shareholders.companyId, company.id))).get()) {
       throw new Error("Shareholder not found.");
     }
+    const id = optionalId(formData);
+    const managerId = optionalId(formData, "managerId");
+    if (managerId !== null) {
+      const companyPeople = db
+        .select({ id: employees.id, managerId: employees.managerId })
+        .from(employees)
+        .where(eq(employees.companyId, company.id))
+        .all();
+      const problem = managerProblem(companyPeople, id, managerId);
+      if (problem) throw new Error(problem);
+    }
     const values = {
       firstName,
       lastName,
       role: text(formData, "role"),
       kind: oneOf(text(formData, "kind"), KINDS, "Employment"),
       shareholderId,
+      managerId,
       svStatus: oneOf(text(formData, "svStatus"), SV, "Social-insurance status"),
       ownershipBps,
       street: text(formData, "street"),
@@ -819,7 +832,6 @@ export async function saveEmployee(_state: ActionState, formData: FormData): Pro
       flatTax: checked(formData, "flatTax"),
       notes: text(formData, "notes"),
     };
-    const id = optionalId(formData);
     if (id) {
       const existing = db.select().from(employees).where(and(eq(employees.id, id), eq(employees.companyId, company.id))).get();
       if (!existing) throw new Error("Person not found.");

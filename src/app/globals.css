@@ -49,6 +49,67 @@ select.select-input {
   padding-right: 2.5rem;
 }
 
+/* Org chart: nested lists draw the reporting lines with their own borders. */
+.org-tree,
+.org-children {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.org-tree {
+  display: flex;
+  justify-content: center;
+  gap: 2rem 1.5rem;
+  min-width: max-content;
+  padding: 0.25rem 0;
+}
+
+.org-children {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.org-children > li {
+  position: relative;
+  padding-top: 1.5rem;
+}
+
+.org-children > li::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 1.5rem;
+  background: var(--color-line);
+}
+
+.org-children > li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--color-line);
+}
+
+.org-children > li:first-child::after {
+  left: 50%;
+  width: 50%;
+}
+
+.org-children > li:last-child::after {
+  left: 0;
+  width: 50%;
+}
+
+.org-children > li:only-child::after {
+  display: none;
+}
+
 @media print {
   body {
     background: white;

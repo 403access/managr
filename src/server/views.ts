@@ -11,6 +11,7 @@ import { balanceSheetTotals, summarizeProfit } from "@/domain/reporting";
 import { addWork, emptyWorkTotals, isProductiveTaskType, monthlyWork, projectCounts, sharePercent, taskTypeMinutes, workTotals, type WorkTotals } from "@/domain/analytics";
 import { flowShareBps, moneyFlow } from "@/domain/money-flow";
 import { analyzeMilestones, analyzeMilestonesByCompany, milestoneIsOverdue, milestoneProgress, milestoneYears, sortMilestones } from "@/domain/milestones";
+import { buildOrgChart } from "@/domain/org";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
 import { durationMinutes, minimumVacationDays, timeWarnings, vacationShortfall } from "@/domain/time";
 import { euroInput, quantityInput } from "@/components/amounts";
@@ -25,6 +26,7 @@ import {
   listJournal,
   listMilestones,
   listObligations,
+  listOrgMembers,
   listPeople,
   listPolicies,
   listProjects,
@@ -345,12 +347,20 @@ export function peopleView() {
   };
 }
 
+export function orgView() {
+  const today = todayIso();
+  return { today, ...buildOrgChart(listOrgMembers(), today) };
+}
+
 export function personView(id: number) {
   const loaded = loadPerson(id);
   if (!loaded) return null;
   const { employee, estimate, estimateError, absences, postedMonths, vacationUsed, company, salaryPeriods, currentSalaryCents } = loaded;
   const holders = loadShareholders();
   const shareholder = employee.shareholderId === null ? null : holders.find((holder) => holder.id === employee.shareholderId) ?? null;
+  const colleagues = listOrgMembers()
+    .filter((member) => member.id !== id)
+    .map((member) => ({ id: member.id, name: `${member.firstName} ${member.lastName}`, role: member.role }));
   const salaryResolutionDate = listResolutions()
     .filter((resolution) => resolution.kind === "salary" && resolution.employeeId === employee.id)
     .map((resolution) => resolution.resolvedOn)
@@ -369,6 +379,7 @@ export function personView(id: number) {
     currentSalaryCents,
     nextChange: nextSalaryChange(salaryPeriods, todayIso().slice(0, 7)),
     shareholders: holders.map((holder) => ({ id: holder.id, name: holder.name, shareBps: holder.shareBps })),
+    colleagues,
     shareholder,
     salaryResolutionDate,
     directorReview: reviewDirectorSalary({
@@ -871,6 +882,8 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return peopleView();
     case "person":
       return personView(query.id!);
+    case "org":
+      return orgView();
     case "time":
       return timeView(query.week);
     case "obligations":

@@ -137,7 +137,7 @@ export function PersonScreen({ id }: { id: number }) {
               </div>
             </Tab>
             <Tab id="record" label={t("people.record")}>
-              <EmployeeForm person={employee} today={loaded.today} shareholders={loaded.shareholders} />
+              <EmployeeForm person={employee} today={loaded.today} shareholders={loaded.shareholders} colleagues={loaded.colleagues} />
             </Tab>
             <Tab id="payroll" label={t("people.payroll")}>
               <Card>

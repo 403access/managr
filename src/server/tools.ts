@@ -32,6 +32,7 @@ import { DEFAULT_LEGAL_FORM, LEGAL_FORMS, isCorporation, isLegalForm } from "@/d
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, isKleinunternehmerNote, reviewInvoice } from "@/domain/invoice";
 import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import { MILESTONE_CATEGORIES, MILESTONE_STATUSES, clampProgress } from "@/domain/milestones";
+import { managerProblem } from "@/domain/org";
 import {
   buildCustomerPayment,
   buildExpense,
@@ -1059,6 +1060,7 @@ export const tools: DeskTool[] = [
       svStatus: z.string().trim().optional().describe("automatic, subject, or exempt. Defaults to automatic."),
       ownershipBps: z.number().int().min(0).max(10_000).optional(),
       shareholderId: z.number().int().positive().optional().describe("Link to a shareholder record for a shareholder-director."),
+      managerId: z.number().int().positive().optional().describe("The person this person reports to, for the org chart."),
       weeklyHours: z.string().trim().optional().describe('Weekly hours, for example "40". Defaults to 40.'),
       workdaysPerWeek: z.number().int().min(1).max(6).optional(),
       vacationDays: z.number().int().min(0).max(60).optional(),
@@ -1104,6 +1106,7 @@ export const tools: DeskTool[] = [
       svStatus: z.string().trim().optional(),
       ownershipBps: z.number().int().min(0).max(10_000).optional(),
       shareholderId: z.number().int().positive().nullable().optional(),
+      managerId: z.number().int().positive().nullable().optional().describe("The person this person reports to. Null removes the reporting line."),
       weeklyHours: z.string().trim().optional(),
       workdaysPerWeek: z.number().int().min(1).max(6).optional(),
       vacationDays: z.number().int().min(0).max(60).optional(),
@@ -1125,6 +1128,7 @@ export const tools: DeskTool[] = [
         ...(input.svStatus !== undefined ? { svStatus: input.svStatus } : {}),
         ...(input.ownershipBps !== undefined ? { ownershipBps: input.ownershipBps } : {}),
         ...(input.shareholderId !== undefined ? { shareholderId: input.shareholderId } : {}),
+        ...(input.managerId !== undefined ? { managerId: input.managerId } : {}),
         ...(input.weeklyHours !== undefined ? { weeklyMinutes: hoursToMinutes(input.weeklyHours) } : {}),
         ...(input.workdaysPerWeek !== undefined ? { workdaysPerWeek: input.workdaysPerWeek } : {}),
         ...(input.vacationDays !== undefined ? { vacationDays: input.vacationDays } : {}),
@@ -1132,14 +1136,24 @@ export const tools: DeskTool[] = [
         ...(input.email !== undefined ? { email: input.email } : {}),
         ...(input.phone !== undefined ? { phone: input.phone } : {}),
       };
-      const values = { ...merged, endDate: merged.endDate ?? null, shareholderId: merged.shareholderId ?? null };
+      const values = { ...merged, endDate: merged.endDate ?? null, shareholderId: merged.shareholderId ?? null, managerId: merged.managerId ?? null };
       assertEmployee(values);
+      if (values.managerId !== null) {
+        const companyPeople = getDb()
+          .select({ id: employees.id, managerId: employees.managerId })
+          .from(employees)
+          .where(eq(employees.companyId, requireCompany().id))
+          .all();
+        const problem = managerProblem(companyPeople, employee.id, values.managerId);
+        if (problem) throw new Error(problem);
+      }
       getDb().update(employees).set({
         firstName: values.firstName,
         lastName: values.lastName,
         role: values.role,
         kind: values.kind,
         shareholderId: values.shareholderId,
+        managerId: values.managerId,
         svStatus: values.svStatus,
         ownershipBps: values.ownershipBps,
         street: values.street,
@@ -1792,6 +1806,7 @@ type ReadyEmployee = {
   role: string;
   kind: string;
   shareholderId: number | null;
+  managerId: number | null;
   svStatus: string;
   ownershipBps: number;
   street: string;
@@ -1833,6 +1848,7 @@ type EmployeeLike = {
   grossMonthlyCents: number;
   careDiscountSteps: number;
   shareholderId: number | null;
+  managerId: number | null;
 };
 
 function assertEmployee(values: EmployeeLike): void {
@@ -1849,6 +1865,7 @@ function assertEmployee(values: EmployeeLike): void {
   oneOf(values.kind, KINDS, "Employment");
   oneOf(values.svStatus, SV, "Social-insurance status");
   if (values.shareholderId) requireShareholder(values.shareholderId);
+  if (values.managerId) requireEmployee(values.managerId);
 }
 
 function personValues(input: {
@@ -1860,6 +1877,7 @@ function personValues(input: {
   svStatus?: string;
   ownershipBps?: number;
   shareholderId?: number | null;
+  managerId?: number | null;
   weeklyMinutes?: number;
   workdaysPerWeek?: number;
   vacationDays?: number;
@@ -1889,6 +1907,7 @@ function personValues(input: {
     role: input.role ?? "",
     kind: oneOf(input.kind, KINDS, "Employment"),
     shareholderId: input.shareholderId ?? null,
+    managerId: input.managerId ?? null,
     svStatus: oneOf(input.svStatus ?? "automatic", SV, "Social-insurance status"),
     ownershipBps: input.ownershipBps ?? 0,
     street: input.street ?? "",

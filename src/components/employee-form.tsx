@@ -15,6 +15,7 @@ export type EmployeeValues = {
   role: string;
   kind: string;
   shareholderId: number | null;
+  managerId: number | null;
   svStatus: string;
   ownershipBps: number;
   street: string;
@@ -57,7 +58,7 @@ function revealInvalidSection(event: MouseEvent<HTMLButtonElement>) {
   requestAnimationFrame(() => invalid.focus());
 }
 
-export function EmployeeForm({ person, today, shareholders = [] }: { person?: EmployeeValues; today: string; shareholders?: { id: number; name: string }[] }) {
+export function EmployeeForm({ person, today, shareholders = [], colleagues = [] }: { person?: EmployeeValues; today: string; shareholders?: { id: number; name: string }[]; colleagues?: { id: number; name: string; role: string }[] }) {
   const { t, label } = useI18n();
   return (
     <ActionForm action={saveEmployee}>
@@ -111,6 +112,19 @@ export function EmployeeForm({ person, today, shareholders = [] }: { person?: Em
                 {shareholders.map((holder) => (
                   <option key={holder.id} value={holder.id}>{holder.name}</option>
                 ))}
+              </SelectInput>
+            </Field>
+            <Field label={t("people.manager")} hint={t("people.managerHint")}>
+              <SelectInput name="managerId" defaultValue={person?.managerId ?? ""}>
+                <option value="">{t("people.managerNone")}</option>
+                {colleagues
+                  .filter((colleague) => colleague.id !== person?.id)
+                  .map((colleague) => (
+                    <option key={colleague.id} value={colleague.id}>
+                      {colleague.name}
+                      {colleague.role ? ` · ${colleague.role}` : ""}
+                    </option>
+                  ))}
               </SelectInput>
             </Field>
             <Field label={t("people.ownership")} hint={t("people.ownershipHint")}>

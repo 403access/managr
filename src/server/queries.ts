@@ -276,6 +276,25 @@ export function listPeople() {
     });
 }
 
+/** Just the fields the org chart needs, without the payroll estimates. */
+export function listOrgMembers() {
+  const company = loadCompany();
+  return getDb()
+    .select({
+      id: employees.id,
+      firstName: employees.firstName,
+      lastName: employees.lastName,
+      role: employees.role,
+      kind: employees.kind,
+      endDate: employees.endDate,
+      managerId: employees.managerId,
+    })
+    .from(employees)
+    .where(eq(employees.companyId, company.id))
+    .orderBy(asc(employees.lastName), asc(employees.firstName))
+    .all();
+}
+
 export function listSalaryPeriods(employeeId: number) {
   return getDb().select().from(salaryPeriods).where(eq(salaryPeriods.employeeId, employeeId)).orderBy(desc(salaryPeriods.validFrom)).all();
 }

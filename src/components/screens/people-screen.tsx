@@ -17,7 +17,16 @@ export function PeopleScreen() {
     <ViewGate query={query}>
       {(data) => (
         <>
-          <PageHeader title={t("people.title")} lede={t("people.lede")} action={<LinkButton href="/people/new">{t("people.add")}</LinkButton>} />
+          <PageHeader
+            title={t("people.title")}
+            lede={t("people.lede")}
+            action={
+              <span className="flex flex-wrap gap-2">
+                <LinkButton href="/people/org" tone="quiet">{t("people.org")}</LinkButton>
+                <LinkButton href="/people/new">{t("people.add")}</LinkButton>
+              </span>
+            }
+          />
           <div className="grid gap-2">
             {data.people.map((person) => (
               <Link key={person.id} href={`/people/${person.id}`} className="grid min-h-11 gap-2 rounded-2xl border border-line bg-card px-4 py-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">

@@ -59,6 +59,10 @@ bun run test tests/time-tracking.test.ts
 
 The page at [http://localhost:3000/time/playback](http://localhost:3000/time/playback) replays the same data entry by entry, with a live day, week, and total, and the checks. It is read-only; nothing is written to the database. The Time screen links to it as **Testlauf**.
 
+## People and the org chart
+
+**Personen** holds employment records, contribution estimates, salary history, absences, and payroll. Each person can name a manager on the **Beschäftigung** tab. **Organigramm** under Personen at `/people/org` draws the reporting lines from those entries; a person without a manager starts a branch, and people with an end date in the past move to a former section. A manager change that would make a person report to themselves or form a loop is refused. Nothing in the org chart is posted to the journal.
+
 ## Projects and analysis
 
 Projects tie a customer, tasks, deliverables, and time together. Open **Projekte** under Mehr to add one; the Time screen books an entry to a project and a task type. A task type says what the work was: development, design, planning, research, documentation, meeting, communication, administration, or other. The first four count as productive in the analysis.

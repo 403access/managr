@@ -42,6 +42,12 @@ The first launch of an empty database loads the sample company Atelier Nordlicht
 
 Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be swapped with the open `data/managr.db`. `bun run db:demo` and `bun run db:prod` load a copy; `bun run db:demo:set` and `bun run db:prod:set` save the open database into a copy. `bun run db:prod:init` creates a clean production database with the schema and chart of accounts but no sample books. Production only accepts `db:prod:set` without `--from` while it is already active, and the script refuses a demo or sample database, so production never starts from demo books. `data/managr.active` records which copy is open, and `bun run db:status` shows it. Switching copies the open database back to its saved copy first, so stop the desk before switching and start it again afterwards. Uploads are not copied and stay shared in `data/uploads`.
 
+## People and the org chart
+
+**Personen** holds the employment record of each person, including the manager. `employees.manager_id` is a self-reference added in `0009_org_chart.sql`; a person without one sits at the top. The manager is chosen on the person's **Beschäftigung** tab, and the save refuses a self-reference or a line that would loop.
+
+**Organigramm** at `/people/org` reads `orgView` in `src/server/views.ts`. `src/domain/org.ts` builds the tree, sorts each level by name, leaves people with an end date out of the tree, and breaks an existing loop at its lowest id so the page still renders. A manager outside the active company leaves the person at the top. Nothing in the org chart is posted to the journal.
+
 ## Projects and analysis
 
 `projects` is the one place that ties a customer, tasks, and booked time together. A project has a status (`active`, `paused`, `done`) and a start and end date. Tasks and time entries point at a project; a time entry also carries its own task type, so time without a task still lands in the analysis. A task type is the kind of work (`development`, `design`, `planning`, `research`, `documentation`, `meeting`, `communication`, `admin`, `other`). `src/domain/analytics.ts` classifies the first four as productive and the rest as unproductive; the bucket never changes what was booked.
