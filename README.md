@@ -83,6 +83,14 @@ The analysis tab shows the status split, the progress by category, the progress 
 
 The page reads the same journal and invoices as the ledger and the desk. It files nothing, and the corporate and trade tax figures remain planning estimates. A VAT credit or a loss appears as extra funding so the shares still add up.
 
+## Founder pay
+
+The person screen records the written managing-director contract with its signing date, fixed gross, and term. A contract that starts before it is signed is refused, and a salary change without a shareholder resolution dated on or before it is called out. The desk does not decide whether the salary is appropriate.
+
+**Gesellschafterdarlehen** on the company screen records a loan from a shareholder: the initial drawdown, further drawdowns, repayments, and interest. The drawdown is a liability to the shareholder, not income; interest is a financing expense. A repayment cannot exceed the outstanding loan, and an interest-free loan is flagged for a tax review.
+
+The person screen also records the founder's health cover as private or voluntary statutory, with the premium, start date, and the Statusfeststellungsverfahren. The premium is not a payroll deduction. A managing director with half the shares or less is reminded when the status procedure is missing, and an open procedure stays visible. These records are planning aids; they do not decide social-insurance status.
+
 ## Demo and production books
 
 The desk always opens `data/managr.db`. Two saved copies sit beside it: `data/managr.demo.db` and `data/managr.production.db`. Stop the desk before switching, then:

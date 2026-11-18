@@ -60,6 +60,16 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 `milestones` is deliberately not scoped to a company: the page compares goals across the whole desk. `milestone_companies` links a goal to any number of companies; no row means the goal applies to the group as a whole. `/milestones` reads `milestonesView` in `src/server/views.ts`, which adds the linked companies, the overdue flag, and the effective progress. `src/domain/milestones.ts` holds the filters, quarter grouping, and the analysis by status, category, company, and quarter; `read_milestones`, `save_milestone`, and `delete_milestone` expose the same data and rules to the assistant and MCP clients. A milestone never posts to the journal and does not change the books.
 
+## Founder pay records
+
+Three records sit beside the existing payroll and shareholder data:
+
+- `director_contracts` on the person screen stores the written managing-director contract. `src/domain/director-contract.ts` picks the current contract, refuses a retroactive signing date in the server action and the MCP tool, and lists the contract and salary-change warnings.
+- `shareholder_loans` and `shareholder_loan_movements` on the company screen store a financing arrangement with a shareholder. `src/domain/shareholder-loan.ts` computes the outstanding principal and the suggested interest; `src/domain/postings.ts` posts drawdowns, repayments, and interest through the same journal.
+- `founder_health` stores the managing director's private or voluntary statutory cover, the premium, and the Statusfeststellungsverfahren. `src/domain/founder-health.ts` builds the reminder list. The premium is never a payroll line.
+
+The person view and the company view expose these records to the screens. The same data is reachable through `read_person`, `read_company`, `save_director_contract`, `save_founder_health`, `add_shareholder_loan`, and `record_shareholder_loan_movement`.
+
 ## Money flow
 
 `/cashflow` reads `cashflowView` in `src/server/views.ts`. It combines the invoices of one calendar year with the year's journal rows: billing and payment status, then `moneyFlow` from `src/domain/money-flow.ts` splits gross revenue into purchases, net wages, wage tax, social insurance, VAT payable, corporate tax, solidarity surcharge, trade tax, and profit after tax. The domain function keeps the slices reconciled; a VAT credit or a loss becomes extra funding instead of a negative band. The view also walks the VAT chain, groups actual bank movements by posting source, and counts the VAT and wage-tax returns marked done. Corporate and trade tax remain the same planning estimate as the ledger. `read_cashflow` exposes the view to the assistant and MCP clients.

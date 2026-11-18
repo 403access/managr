@@ -40,6 +40,9 @@ Shipped after the first version, in this order:
 7. The assistant reads providers, models, and credentials from the local opencode installation. Two searchable fields choose the provider and model; the environment variables remain the fallback when opencode is not installed.
 8. The assistant searches the public web and reads a page when a fact is not in the desk, names the source URL, and treats page text as untrusted data. Web access can be switched off for the assistant and MCP.
 9. Cross-company milestones hold overarching goals with a target date, status, progress, category, and any number of companies. `/milestones` analyses the goals per status, category, company, and quarter, and the MCP server exposes the same view and writes.
+10. A managing-director contract records the signing date, fixed gross, and term; a retroactive signature is refused, and salary changes are checked against a resolution dated on or before the change.
+11. A shareholder loan records drawdowns, repayments, and interest through the journal. The outstanding principal is shown, over-repayment is refused, and an interest-free loan carries a tax reminder.
+12. Founder health cover records private or voluntary statutory cover, the premium, and the Statusfeststellungsverfahren. The premium stays outside payroll, and an open or missing status procedure is called out.
 
 ## Founder self-payment — conversation roadmap
 

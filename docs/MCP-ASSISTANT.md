@@ -63,7 +63,7 @@ A single registry with a name, a description, a Zod input schema, and a run func
 
 Read tools render the existing views, so the assistant sees the same JSON a screen sees:
 
-- `read_companies`, `read_desk`, `read_company`
+- `read_companies`, `read_desk`, `read_company`, `read_shareholder_loans`
 - `read_customers`
 - `read_invoices`, `read_invoice`
 - `read_ledger`, `read_cashflow`
@@ -76,10 +76,10 @@ Read tools render the existing views, so the assistant sees the same JSON a scre
 Write tools follow the server actions:
 
 - **Company:** `switch_company`, `create_company`, `update_company_identity`, `update_tax_profile`, `update_bank`
-- **Shareholders, reserve, cover:** `add_shareholder`, `delete_shareholder`, `record_reserve_allocation`, `offset_reserve`, `add_policy`, `delete_policy`, `pay_profit_distribution`
+- **Shareholders, reserve, cover:** `add_shareholder`, `delete_shareholder`, `add_shareholder_loan`, `record_shareholder_loan_movement`, `record_reserve_allocation`, `offset_reserve`, `add_policy`, `delete_policy`, `pay_profit_distribution`
 - **Invoices:** `save_customer`, `create_invoice`, `issue_invoice`, `update_buyer_reference`, `record_invoice_payment`, `void_invoice`, `delete_invoice_draft`
 - **Books:** `post_expense`, `post_vat_prepayment`, `post_journal_entry`
-- **People:** `create_person`, `update_person`, `add_salary_change`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
+- **People:** `create_person`, `update_person`, `add_salary_change`, `save_director_contract`, `delete_director_contract`, `save_founder_health`, `delete_founder_health`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
 - **Time, tasks, deadlines:** `add_time`, `delete_time`, `save_project`, `delete_project`, `add_task`, `set_task_status`, `delete_task`, `set_obligation`, `add_deadline`, `complete_deadline`, `delete_deadline`
 - **Milestones:** `save_milestone`, `delete_milestone`
 - **Legal:** `set_compliance_done`, `save_resolution`
