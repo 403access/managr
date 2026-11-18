@@ -39,7 +39,7 @@ export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export function SelectInput(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={inputClass} />;
+  return <select {...props} className={`${inputClass} select-input`} />;
 }
 
 export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
