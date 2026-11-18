@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { deleteProject, saveProject } from "@/server/actions";
 import type { projectsView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
+import { filterProjects, PROJECT_STATUSES, type ProjectStatus } from "@/domain/projects";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -92,34 +93,105 @@ function ProjectCard({ project, customers, today }: { project: Project; customer
   );
 }
 
+function ProjectsBody({ data }: { data: Projects }) {
+  const { t, label } = useI18n();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<ProjectStatus | "">("");
+  const [customer, setCustomer] = useState("");
+  const customerFilter = customer === "" ? null : customer === "none" ? "none" : Number(customer);
+  const customers = useMemo(() => {
+    const seen = new Map<number, string>();
+    for (const project of data.projects) {
+      if (project.customerId !== null && project.customerName) seen.set(project.customerId, project.customerName);
+    }
+    return [...seen.entries()].sort(([, left], [, right]) => left.localeCompare(right));
+  }, [data.projects]);
+  const filtered = useMemo(
+    () => filterProjects(data.projects, { query: search, status, customer: customerFilter }),
+    [customerFilter, data.projects, search, status],
+  );
+  const active = Boolean(search.trim() || status || customer);
+
+  function reset() {
+    setSearch("");
+    setStatus("");
+    setCustomer("");
+  }
+
+  return (
+    <>
+      <PageHeader
+        title={t("projects.title")}
+        lede={t("projects.lede")}
+        info={<InfoButton topic="projects" />}
+        action={<Link href="/analytics" className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm">{t("projects.analytics")}</Link>}
+      />
+      {data.projects.length === 0 ? <Empty>{t("projects.empty")}</Empty> : null}
+      {data.projects.length > 0 ? (
+        <Card className="mb-3">
+          <div role="group" aria-label={t("projects.filterLabel")} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,12rem)_minmax(0,16rem)]">
+            <Field label={t("projects.filterSearch")}>
+              <TextInput
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t("projects.filterSearchPlaceholder")}
+              />
+            </Field>
+            <Field label={t("projects.filterStatus")}>
+              <SelectInput value={status} onChange={(event) => setStatus(event.target.value as ProjectStatus | "")}>
+                <option value="">{t("projects.filterAll")}</option>
+                {PROJECT_STATUSES.map((value) => (
+                  <option key={value} value={value}>{label(value)}</option>
+                ))}
+              </SelectInput>
+            </Field>
+            <Field label={t("projects.filterCustomer")}>
+              <SelectInput value={customer} onChange={(event) => setCustomer(event.target.value)}>
+                <option value="">{t("projects.filterAll")}</option>
+                <option value="none">{t("projects.noCustomer")}</option>
+                {customers.map(([id, name]) => (
+                  <option key={id} value={String(id)}>{name}</option>
+                ))}
+              </SelectInput>
+            </Field>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted" aria-live="polite">
+              {t("projects.filterResult", { shown: filtered.length, total: data.projects.length })}
+            </p>
+            {active ? (
+              <button type="button" onClick={reset} className="text-sm font-medium text-pine underline-offset-4 hover:underline">
+                {t("projects.filterReset")}
+              </button>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
+      {data.projects.length > 0 && filtered.length === 0 ? <Empty>{t("projects.filterEmpty")}</Empty> : null}
+      {filtered.length > 0 ? (
+        <div className="grid gap-3 xl:grid-cols-2">
+          {filtered.map((project) => (
+            <ProjectCard key={project.id} project={project} customers={data.customers} today={data.today} />
+          ))}
+        </div>
+      ) : null}
+      <Card className="mt-3">
+        <h2 className="mb-3 text-2xl">{t("projects.new")}</h2>
+        <ActionForm action={saveProject} resetOnSuccess>
+          <ProjectFields customers={data.customers} today={data.today} />
+          <SubmitButton>{t("projects.add")}</SubmitButton>
+        </ActionForm>
+      </Card>
+    </>
+  );
+}
+
 export function ProjectsScreen() {
   const query = useView<Projects>(queryKeys.projects, viewPath.projects);
-  const { t } = useI18n();
   return (
     <ViewGate query={query}>
-      {(data) => (
-        <>
-          <PageHeader
-            title={t("projects.title")}
-            lede={t("projects.lede")}
-            info={<InfoButton topic="projects" />}
-            action={<Link href="/analytics" className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm">{t("projects.analytics")}</Link>}
-          />
-          {data.projects.length === 0 ? <Empty>{t("projects.empty")}</Empty> : null}
-          <div className="grid gap-3 xl:grid-cols-2">
-            {data.projects.map((project) => (
-              <ProjectCard key={project.id} project={project} customers={data.customers} today={data.today} />
-            ))}
-          </div>
-          <Card className="mt-3">
-            <h2 className="mb-3 text-2xl">{t("projects.new")}</h2>
-            <ActionForm action={saveProject} resetOnSuccess>
-              <ProjectFields customers={data.customers} today={data.today} />
-              <SubmitButton>{t("projects.add")}</SubmitButton>
-            </ActionForm>
-          </Card>
-        </>
-      )}
+      {(data) => <ProjectsBody data={data} />}
     </ViewGate>
   );
 }
