@@ -50,6 +50,10 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 `/analytics/report` is the printable customer report. It is a server render outside the app shell, like the invoice print route, and uses the same `analyticsView` with an optional `customer` filter. The **Als PDF drucken** button opens the browser print dialog, where the report is saved as a PDF. There is no server-side PDF file and nothing is sent to a customer.
 
+## Money flow
+
+`/cashflow` reads `cashflowView` in `src/server/views.ts`. It combines the invoices of one calendar year with the year's journal rows: billing and payment status, then `moneyFlow` from `src/domain/money-flow.ts` splits gross revenue into purchases, net wages, wage tax, social insurance, VAT payable, corporate tax, solidarity surcharge, trade tax, and profit after tax. The domain function keeps the slices reconciled; a VAT credit or a loss becomes extra funding instead of a negative band. The view also walks the VAT chain, groups actual bank movements by posting source, and counts the VAT and wage-tax returns marked done. Corporate and trade tax remain the same planning estimate as the ledger. `read_cashflow` exposes the view to the assistant and MCP clients.
+
 ## Request flow
 
 A screen does not open SQLite. `src/server/views.ts` builds the JSON for that screen from `src/server/queries.ts`, scoped to the active company. The server page puts that JSON into a TanStack Query cache with `Hydrate`. The client screen reads the same key with `useView`, and refetches `GET /api/views/[name]` when the cache is stale. Query keys live in `src/client/query-keys.ts`. Switching companies reloads the page because the cache keys do not carry the company id.

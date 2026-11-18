@@ -9,12 +9,14 @@ import { nextSalaryChange } from "@/domain/salary";
 import { conversionGap, reserveDutyActive } from "@/domain/reserve";
 import { balanceSheetTotals, summarizeProfit } from "@/domain/reporting";
 import { addWork, emptyWorkTotals, isProductiveTaskType, monthlyWork, projectCounts, sharePercent, taskTypeMinutes, workTotals, type WorkTotals } from "@/domain/analytics";
+import { flowShareBps, moneyFlow } from "@/domain/money-flow";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
 import { durationMinutes, minimumVacationDays, timeWarnings, vacationShortfall } from "@/domain/time";
 import { euroInput, quantityInput } from "@/components/amounts";
 import {
   accountBalances,
   listCompliance,
+  listCashMovements,
   listCustomers,
   listDeadlines,
   listDocuments,
@@ -665,6 +667,145 @@ export function legalView() {
   };
 }
 
+const CASH_CATEGORIES = ["customer", "expense", "payroll", "vat", "owner", "capital", "other"] as const;
+type CashCategory = (typeof CASH_CATEGORIES)[number];
+
+function cashCategory(source: string): CashCategory {
+  switch (source) {
+    case "payment":
+      return "customer";
+    case "expense":
+      return "expense";
+    case "payroll":
+      return "payroll";
+    case "vat-prepayment":
+      return "vat";
+    case "shareholder-payout":
+    case "distribution":
+      return "owner";
+    case "opening":
+      return "capital";
+    default:
+      return "other";
+  }
+}
+
+export function cashflowView(year: number) {
+  const company = loadCompany();
+  const from = `${year}-01-01`;
+  const to = `${year}-12-31`;
+  const rows = accountBalances(from, to);
+  const profit = summarizeProfit(rows);
+  const of = (code: string) => signedAccount(rows, code);
+
+  const outputVatCents = of(ACCOUNTS.vat19) + of(ACCOUNTS.vat7);
+  const inputVatCents = of(ACCOUNTS.inputVat19) + of(ACCOUNTS.inputVat7);
+  const vatPrepaidCents = of(ACCOUNTS.vatPrepayments) + of(ACCOUNTS.vatSpecialPrepayment);
+  const grossWagesCents = of(ACCOUNTS.salaries) + of(ACCOUNTS.minijobWages);
+  const employerSocialCents = of(ACCOUNTS.socialExpense) + of(ACCOUNTS.minijobSocial);
+  const flatTaxCents = of(ACCOUNTS.minijobFlatTax);
+  const personnelExpenseCents = grossWagesCents + employerSocialCents + flatTaxCents;
+  const wageTaxCents = of(ACCOUNTS.wageTaxPayable);
+  const socialCents = of(ACCOUNTS.socialPayable);
+
+  const tax = estimateCorporateTax(profit.profitBeforeTaxCents, company.hebesatzPercent, company.lossCarryforwardCents);
+  const flow = moneyFlow({
+    revenueCents: profit.revenueCents,
+    outputVatCents,
+    expenseCents: profit.expenseCents,
+    inputVatCents,
+    personnelExpenseCents,
+    wageTaxCents,
+    socialCents,
+    vatPrepaidCents,
+    taxCents: { corporateCents: tax.corporateCents, soliCents: tax.soliCents, tradeCents: tax.tradeCents },
+  });
+
+  const invoices = listInvoices().filter(
+    (invoice) => invoice.issueDate.startsWith(`${year}-`) && invoice.status !== "draft" && invoice.status !== "void",
+  );
+  const billing = {
+    count: invoices.length,
+    netCents: invoices.reduce((sum, invoice) => sum + invoice.netCents, 0),
+    vatCents: invoices.reduce((sum, invoice) => sum + invoice.vatCents, 0),
+    grossCents: invoices.reduce((sum, invoice) => sum + invoice.grossCents, 0),
+    paidCents: invoices.reduce((sum, invoice) => sum + invoice.paidCents, 0),
+    openCents: invoices.reduce((sum, invoice) => sum + invoice.openCents, 0),
+  };
+
+  const categoryTotals = new Map<CashCategory, { key: CashCategory; inflowCents: number; outflowCents: number; count: number }>(
+    CASH_CATEGORIES.map((key) => [key, { key, inflowCents: 0, outflowCents: 0, count: 0 }]),
+  );
+  for (const movement of listCashMovements(from, to)) {
+    const bucket = categoryTotals.get(cashCategory(movement.source))!;
+    bucket.count += 1;
+    if (movement.deltaCents >= 0) bucket.inflowCents += movement.deltaCents;
+    else bucket.outflowCents += -movement.deltaCents;
+  }
+  const openingCents = signedAccount(accountBalances("0001-01-01", `${year - 1}-12-31`), ACCOUNTS.bank);
+  const closingCents = signedAccount(accountBalances("0001-01-01", to), ACCOUNTS.bank);
+  const cash = {
+    openingCents,
+    closingCents,
+    changeCents: closingCents - openingCents,
+    inflowCents: [...categoryTotals.values()].reduce((sum, row) => sum + row.inflowCents, 0),
+    outflowCents: [...categoryTotals.values()].reduce((sum, row) => sum + row.outflowCents, 0),
+    categories: [...categoryTotals.values()]
+      .filter((row) => row.count > 0)
+      .sort((a, b) => b.inflowCents + b.outflowCents - (a.inflowCents + a.outflowCents)),
+  };
+
+  const obligations = listObligations(year);
+  const filingCount = (prefix: string) => {
+    const items = obligations.filter((item) => item.key.startsWith(prefix));
+    return { total: items.length, done: items.filter((item) => item.status === "done").length };
+  };
+
+  return {
+    year,
+    today: todayIso(),
+    company: {
+      legalName: company.legalName,
+      kleinunternehmer: company.kleinunternehmer,
+      hebesatzPercent: company.hebesatzPercent,
+      usesTaxAdvisor: company.usesTaxAdvisor,
+    },
+    billing: {
+      ...billing,
+      paidSharePercent: flowShareBps(billing.paidCents, billing.grossCents),
+      openSharePercent: flowShareBps(billing.openCents, billing.grossCents),
+    },
+    flow,
+    vat: {
+      output19Cents: of(ACCOUNTS.vat19),
+      output7Cents: of(ACCOUNTS.vat7),
+      input19Cents: of(ACCOUNTS.inputVat19),
+      input7Cents: of(ACCOUNTS.inputVat7),
+      outputCents: outputVatCents,
+      inputCents: inputVatCents,
+      payableCents: flow.vatPayableCents,
+      prepaidCents: vatPrepaidCents,
+      openCents: flow.vatOpenCents,
+    },
+    payroll: {
+      grossWagesCents,
+      employerSocialCents,
+      flatTaxCents,
+      personnelExpenseCents,
+      netPayCents: flow.netWagesCents,
+      wageTaxCents,
+      socialCents,
+    },
+    bookedTaxCents: of(ACCOUNTS.corporateTax) + of(ACCOUNTS.solidarity) + of(ACCOUNTS.tradeTax),
+    tax: { ...tax, hebesatzPercent: company.hebesatzPercent },
+    cash,
+    filings: {
+      vat: filingCount("ustva-"),
+      wageTax: filingCount("lst-"),
+    },
+  };
+}
+
 export function loadView(name: ViewName, params: URLSearchParams) {
   const query = parseViewQuery(params, todayIso());
   if (!viewIsReady(name, query)) return null;
@@ -689,6 +830,8 @@ export function loadView(name: ViewName, params: URLSearchParams) {
     }
     case "ledger":
       return ledgerView(query.all);
+    case "cashflow":
+      return cashflowView(query.year);
     case "people":
       return peopleView();
     case "person":

@@ -66,7 +66,7 @@ Read tools render the existing views, so the assistant sees the same JSON a scre
 - `read_companies`, `read_desk`, `read_company`
 - `read_customers`
 - `read_invoices`, `read_invoice`
-- `read_ledger`
+- `read_ledger`, `read_cashflow`
 - `read_people`, `read_person`
 - `read_time`, `read_tasks`
 - `read_projects`, `read_analytics`

@@ -8,6 +8,7 @@ export const VIEW_NAMES = [
   "invoice-new",
   "invoice-edit",
   "ledger",
+  "cashflow",
   "people",
   "person",
   "time",

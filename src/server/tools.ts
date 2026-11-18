@@ -76,6 +76,7 @@ import {
   invoicesView,
   legalView,
   ledgerView,
+  cashflowView,
   peopleView,
   personView,
   projectsView,
@@ -299,6 +300,12 @@ export const tools: DeskTool[] = [
     description: "Trial balance, profit before tax, corporate-tax estimate, VAT payable, and the latest journal entries of the active company.",
     input: { showAllAccounts: z.boolean().optional().describe("Include accounts without postings. Defaults to false.") },
     run: (input) => ledgerView(Boolean(input.showAllAccounts)),
+  }),
+  tool({
+    name: "read_cashflow",
+    description: "One year from invoicing to the tax office: billed and paid invoices, the journal split into purchases, net wages, wage tax, social insurance, VAT, corporate tax, solidarity surcharge, trade tax, and profit, plus the VAT chain, withheld amounts, bank movements, and filing counts.",
+    input: { year: z.number().int().min(2000).max(2100).optional().describe("Calendar year. Defaults to the current year.") },
+    run: (input) => cashflowView(input.year ?? Number(todayIso().slice(0, 4))),
   }),
   tool({
     name: "read_people",

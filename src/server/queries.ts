@@ -174,12 +174,50 @@ export function listInvoices() {
     );
     return {
       ...row,
+      netCents: totals.netCents,
+      vatCents: totals.vatCents,
       grossCents: totals.grossCents,
       paidCents,
       openCents: row.status === "void" ? 0 : Math.max(0, totals.grossCents - paidCents),
       displayStatus: displayStatus(row.status, row.dueDate, today),
     };
   });
+}
+
+export type CashMovement = {
+  id: number;
+  entryDate: string;
+  memo: string;
+  source: string;
+  deltaCents: number;
+};
+
+/**
+ * Every journal entry in the range that touches the bank account, with its net
+ * bank change. The page groups these movements by source so the cash view and
+ * the accrual view can be read side by side.
+ */
+export function listCashMovements(from: string, to: string): CashMovement[] {
+  const companyId = loadCompany().id;
+  return getDb()
+    .all<CashMovement>(sql`
+      SELECT
+        e.id AS id,
+        e.entry_date AS entryDate,
+        e.memo AS memo,
+        e.source AS source,
+        CAST(COALESCE(SUM(l.debit_cents - l.credit_cents), 0) AS INTEGER) AS deltaCents
+      FROM journal_entries e
+      JOIN journal_lines l ON l.entry_id = e.id
+      JOIN accounts a ON a.id = l.account_id
+      WHERE e.company_id = ${companyId}
+        AND e.entry_date >= ${from}
+        AND e.entry_date <= ${to}
+        AND a.code = ${ACCOUNTS.bank}
+      GROUP BY e.id
+      ORDER BY e.entry_date, e.id
+    `)
+    .map((row) => ({ ...row, deltaCents: Number(row.deltaCents) }));
 }
 
 export function loadInvoice(id: number) {

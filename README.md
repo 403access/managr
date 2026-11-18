@@ -67,6 +67,12 @@ Projects tie a customer, tasks, deliverables, and time together. Open **Projekte
 
 The **Report als PDF** button opens `/analytics/report` for the selected year. A customer report limits the same figures to one customer. The report is printed through the browser print dialog, where it is saved as a PDF, like an invoice. Nothing is sent.
 
+## Money flow
+
+**Geldfluss** under Mehr at `/cashflow` follows one year from invoicing to the tax office. It shows the gross invoices and how much of them is paid or open, then a Sankey of the journal: purchases and operations, net wages, wage tax, social insurance, VAT payable, corporate tax, solidarity surcharge, trade tax, and the profit that remains. A second table walks the tax chain from output VAT and input VAT to the open VAT, adds withheld wage tax and the annual tax estimate, and names the social-insurance amount that goes to the health insurer rather than the tax office. The bottom shows actual bank movements grouped by posting type, with opening and closing balances.
+
+The page reads the same journal and invoices as the ledger and the desk. It files nothing, and the corporate and trade tax figures remain planning estimates. A VAT credit or a loss appears as extra funding so the shares still add up.
+
 ## Demo and production books
 
 The desk always opens `data/managr.db`. Two saved copies sit beside it: `data/managr.demo.db` and `data/managr.production.db`. Stop the desk before switching, then:
