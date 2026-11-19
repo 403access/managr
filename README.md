@@ -33,7 +33,7 @@ The tools read the same views the screens read, and write through the same domai
 
 ## Assistant
 
-The floating button opens a chat panel. It answers with the same tools, so a figure in the answer can be traced to a tool call. Each step streams into the panel while the model works: a spinner, then a check or the error. A created invoice appears as a card with its number, customer, lines, and totals, and a link to the invoice; payroll and other writes show their key figures and a link. The open screen refreshes after a write.
+The floating button opens a chat panel. It answers with the same tools, so a figure in the answer can be traced to a tool call. Each step streams into the panel while the model works: a spinner, then a check or the error. The answer itself renders as light Markdown: bold, italics, inline code, links, bullet and numbered lists, quotes, and code blocks. Raw HTML stays text, and a link points only at an http(s) URL or a path inside the desk. A created invoice appears as a card with its number, customer, lines, and totals, and a link to the invoice; payroll and other writes show their key figures and a link. The open screen refreshes after a write.
 
 The panel can use the local [opencode](https://opencode.ai) installation. managr asks opencode for its providers and the models that support tool calling, then shows two searchable fields: **Anbieter** on the left and **Modell** on the right. The choice is kept in the browser. The selected provider's credential is read from opencode on the server, never sent to the browser, and not stored by managr. A local model keeps the conversation on this computer; a cloud provider receives the conversation and the tool results, and the panel marks the model as local or remote.
 

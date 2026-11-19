@@ -9,6 +9,7 @@ import { queryKeys, viewPath } from "@/client/query-keys";
 import type { MessageKey } from "@/i18n";
 import { Combobox } from "./combobox";
 import { useI18n } from "./locale-provider";
+import { Markdown } from "./markdown";
 import { buttonClass, inputClass, Pill } from "./ui";
 
 type Step = {
@@ -543,7 +544,7 @@ MANAGR_AI_API_KEY=…`}</pre>
                     ) : (
                       <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
                         {message.steps.length > 0 ? <Steps steps={message.steps} /> : null}
-                        {message.content ? <p className="mt-2 leading-relaxed whitespace-pre-wrap">{message.content}</p> : null}
+                        {message.content ? <Markdown text={message.content} className="mt-2" /> : null}
                       </div>
                     )}
                   </li>
@@ -554,7 +555,7 @@ MANAGR_AI_API_KEY=…`}</pre>
                       {streaming.steps.length > 0 ? <Steps steps={streaming.steps} /> : (
                         <p className="text-muted">{t("assistant.thinking")}</p>
                       )}
-                      {streaming.content ? <p className="mt-2 leading-relaxed whitespace-pre-wrap">{streaming.content}</p> : null}
+                      {streaming.content ? <Markdown text={streaming.content} className="mt-2" /> : null}
                     </div>
                   </li>
                 ) : null}
