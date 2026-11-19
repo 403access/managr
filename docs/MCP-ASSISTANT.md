@@ -93,7 +93,7 @@ Write tools follow the server actions:
 
 The MCP endpoint uses the SDK's Streamable HTTP transport in stateless mode with JSON responses. It speaks the standard `initialize`, `tools/list`, and `tools/call` flow. It is available only while the desk runs and only on the machine that runs it.
 
-Read tools cover every screen: the desk, company, customers, invoices, ledger, money flow, Qonto bank, people, org chart, time, tasks, projects, analytics, milestones, obligations, documents, legal records, and the source register. `read_org` returns the same top-down tree as `/people/org`, including former people and the depth. `read_guides` returns the explanation behind a screen with its sections and cited sources; `read_sources` returns the register grouped by domain, optionally filtered by query, domain, or guide. Both read `src/content/sources.ts`, so the assistant can name the same official link the info column shows.
+Read tools cover every screen: the desk, company, customers, invoices, ledger, money flow, Qonto bank, people, org chart, time, tasks, projects, analytics, milestones, obligations, documents, legal records, and the source register. `read_org` returns the same top-down tree as the People page, including former people and the depth. `read_guides` returns the explanation behind a screen with its sections and cited sources; `read_sources` returns the register grouped by domain, optionally filtered by query, domain, or guide. Both read `src/content/sources.ts`, so the assistant can name the same official link the info column shows.
 
 The Qonto connection itself stays on the bank screen, like a file upload. A tool reads the stored accounts, balances, and transactions through `read_bank`; it does not create or remove the connection.
 

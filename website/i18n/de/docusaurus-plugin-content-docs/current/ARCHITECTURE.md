@@ -47,7 +47,7 @@ Zwei gespeicherte Kopien, `data/managr.demo.db` und `data/managr.production.db`,
 
 **Personen** hält den Beschäftigungsdatensatz jeder Person, einschließlich der Führungskraft. `employees.manager_id` ist ein Selbstverweis aus `0009_org_chart.sql`; eine Person ohne ihn steht oben. Die Führungskraft wird auf dem Tab **Beschäftigung** der Person gewählt, und das Speichern lehnt einen Selbstverweis oder eine Schleife ab.
 
-**Organigramm** unter `/people/org` liest `orgView` in `src/server/views.ts`. `src/domain/org.ts` baut den Baum, sortiert jede Ebene nach Namen, lässt Personen mit einem Enddatum aus dem Baum und bricht eine bestehende Schleife an ihrer niedrigsten ID, damit die Seite weiterhin rendert. Eine Führungskraft außerhalb des aktiven Unternehmens lässt die Person oben. Nichts im Organigramm wird ins Journal gebucht. `read_org` gibt denselben Baum an Assistent und MCP-Clients weiter.
+**Organigramm** steht auf der Seite **Personen**. `peoplePageView` in `src/server/views.ts` verbindet die Beschäftigungsliste mit `orgView`, das den Baum baut. `src/domain/org.ts` sortiert jede Ebene nach Namen, lässt Personen mit einem Enddatum aus dem Baum und bricht eine bestehende Schleife an ihrer niedrigsten ID, damit die Seite weiterhin rendert. Eine Führungskraft außerhalb des aktiven Unternehmens lässt die Person oben. Nichts im Organigramm wird ins Journal gebucht. `read_org` gibt denselben Baum an Assistent und MCP-Clients weiter.
 
 ## Projekte und Auswertung
 

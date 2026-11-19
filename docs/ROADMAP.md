@@ -45,7 +45,7 @@ Shipped after the first version, in this order:
 12. Founder health cover records private or voluntary statutory cover, the premium, and the Statusfeststellungsverfahren. The premium stays outside payroll, and an open or missing status procedure is called out.
 13. A read-only Qonto bank connection per company stores the accounts and transactions from the Qonto API and shows balances, a year of transactions, and filters. The transactions are not posted to the journal.
 14. A money-flow page follows one year from invoicing to the tax office: gross revenue split into purchases, net wages, wage tax, social insurance, VAT, corporate tax, solidarity surcharge, trade tax, and profit, plus the VAT chain and actual bank movements. The MCP server exposes it as `read_cashflow`.
-15. An org chart draws the reporting lines from the manager on each person, keeps former people out of the tree, and refuses a self-reference or a loop. `/people/org` and `read_org` use the same view.
+15. An org chart draws the reporting lines from the manager on each person, keeps former people out of the tree, and refuses a self-reference or a loop. The People page and `read_org` use the same view.
 16. A source register pairs each explanation with the official websites behind it and groups the sources by domain. `/sources`, `read_guides`, and `read_sources` read the same typed data.
 
 ## Founder self-payment — conversation roadmap

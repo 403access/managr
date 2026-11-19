@@ -530,6 +530,11 @@ export function orgView() {
   return { today, ...buildOrgChart(listOrgMembers(), today) };
 }
 
+/** The People screen: the employment list with the org chart above it. */
+export function peoplePageView() {
+  return { ...peopleView(), org: orgView() };
+}
+
 export function personView(id: number) {
   const loaded = loadPerson(id);
   if (!loaded) return null;
@@ -1371,7 +1376,7 @@ export function loadView(name: ViewName, params: URLSearchParams) {
     case "bank":
       return bankView(query.year, query.all);
     case "people":
-      return peopleView();
+      return peoplePageView();
     case "person":
       return personView(query.id!);
     case "org":

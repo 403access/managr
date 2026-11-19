@@ -1,6 +1,6 @@
-export type NavIcon = "desk" | "invoices" | "customers" | "time" | "dates" | "company" | "ledger" | "cashflow" | "bank" | "people" | "org" | "documents" | "legal" | "projects" | "analytics" | "milestones" | "sources" | "settings";
+export type NavIcon = "desk" | "invoices" | "customers" | "time" | "dates" | "company" | "ledger" | "cashflow" | "bank" | "people" | "documents" | "legal" | "projects" | "analytics" | "milestones" | "sources" | "settings";
 
-export type NavItem = { href: string; labelKey: "nav.desk" | "nav.invoices" | "nav.customers" | "nav.time" | "nav.dates" | "nav.company" | "nav.ledger" | "nav.cashflow" | "nav.bank" | "nav.people" | "nav.org" | "nav.documents" | "nav.legal" | "nav.projects" | "nav.analytics" | "nav.milestones" | "nav.sources" | "nav.settings"; icon: NavIcon };
+export type NavItem = { href: string; labelKey: "nav.desk" | "nav.invoices" | "nav.customers" | "nav.time" | "nav.dates" | "nav.company" | "nav.ledger" | "nav.cashflow" | "nav.bank" | "nav.people" | "nav.documents" | "nav.legal" | "nav.projects" | "nav.analytics" | "nav.milestones" | "nav.sources" | "nav.settings"; icon: NavIcon };
 
 export const primaryNav: NavItem[] = [
   { href: "/", labelKey: "nav.desk", icon: "desk" },
@@ -16,7 +16,6 @@ export const moreNav: NavItem[] = [
   { href: "/cashflow", labelKey: "nav.cashflow", icon: "cashflow" },
   { href: "/bank", labelKey: "nav.bank", icon: "bank" },
   { href: "/people", labelKey: "nav.people", icon: "people" },
-  { href: "/people/org", labelKey: "nav.org", icon: "org" },
   { href: "/projects", labelKey: "nav.projects", icon: "projects" },
   { href: "/analytics", labelKey: "nav.analytics", icon: "analytics" },
   { href: "/milestones", labelKey: "nav.milestones", icon: "milestones" },

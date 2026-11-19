@@ -8,7 +8,7 @@ import { moreNav, primaryNav, type NavIcon, type NavItem } from "./nav-items";
 
 function active(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
-  // /people/org is its own entry; a person record still belongs to People.
+  // A person record still belongs to People.
   if (href === "/people") return pathname === "/people" || /^\/people\/\d+$/.test(pathname);
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -27,7 +27,6 @@ export function NavIconGlyph({ name }: { name: NavIcon }) {
       {name === "cashflow" ? <path {...common} d="M4 6.5h5v11H4zM13 8.5h7M13 12h7M13 15.5h5M17.5 14l2 1.5-2 1.5" /> : null}
       {name === "bank" ? <path {...common} d="M3.5 20.5h17M5.5 20.5V10M9.5 20.5V10M14.5 20.5V10M18.5 20.5V10M4 10l8-5.5L20 10z" /> : null}
       {name === "people" ? <path {...common} d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4.5 19.5c.6-2.4 2.4-3.5 4.5-3.5s3.9 1.1 4.5 3.5M16 11a2.5 2.5 0 1 0 0-5M16.2 16c1.6.2 2.8 1.2 3.3 3.5" /> : null}
-      {name === "org" ? <path {...common} d="M9.5 3.5h5v4h-5zM3.5 16.5h5v4h-5zM15.5 16.5h5v4h-5zM12 7.5v4.5M6 16.5v-2.5h12v2.5" /> : null}
       {name === "documents" ? <path {...common} d="M7 3.5h6l4 4V20.5H7zM13 3.5V8h4" /> : null}
       {name === "legal" ? <path {...common} d="M12 3.5v3M8 6.5h8M7 10.5 5 18h6l-2-7.5M17 10.5 15 18h6l-2-7.5M4 20.5h16" /> : null}
       {name === "projects" ? <path {...common} d="M4 7.5h6l2 2h8v9H4zM4 7.5v-2h6l2 2" /> : null}

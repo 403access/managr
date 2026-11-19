@@ -7,7 +7,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn(), unstable_rethrow: vi.fn() }));
 
 import { getDb } from "@/db/client";
-import { orgView, personView } from "@/server/views";
+import { orgView, peoplePageView, personView } from "@/server/views";
 
 const repo = process.cwd();
 let dir = "";
@@ -33,6 +33,12 @@ describe("org chart on the sample desk", () => {
     expect(view.roots[0]!.firstName).toBe("Mara");
     expect(view.roots[0]!.children).toHaveLength(2);
     expect(view.former).toHaveLength(0);
+  });
+
+  it("serves the org chart alongside the people list on the People page", () => {
+    const view = peoplePageView();
+    expect(view.people).toHaveLength(3);
+    expect(view.org.roots[0]!.firstName).toBe("Mara");
   });
 
   it("offers the colleagues of a person without offering that person", () => {

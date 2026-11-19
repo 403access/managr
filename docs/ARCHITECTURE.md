@@ -47,7 +47,7 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 **Personen** holds the employment record of each person, including the manager. `employees.manager_id` is a self-reference added in `0009_org_chart.sql`; a person without one sits at the top. The manager is chosen on the person's **Beschäftigung** tab, and the save refuses a self-reference or a line that would loop.
 
-**Organigramm** at `/people/org` reads `orgView` in `src/server/views.ts`. `src/domain/org.ts` builds the tree, sorts each level by name, leaves people with an end date out of the tree, and breaks an existing loop at its lowest id so the page still renders. A manager outside the active company leaves the person at the top. Nothing in the org chart is posted to the journal. `read_org` exposes the same tree to the assistant and MCP clients.
+**Organigramm** sits on the **Personen** page. `peoplePageView` in `src/server/views.ts` combines the employment list with `orgView`, which builds the tree. `src/domain/org.ts` sorts each level by name, leaves people with an end date out of the tree, and breaks an existing loop at its lowest id so the page still renders. A manager outside the active company leaves the person at the top. Nothing in the org chart is posted to the journal. `read_org` exposes the same tree to the assistant and MCP clients.
 
 ## Projects and analysis
 
