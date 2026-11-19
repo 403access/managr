@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDate } from "@/domain/calendar";
 import { formatEuro } from "@/domain/money";
+import { nextMessageId, readChat, writeChat, type ChatMessage, type ChatStep } from "@/client/chat-history";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import type { MessageKey } from "@/i18n";
 import { Combobox } from "./combobox";
@@ -12,16 +13,9 @@ import { useI18n } from "./locale-provider";
 import { Markdown } from "./markdown";
 import { buttonClass, inputClass, Pill } from "./ui";
 
-type Step = {
-  key: string;
-  name: string;
-  input: unknown;
-  status: "running" | "ok" | "error";
-  summary: string;
-  data?: unknown;
-};
+type Step = ChatStep;
 
-type Message = { id: number; role: "user" | "assistant"; content: string; steps: Step[] };
+type Message = ChatMessage;
 
 type Settings = { configured: boolean; model: string; baseUrl: string; local: boolean; web?: boolean };
 
@@ -222,6 +216,7 @@ export function Assistant() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [restored, setRestored] = useState(false);
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState<{ content: string; steps: Step[] } | null>(null);
   const [error, setError] = useState("");
@@ -245,6 +240,29 @@ export function Assistant() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let stored: Message[] = [];
+    try {
+      stored = readChat(window.localStorage);
+    } catch {
+      // A private window may refuse storage; the history then lasts for the session.
+    }
+    if (stored.length > 0) {
+      nextId = Math.max(nextId, nextMessageId(stored));
+      setMessages((current) => (current.length > 0 ? current : stored));
+    }
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!restored) return;
+    try {
+      writeChat(window.localStorage, messages);
+    } catch {
+      // A private window may refuse storage; the history then lasts for the session.
+    }
+  }, [messages, restored]);
 
   useEffect(() => {
     let active = true;
