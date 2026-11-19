@@ -158,6 +158,8 @@ A profit distribution is separate: `buildProfitDistribution` debits retained pro
 
 Working-time warnings follow §3 and §4 ArbZG (8 hours, 10-hour cap, 30- and 45-minute breaks). Vacation minimum scales 24 weekdays by the working week (BUrlG). The weekday pattern is "the first N days of the week", which is an assumption the person screen states.
 
+An hourly rate is not a statutory figure. It is stored at four levels — company default, customer, project, and time entry — and the most specific stored value wins (`src/domain/rates.ts`). A rate values booked minutes for display; it is not an invoice line and never posts to the journal.
+
 ## Documents and legal records
 
 Documents are files plus a category. Resolutions and the compliance checklist are records, not generated legal documents.

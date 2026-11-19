@@ -165,6 +165,17 @@ function positiveCents(value: string, label: string): number {
   return parsed;
 }
 
+/**
+ * Rates cascade, so a missing rate inherits. `undefined` keeps the stored value,
+ * an empty string clears it, and anything else has to parse as euro.
+ */
+function rateCents(value: string | undefined): number | undefined | null {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return cents(trimmed, "The hourly rate");
+}
+
 function date(value: string, label: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error(`${label} must be a date in YYYY-MM-DD.`);
   return value;
@@ -343,7 +354,7 @@ export const tools: DeskTool[] = [
   }),
   tool({
     name: "read_customers",
-    description: "All customers of the active company with addresses, contact details, websites, and buyer references.",
+    description: "All customers of the active company with addresses, contact details, websites, buyer references, and the customer hourly rate.",
     input: {},
     run: () => customersView(),
   }),
@@ -405,7 +416,7 @@ export const tools: DeskTool[] = [
   }),
   tool({
     name: "read_time",
-    description: "The time entries of one week and the open tasks.",
+    description: "The time entries of one week with the effective hourly rate and its value, plus the open tasks.",
     input: { anyDayInWeek: z.string().optional().describe("Any date in the week, YYYY-MM-DD. Defaults to today.") },
     run: (input) => timeView(input.anyDayInWeek ? date(input.anyDayInWeek, "The week anchor") : todayIso()),
   }),
@@ -500,7 +511,7 @@ export const tools: DeskTool[] = [
   }),
   tool({
     name: "read_projects",
-    description: "Projects with customer, status, dates, booked time, tasks, and deliverables.",
+    description: "Projects with customer, status, dates, booked time, the effective hourly rate and its value, tasks, and deliverables.",
     input: {},
     run: () => projectsView(),
   }),
@@ -1019,12 +1030,14 @@ export const tools: DeskTool[] = [
       website: z.string().trim().max(200).optional(),
       vatId: z.string().trim().max(32).optional(),
       buyerReference: z.string().trim().max(100).optional(),
+      hourlyRate: z.string().trim().optional().describe('Hourly rate for this customer in euro, for example "95,00". Omit to keep the stored rate; pass an empty string to inherit the company default.'),
     },
     run: (input) => {
       const company = requireCompany();
       const buyerReference = input.buyerReference ?? "";
       const problem = buyerReferenceProblem(buyerReference);
       if (problem) throw new Error(problem);
+      const hourlyRate = rateCents(input.hourlyRate);
       const values = {
         name: input.name,
         street: input.street ?? "",
@@ -1040,10 +1053,10 @@ export const tools: DeskTool[] = [
       if (input.customerId) {
         const existing = db.select().from(customers).where(and(eq(customers.id, input.customerId), eq(customers.companyId, company.id))).get();
         if (!existing) throw new Error("Customer not found.");
-        db.update(customers).set(values).where(eq(customers.id, input.customerId)).run();
+        db.update(customers).set({ ...values, hourlyRateCents: hourlyRate === undefined ? existing.hourlyRateCents : hourlyRate }).where(eq(customers.id, input.customerId)).run();
         return { id: input.customerId, saved: true };
       }
-      const created = db.insert(customers).values({ ...values, companyId: company.id }).run();
+      const created = db.insert(customers).values({ ...values, companyId: company.id, hourlyRateCents: hourlyRate ?? null }).run();
       return { id: Number(created.lastInsertRowid), saved: true };
     },
   }),
@@ -1723,6 +1736,7 @@ export const tools: DeskTool[] = [
       projectId: z.number().int().positive().optional(),
       taskType: z.string().trim().optional().describe("development, design, planning, research, documentation, meeting, communication, admin, or other. Inherited from the task when omitted."),
       billable: z.boolean().optional(),
+      hourlyRate: z.string().trim().optional().describe('Rate for this entry in euro, for example "120,00". Omit or pass an empty string to inherit the project, customer, or default rate.'),
     },
     run: (input) => {
       const company = requireCompany();
@@ -1750,6 +1764,7 @@ export const tools: DeskTool[] = [
           employeeId: input.personId ?? null,
           billable: input.billable ?? false,
           taskType,
+          hourlyRateCents: rateCents(input.hourlyRate) ?? null,
         })
         .run();
       return { id: Number(created.lastInsertRowid), minutes, projectId, taskType };
@@ -1768,6 +1783,41 @@ export const tools: DeskTool[] = [
     },
   }),
   tool({
+    name: "set_hourly_rate",
+    description:
+      "Set or clear an hourly rate. The levels cascade: a time entry overrides its project, the project overrides the customer, and the customer overrides the global default. The most specific stored rate wins. An empty hourlyRate clears that level so it inherits again.",
+    input: {
+      level: z.enum(["global", "customer", "project", "time"]).describe("Which level to set."),
+      id: z.number().int().positive().optional().describe("Customer, project, or time entry id. Omit for the global default."),
+      hourlyRate: z.string().trim().describe('Euro per hour, for example "95,00". Pass an empty string to clear the rate.'),
+    },
+    run: (input) => {
+      const db = getDb();
+      const company = requireCompany();
+      const value = rateCents(input.hourlyRate) ?? null;
+      if (input.level === "global") {
+        db.update(companies).set({ hourlyRateCents: value }).where(eq(companies.id, company.id)).run();
+        return { level: "global", hourlyRateCents: value };
+      }
+      if (!input.id) throw new Error(`A ${input.level} id is needed.`);
+      if (input.level === "customer") {
+        const customer = db.select().from(customers).where(and(eq(customers.id, input.id), eq(customers.companyId, company.id))).get();
+        if (!customer) throw new Error("Customer not found.");
+        db.update(customers).set({ hourlyRateCents: value }).where(eq(customers.id, customer.id)).run();
+        return { level: "customer", id: customer.id, hourlyRateCents: value };
+      }
+      if (input.level === "project") {
+        const existing = requireProject(input.id);
+        db.update(projects).set({ hourlyRateCents: value }).where(eq(projects.id, existing.id)).run();
+        return { level: "project", id: existing.id, hourlyRateCents: value };
+      }
+      const entry = db.select().from(timeEntries).where(and(eq(timeEntries.id, input.id), eq(timeEntries.companyId, company.id))).get();
+      if (!entry) throw new Error("Time entry not found.");
+      db.update(timeEntries).set({ hourlyRateCents: value }).where(eq(timeEntries.id, entry.id)).run();
+      return { level: "time", id: entry.id, hourlyRateCents: value };
+    },
+  }),
+  tool({
     name: "save_project",
     description: "Add or update a project with a customer, status, and dates. Started and completed counts come from these dates.",
     input: {
@@ -1778,6 +1828,7 @@ export const tools: DeskTool[] = [
       endedOn: z.string().optional().describe("End date, YYYY-MM-DD. A done project without one is ended today."),
       customerId: z.number().int().positive().optional(),
       notes: z.string().trim().max(2000).optional(),
+      hourlyRate: z.string().trim().optional().describe('Hourly rate for this project in euro, for example "110,00". Omit to keep the stored rate; pass an empty string to inherit the customer or default rate.'),
     },
     run: (input) => {
       const db = getDb();
@@ -1790,16 +1841,25 @@ export const tools: DeskTool[] = [
       const startedOn = input.startedOn ? date(input.startedOn, "The project start") : todayIso();
       const endedOn = status === "done" ? (input.endedOn ? date(input.endedOn, "The project end") : todayIso()) : input.endedOn ? date(input.endedOn, "The project end") : null;
       if (endedOn && endedOn < startedOn) throw new Error("The project end is before its start.");
+      const hourlyRate = rateCents(input.hourlyRate);
       if (input.projectId) {
         const existing = requireProject(input.projectId);
         db.update(projects)
-          .set({ name: input.name, status, startedOn, endedOn, customerId: input.customerId ?? existing.customerId, notes: input.notes ?? existing.notes })
+          .set({
+            name: input.name,
+            status,
+            startedOn,
+            endedOn,
+            customerId: input.customerId ?? existing.customerId,
+            notes: input.notes ?? existing.notes,
+            hourlyRateCents: hourlyRate === undefined ? existing.hourlyRateCents : hourlyRate,
+          })
           .where(eq(projects.id, existing.id))
           .run();
         return { id: existing.id, name: input.name, status };
       }
       const created = db.insert(projects)
-        .values({ companyId: company.id, name: input.name, status, startedOn, endedOn, customerId: input.customerId ?? null, notes: input.notes ?? "" })
+        .values({ companyId: company.id, name: input.name, status, startedOn, endedOn, customerId: input.customerId ?? null, notes: input.notes ?? "", hourlyRateCents: hourlyRate ?? null })
         .run();
       return { id: Number(created.lastInsertRowid), name: input.name, status };
     },

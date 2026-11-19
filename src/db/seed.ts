@@ -89,6 +89,7 @@ export function seedIfEmpty(db: DB) {
           foundingDate: "2024-03-15",
           hebesatzPercent: 410,
           additionalKvBps: 290,
+          hourlyRateCents: 9_500,
           iban: "DE89370400440532013000",
           bic: "COBADEFFXXX",
           bankName: "Commerzbank",
@@ -116,12 +117,12 @@ export function seedIfEmpty(db: DB) {
       .onConflictDoNothing()
       .run();
 
-    const lichtfeld = insertId(tx.insert(customers).values({ companyId, name: "Lichtfeld GmbH", street: "Torstraße 1", postalCode: "10119", city: "Berlin", email: "finance@lichtfeld.example", vatId: "DE111111111", buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"] }).run());
+    const lichtfeld = insertId(tx.insert(customers).values({ companyId, name: "Lichtfeld GmbH", street: "Torstraße 1", postalCode: "10119", city: "Berlin", email: "finance@lichtfeld.example", vatId: "DE111111111", buyerReference: SAMPLE_BUYER_REFERENCE["Lichtfeld GmbH"], hourlyRateCents: 11_000 }).run());
     const kiez = insertId(tx.insert(customers).values({ companyId, name: "Kiezküche e.K.", street: "Weserstraße 40", postalCode: "12045", city: "Berlin", email: "hello@kiezkueche.example", buyerReference: SAMPLE_BUYER_REFERENCE["Kiezküche e.K."] }).run());
-    const havel = insertId(tx.insert(customers).values({ companyId, name: "Havel & Sohn AG", street: "Havelchaussee 2", postalCode: "14193", city: "Berlin", email: "ap@havel.example", vatId: "DE222222222", buyerReference: SAMPLE_BUYER_REFERENCE["Havel & Sohn AG"] }).run());
+    const havel = insertId(tx.insert(customers).values({ companyId, name: "Havel & Sohn AG", street: "Havelchaussee 2", postalCode: "14193", city: "Berlin", email: "ap@havel.example", vatId: "DE222222222", buyerReference: SAMPLE_BUYER_REFERENCE["Havel & Sohn AG"], hourlyRateCents: 10_500 }).run());
 
     const lichtfeldProject = insertId(tx.insert(projects).values({ companyId, customerId: lichtfeld, name: "Markenauftritt Lichtfeld", status: "active", startedOn: on(-150), notes: "Beispielprojekt: Strategie, Designsystem und Übergabe." }).run());
-    const havelProject = insertId(tx.insert(projects).values({ companyId, customerId: havel, name: "Pitchfilm Havel", status: "done", startedOn: on(-95), endedOn: on(-40), notes: "Beispielprojekt: Konzept, Produktion und Abgabe." }).run());
+    const havelProject = insertId(tx.insert(projects).values({ companyId, customerId: havel, name: "Pitchfilm Havel", status: "done", startedOn: on(-95), endedOn: on(-40), notes: "Beispielprojekt: Konzept, Produktion und Abgabe.", hourlyRateCents: 12_000 }).run());
     const kiezProject = insertId(tx.insert(projects).values({ companyId, customerId: kiez, name: "Websitebetreuung Kiezküche", status: "active", startedOn: on(-70), notes: "Laufende Betreuung mit monatlicher Abstimmung." }).run());
     const studioProject = insertId(tx.insert(projects).values({ companyId, name: "Studio und Verwaltung", status: "active", startedOn: `${year}-01-05`, notes: "Interne Zeit ohne Kundenbezug." }).run());
 
@@ -335,7 +336,7 @@ export function seedIfEmpty(db: DB) {
     }
     const havelDay = on(-55);
     if (havelDay.startsWith(String(year))) {
-      tx.insert(timeEntries).values({ companyId, entryDate: havelDay, startedAt: "09:00", endedAt: "17:00", breakMinutes: 60, memo: "Pitchfilm produzieren", billable: true, employeeId: jonasId, projectId: havelProject, taskType: "development" }).run();
+      tx.insert(timeEntries).values({ companyId, entryDate: havelDay, startedAt: "09:00", endedAt: "17:00", breakMinutes: 60, memo: "Pitchfilm produzieren", billable: true, employeeId: jonasId, projectId: havelProject, taskType: "development", hourlyRateCents: 13_500 }).run();
     }
 
     const settings = { fiscalYearStartMonth: 1, vatPermanentExtension: false, usesTaxAdvisor: false };

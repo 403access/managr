@@ -5,9 +5,10 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { deleteProject, saveProject } from "@/server/actions";
 import type { projectsView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
+import { formatEuro } from "@/domain/money";
 import { filterProjects, groupProjects, sortProjects, DEFAULT_PROJECT_GROUPING, DEFAULT_PROJECT_SORT, PROJECT_GROUPINGS, PROJECT_SORTS, PROJECT_STATUSES, type ProjectGrouping, type ProjectSort, type ProjectStatus } from "@/domain/projects";
 import { queryKeys, viewPath } from "@/client/query-keys";
-import { formatDuration } from "@/components/amounts";
+import { euroInput, formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { AddSheet } from "@/components/add-sheet";
 import { InfoButton } from "@/components/info-sheet";
@@ -40,6 +41,14 @@ function ProjectFields({ project, customers, today }: { project?: Project; custo
           <option value="done">{label("done")}</option>
           <option value="paused">{label("paused")}</option>
         </SelectInput>
+      </Field>
+      <Field label={t("rates.project")} hint={t("rates.projectHint")}>
+        <TextInput
+          name="hourlyRate"
+          inputMode="decimal"
+          placeholder="95,00"
+          defaultValue={project?.hourlyRateCents == null ? "" : euroInput(project.hourlyRateCents)}
+        />
       </Field>
       <Field label={t("projects.start")}><TextInput name="startedOn" type="date" defaultValue={project?.startedOn ?? today} required /></Field>
       <Field label={t("projects.end")} hint={t("projects.endHint")}><TextInput name="endedOn" type="date" defaultValue={project?.endedOn ?? ""} /></Field>
@@ -117,6 +126,14 @@ function ProjectDetailPanel({
 }) {
   const { t, label } = useI18n();
   const [editing, setEditing] = useState(false);
+  const rateLabel = (source: "entry" | "project" | "customer" | "global") =>
+    source === "entry"
+      ? t("rates.source.entry")
+      : source === "project"
+        ? t("rates.source.project")
+        : source === "customer"
+          ? t("rates.source.customer")
+          : t("rates.source.global");
   return (
     <SidePanel
       variant={variant}
@@ -138,6 +155,17 @@ function ProjectDetailPanel({
           )}
         </DetailRow>
         <DetailRow label={t("projects.start")}>{formatDate(project.startedOn)}</DetailRow>
+        <DetailRow label={t("rates.effective")}>
+          {project.effectiveRate
+            ? t("rates.rateWithSource", {
+                amount: formatEuro(project.effectiveRate.cents),
+                source: rateLabel(project.effectiveRate.source),
+              })
+            : t("rates.noRate")}
+        </DetailRow>
+        <DetailRow label={t("rates.value")}>
+          <span className="font-mono tabular-nums">{formatEuro(project.valueCents)}</span>
+        </DetailRow>
         <DetailRow label={t("projects.end")}>{project.endedOn ? formatDate(project.endedOn) : "—"}</DetailRow>
         <DetailRow label={t("projects.booked")}>
           <span className="font-mono tabular-nums">{formatDuration(project.minutes)}</span>

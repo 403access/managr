@@ -73,7 +73,7 @@ import { durationMinutes, timeWarnings } from "@/domain/time";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { removeUpload, saveUpload } from "./files";
 import { connectBank, syncBankConnection } from "./bank";
-import { type ActionState, basisPoints, checked, euros, hoursToMinutes, requireDate, text, wholeNumber } from "./form";
+import { type ActionState, basisPoints, checked, euros, hoursToMinutes, optionalEuros, requireDate, text, wholeNumber } from "./form";
 import { invoiceMoney } from "./invoice-math";
 import { invoicePayloadSchema, journalPayloadSchema, type InvoicePayload } from "./payloads";
 import { socialInput } from "./people";
@@ -194,13 +194,18 @@ export async function saveSettings(_state: ActionState, formData: FormData): Pro
       detailSidebarMode: mode,
       detailSidebarOverrides: serializeDetailSidebarOverrides(overrides),
     };
+    const hourlyRateCents = optionalEuros(formData, "hourlyRate", "The hourly rate");
     const db = getDb();
     if (db.select().from(appSettings).get()) {
       db.update(appSettings).set(values).where(eq(appSettings.id, 1)).run();
     } else {
       db.insert(appSettings).values({ id: 1, ...values }).run();
     }
-    return saved("Display settings saved.");
+    db.update(companies)
+      .set({ hourlyRateCents })
+      .where(eq(companies.id, requireCompany().id))
+      .run();
+    return saved("Settings saved.");
   } catch (error) {
     return failed(error);
   }
@@ -666,6 +671,7 @@ export async function saveCustomer(_state: ActionState, formData: FormData): Pro
       website: text(formData, "website"),
       vatId: text(formData, "vatId").toUpperCase(),
       buyerReference,
+      hourlyRateCents: optionalEuros(formData, "hourlyRate", "The customer hourly rate"),
     };
     const id = optionalId(formData);
     const db = getDb();
@@ -1340,7 +1346,7 @@ export async function saveProject(_state: ActionState, formData: FormData): Prom
     if (customerId && !db.select().from(customers).where(and(eq(customers.id, customerId), eq(customers.companyId, company.id))).get()) {
       throw new Error("Customer not found.");
     }
-    const values = { name, status, startedOn, endedOn, customerId, notes: text(formData, "notes") };
+    const values = { name, status, startedOn, endedOn, customerId, notes: text(formData, "notes"), hourlyRateCents: optionalEuros(formData, "hourlyRate", "The project hourly rate") };
     const id = optionalId(formData);
     if (id) {
       const existing = db.select().from(projects).where(and(eq(projects.id, id), eq(projects.companyId, company.id))).get();
@@ -1499,10 +1505,28 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
         employeeId,
         billable: checked(formData, "billable"),
         taskType,
+        hourlyRateCents: optionalEuros(formData, "hourlyRate", "The entry hourly rate"),
       })
       .run();
     const watch = warnings.map((warning) => warning.message).join(" ");
     return saved(watch ? `Time saved. ${watch}` : "Time saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+/** Sets or clears the rate that overrides the inherited one on this entry. */
+export async function saveTimeRate(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const id = requiredId(formData);
+    const db = getDb();
+    const entry = db.select().from(timeEntries).where(and(eq(timeEntries.id, id), eq(timeEntries.companyId, requireCompany().id))).get();
+    if (!entry) throw new Error("Time entry not found.");
+    db.update(timeEntries)
+      .set({ hourlyRateCents: optionalEuros(formData, "hourlyRate", "The entry hourly rate") })
+      .where(eq(timeEntries.id, id))
+      .run();
+    return saved("Hourly rate saved.");
   } catch (error) {
     return failed(error);
   }

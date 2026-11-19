@@ -19,7 +19,7 @@ import { formatEuro } from "@/domain/money";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { AddSheet } from "@/components/add-sheet";
-import { formatDuration } from "@/components/amounts";
+import { euroInput, formatDuration } from "@/components/amounts";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useDetailSidebarMode } from "@/components/settings-provider";
@@ -42,6 +42,7 @@ type CustomerFieldsValue = {
   country: string;
   vatId: string;
   buyerReference: string;
+  hourlyRateCents: number | null;
 };
 
 function CustomerFields({ customer }: { customer?: CustomerFieldsValue }) {
@@ -58,6 +59,14 @@ function CustomerFields({ customer }: { customer?: CustomerFieldsValue }) {
       <Field label={t("company.vatId")}><TextInput name="vatId" defaultValue={customer?.vatId} /></Field>
       <Field label={t("invoices.buyerReference")} hint={t("invoices.buyerReferenceHint")}>
         <TextInput name="buyerReference" defaultValue={customer?.buyerReference} maxLength={100} />
+      </Field>
+      <Field label={t("rates.customer")} hint={t("rates.customerHint")}>
+        <TextInput
+          name="hourlyRate"
+          inputMode="decimal"
+          placeholder="95,00"
+          defaultValue={customer?.hourlyRateCents == null ? "" : euroInput(customer.hourlyRateCents)}
+        />
       </Field>
     </div>
   );
@@ -95,6 +104,9 @@ function CustomerDetails({ data }: { data: CustomerDetail }) {
       </div>
       {totals.lastActivity ? (
         <p className="text-xs text-muted">{t("customers.lastActivity", { date: formatDate(totals.lastActivity) })}</p>
+      ) : null}
+      {totals.billableValueCents > 0 ? (
+        <p className="text-xs text-muted">{t("rates.billableValue", { amount: formatEuro(totals.billableValueCents) })}</p>
       ) : null}
 
       <Card>
@@ -135,6 +147,11 @@ function CustomerDetails({ data }: { data: CustomerDetail }) {
             </DetailRow>
             <DetailRow label={t("company.vatId")}>{customer.vatId || t("customers.noValue")}</DetailRow>
             <DetailRow label={t("invoices.buyerReference")}>{customer.buyerReference || t("customers.noValue")}</DetailRow>
+            <DetailRow label={t("rates.customer")}>
+              {customer.hourlyRateCents === null
+                ? t("rates.noRate")
+                : `${formatEuro(customer.hourlyRateCents)} / Std.`}
+            </DetailRow>
           </dl>
         )}
         <Link href={`/analytics/report?customer=${customer.id}`} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-pine">

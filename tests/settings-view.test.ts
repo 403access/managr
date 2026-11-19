@@ -40,7 +40,7 @@ describe("display settings", () => {
     form.set("detailSidebarMode", "overlay");
     form.set("page.customers", "inline");
 
-    expect(await saveSettings(initialState, form)).toEqual({ error: "", message: "Display settings saved." });
+    expect(await saveSettings(initialState, form)).toEqual({ error: "", message: "Settings saved." });
 
     const stored = getDb().select().from(appSettings).get();
     expect(stored?.detailSidebarMode).toBe("overlay");
@@ -56,7 +56,7 @@ describe("display settings", () => {
     form.set("detailSidebarMode", "inline");
     form.set("page.customers", "");
 
-    expect(await saveSettings(initialState, form)).toEqual({ error: "", message: "Display settings saved." });
+    expect(await saveSettings(initialState, form)).toEqual({ error: "", message: "Settings saved." });
     expect(readUiSettings()).toEqual({ detailSidebarMode: "inline", detailSidebarOverrides: {} });
   });
 

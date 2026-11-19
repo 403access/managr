@@ -6,9 +6,10 @@ import { DETAIL_PAGE_KEYS, resolveDetailSidebarMode, type DetailPageKey, type De
 import type { MessageKey } from "@/i18n";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { euroInput } from "@/components/amounts";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Field, PageHeader, SelectInput } from "@/components/ui";
+import { Card, Field, PageHeader, SelectInput, TextInput } from "@/components/ui";
 
 type Settings = ReturnType<typeof settingsView>;
 
@@ -41,6 +42,21 @@ export function SettingsScreen() {
         <>
           <PageHeader title={t("settings.title")} lede={t("settings.lede")} />
           <ActionForm action={saveSettings} className="grid gap-4">
+            <Card>
+              <h2 className="text-xl">{t("rates.settingsTitle")}</h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{t("rates.settingsLede")}</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Field label={t("rates.global")} hint={t("rates.globalHint")}>
+                  <TextInput
+                    name="hourlyRate"
+                    inputMode="decimal"
+                    placeholder="95,00"
+                    defaultValue={data.hourlyRateCents === null ? "" : euroInput(data.hourlyRateCents)}
+                  />
+                </Field>
+              </div>
+            </Card>
+
             <Card>
               <h2 className="text-xl">{t("settings.sidebarTitle")}</h2>
               <p className="mt-1 text-sm leading-relaxed text-muted">{t("settings.sidebarLede")}</p>

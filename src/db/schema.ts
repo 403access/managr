@@ -33,6 +33,7 @@ export const companies = sqliteTable("companies", {
   berufsgenossenschaft: text("berufsgenossenschaft").notNull().default(""),
   hebesatzPercent: integer("hebesatz_percent").notNull().default(410),
   additionalKvBps: integer("additional_kv_bps").notNull().default(290),
+  hourlyRateCents: integer("hourly_rate_cents"),
   invoicePrefix: text("invoice_prefix").notNull().default("RE-"),
   nextInvoiceSeq: integer("next_invoice_seq").notNull().default(1),
   paymentTermsDays: integer("payment_terms_days").notNull().default(14),
@@ -64,6 +65,7 @@ export const customers = sqliteTable("customers", {
   website: text("website").notNull().default(""),
   vatId: text("vat_id").notNull().default(""),
   buyerReference: text("buyer_reference").notNull().default(""),
+  hourlyRateCents: integer("hourly_rate_cents"),
 });
 
 export const accounts = sqliteTable("accounts", {
@@ -251,6 +253,7 @@ export const projects = sqliteTable("projects", {
   startedOn: text("started_on").notNull(),
   endedOn: text("ended_on"),
   notes: text("notes").notNull().default(""),
+  hourlyRateCents: integer("hourly_rate_cents"),
 });
 
 export const tasks = sqliteTable("tasks", {
@@ -280,6 +283,7 @@ export const timeEntries = sqliteTable("time_entries", {
   employeeId: integer("employee_id").references(() => employees.id),
   billable: integer("billable", { mode: "boolean" }).notNull().default(false),
   taskType: text("task_type").notNull().default("other"),
+  hourlyRateCents: integer("hourly_rate_cents"),
 });
 
 export const documents = sqliteTable("documents", {

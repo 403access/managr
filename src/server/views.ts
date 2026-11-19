@@ -17,6 +17,7 @@ import { analyzeMilestones, analyzeMilestonesByCompany, milestoneIsOverdue, mile
 import { buildOrgChart } from "@/domain/org";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
 import { daySpan, durationMinutes, minimumVacationDays, resolveTimeRange, timeWarnings, vacationShortfall, weekStart } from "@/domain/time";
+import { effectiveHourlyRate, timeValueCents } from "@/domain/rates";
 import { euroInput, quantityInput } from "@/components/amounts";
 import { formatEuro, formatPercentBps } from "@/domain/money";
 import {
@@ -127,7 +128,10 @@ export function shellView() {
 }
 
 export function settingsView() {
-  return { settings: readUiSettings() };
+  return {
+    settings: readUiSettings(),
+    hourlyRateCents: loadCompany().hourlyRateCents,
+  };
 }
 
 export function deskView() {
@@ -237,6 +241,7 @@ type CustomerTotals = {
   projectCount: number;
   minutes: number;
   billableMinutes: number;
+  billableValueCents: number;
   invoiceCount: number;
   revenueCents: number;
   openCents: number;
@@ -244,7 +249,7 @@ type CustomerTotals = {
 };
 
 function emptyCustomerTotals(): CustomerTotals {
-  return { projectCount: 0, minutes: 0, billableMinutes: 0, invoiceCount: 0, revenueCents: 0, openCents: 0, lastActivity: null };
+  return { projectCount: 0, minutes: 0, billableMinutes: 0, billableValueCents: 0, invoiceCount: 0, revenueCents: 0, openCents: 0, lastActivity: null };
 }
 
 function latestDate(current: string | null, candidate: string | null): string | null {
@@ -254,8 +259,10 @@ function latestDate(current: string | null, candidate: string | null): string | 
 
 /** Projects, booked time, and invoiced totals keyed by customer. */
 function customerTotals(): Map<number, CustomerTotals> {
+  const company = loadCompany();
   const projects = listProjects();
   const projectById = new Map(projects.map((project) => [project.id, project]));
+  const customerById = new Map(listCustomers(company.id).map((customer) => [customer.id, customer]));
   const taskProject = new Map(listTasks().map((task) => [task.id, task.projectId]));
   const totals = new Map<number, CustomerTotals>();
   const bucket = (customerId: number | null): CustomerTotals | null => {
@@ -282,7 +289,16 @@ function customerTotals(): Map<number, CustomerTotals> {
     const minutes = timeEntryMinutes(entry);
     if (minutes > 0) {
       row.minutes += minutes;
-      if (entry.billable) row.billableMinutes += minutes;
+      if (entry.billable) {
+        row.billableMinutes += minutes;
+        const rate = effectiveHourlyRate({
+          entryCents: entry.hourlyRateCents,
+          projectCents: project?.hourlyRateCents ?? null,
+          customerCents: project?.customerId == null ? null : customerById.get(project.customerId)?.hourlyRateCents ?? null,
+          globalCents: company.hourlyRateCents,
+        });
+        if (rate) row.billableValueCents += timeValueCents(minutes, rate.cents);
+      }
     }
     row.lastActivity = latestDate(row.lastActivity, entry.entryDate);
   }
@@ -328,6 +344,13 @@ export function customerView(id: number) {
       const projectId = entry.projectId ?? (entry.taskId === null ? null : taskById.get(entry.taskId)?.projectId ?? null);
       if (projectId === null || !projectIds.has(projectId)) return [];
       const project = projects.find((item) => item.id === projectId);
+      const minutes = timeEntryMinutes(entry);
+      const rate = effectiveHourlyRate({
+        entryCents: entry.hourlyRateCents,
+        projectCents: project?.hourlyRateCents ?? null,
+        customerCents: customer.hourlyRateCents,
+        globalCents: company.hourlyRateCents,
+      });
       return [{
         id: entry.id,
         entryDate: entry.entryDate,
@@ -339,7 +362,9 @@ export function customerView(id: number) {
         projectId,
         projectName: project?.name ?? "",
         employeeName: entry.employeeId === null ? "" : personById.get(entry.employeeId) ?? "",
-        minutes: timeEntryMinutes(entry),
+        minutes,
+        rate,
+        valueCents: rate ? timeValueCents(minutes, rate.cents) : 0,
       }];
     })
     .sort((left, right) => right.entryDate.localeCompare(left.entryDate) || right.startedAt.localeCompare(left.startedAt));
@@ -347,10 +372,18 @@ export function customerView(id: number) {
   const projectRows = projects.map((project) => {
     const projectEntries = entries.filter((entry) => entry.projectId === project.id);
     const projectTasks = tasks.filter((task) => task.projectId === project.id);
+    const minutes = projectEntries.reduce((sum, entry) => sum + entry.minutes, 0);
+    const effectiveRate = effectiveHourlyRate({
+      projectCents: project.hourlyRateCents,
+      customerCents: customer.hourlyRateCents,
+      globalCents: company.hourlyRateCents,
+    });
     return {
       ...project,
-      minutes: projectEntries.reduce((sum, entry) => sum + entry.minutes, 0),
+      minutes,
       billableMinutes: projectEntries.reduce((sum, entry) => sum + (entry.billable ? entry.minutes : 0), 0),
+      effectiveRate,
+      valueCents: projectEntries.reduce((sum, entry) => sum + entry.valueCents, 0),
       taskCount: projectTasks.length,
       openTasks: projectTasks.filter((task) => task.status !== "done").length,
       openDeliverables: projectTasks.filter((task) => task.deliverable && task.status !== "done").length,
@@ -363,6 +396,7 @@ export function customerView(id: number) {
     projectCount: projects.length,
     minutes: entries.reduce((sum, entry) => sum + entry.minutes, 0),
     billableMinutes: entries.reduce((sum, entry) => sum + (entry.billable ? entry.minutes : 0), 0),
+    billableValueCents: entries.reduce((sum, entry) => sum + (entry.billable ? entry.valueCents : 0), 0),
     invoiceCount: bookedInvoices.length,
     revenueCents: bookedInvoices.reduce((sum, invoice) => sum + invoice.grossCents, 0),
     openCents: bookedInvoices.reduce((sum, invoice) => sum + invoice.openCents, 0),
@@ -603,30 +637,54 @@ export function personView(id: number) {
 export function projectsView() {
   const company = loadCompany();
   const projects = listProjects(company.id);
+  const customers = listCustomers(company.id);
+  const customerById = new Map(customers.map((customer) => [customer.id, customer]));
+  const projectById = new Map(projects.map((project) => [project.id, project]));
   const tasks = listTasks();
   const entries = listTimeInRange("0001-01-01", "9999-12-31");
   const totalsByProject = new Map<number, WorkTotals>();
+  const valueByProject = new Map<number, number>();
   for (const entry of entries) {
     if (entry.projectId === null) continue;
     const totals = totalsByProject.get(entry.projectId) ?? emptyWorkTotals();
     const minutes = timeEntryMinutes(entry);
-    if (minutes > 0) addWork(totals, minutes, entry.taskType, entry.billable);
+    if (minutes > 0) {
+      addWork(totals, minutes, entry.taskType, entry.billable);
+      const project = projectById.get(entry.projectId);
+      const rate = effectiveHourlyRate({
+        entryCents: entry.hourlyRateCents,
+        projectCents: project?.hourlyRateCents ?? null,
+        customerCents: project?.customerId == null ? null : customerById.get(project.customerId)?.hourlyRateCents ?? null,
+        globalCents: company.hourlyRateCents,
+      });
+      if (rate) valueByProject.set(entry.projectId, (valueByProject.get(entry.projectId) ?? 0) + timeValueCents(minutes, rate.cents));
+    }
     totalsByProject.set(entry.projectId, totals);
   }
   return {
     today: todayIso(),
+    globalHourlyRateCents: company.hourlyRateCents,
     projects: projects.map((project) => {
       const projectTasks = tasks.filter((task) => task.projectId === project.id);
+      const minutes = totalsByProject.get(project.id)?.minutes ?? 0;
+      const customerRate = project.customerId === null ? null : customerById.get(project.customerId)?.hourlyRateCents ?? null;
+      const effectiveRate = effectiveHourlyRate({
+        projectCents: project.hourlyRateCents,
+        customerCents: customerRate,
+        globalCents: company.hourlyRateCents,
+      });
       return {
         ...project,
-        minutes: totalsByProject.get(project.id)?.minutes ?? 0,
+        minutes,
+        effectiveRate,
+        valueCents: valueByProject.get(project.id) ?? 0,
         taskCount: projectTasks.length,
         openTasks: projectTasks.filter((task) => task.status !== "done").length,
         deliverables: projectTasks.filter((task) => task.deliverable && task.status === "done").length,
         openDeliverables: projectTasks.filter((task) => task.deliverable && task.status !== "done").length,
       };
     }),
-    customers: listCustomers(company.id).map((customer) => ({ id: customer.id, name: customer.name })),
+    customers: customers.map((customer) => ({ id: customer.id, name: customer.name, hourlyRateCents: customer.hourlyRateCents })),
   };
 }
 
@@ -810,9 +868,12 @@ export function analyticsView(year: number, customerId: number | null = null) {
 }
 
 function timeViewForRange(start: string, end: string, anchor: string) {
+  const company = loadCompany();
   const people = listPeople();
   const tasks = listTasks();
   const projects = listProjects();
+  const customers = listCustomers(company.id);
+  const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const projectFor = (id: number | null) => (id === null ? null : projectById.get(id) ?? null);
   const entries = listTimeInRange(start, end).map((entry) => {
@@ -827,6 +888,13 @@ function timeViewForRange(start: string, end: string, anchor: string) {
     }
     const person = people.find((item) => item.employee.id === entry.employeeId);
     const project = projectFor(entry.projectId);
+    const customer = project?.customerId == null ? null : customerById.get(project.customerId) ?? null;
+    const effectiveRate = effectiveHourlyRate({
+      entryCents: entry.hourlyRateCents,
+      projectCents: project?.hourlyRateCents ?? null,
+      customerCents: customer?.hourlyRateCents ?? null,
+      globalCents: company.hourlyRateCents,
+    });
     return {
       id: entry.id,
       entryDate: entry.entryDate,
@@ -846,6 +914,9 @@ function timeViewForRange(start: string, end: string, anchor: string) {
       minutes,
       warnings,
       error,
+      hourlyRateCents: entry.hourlyRateCents,
+      rate: effectiveRate,
+      valueCents: effectiveRate && minutes > 0 ? timeValueCents(minutes, effectiveRate.cents) : 0,
     };
   });
   const span = daySpan(start, end);
@@ -858,9 +929,12 @@ function timeViewForRange(start: string, end: string, anchor: string) {
     next: addDays(end, 1),
     entries,
     total: entries.reduce((sum, entry) => sum + (entry.error ? 0 : entry.minutes), 0),
+    billableTotal: entries.reduce((sum, entry) => sum + (entry.error || !entry.billable ? 0 : entry.minutes), 0),
+    billableValueCents: entries.reduce((sum, entry) => sum + (entry.error || !entry.billable ? 0 : entry.valueCents), 0),
+    globalHourlyRateCents: company.hourlyRateCents,
     people: people.map((item) => ({ id: item.employee.id, firstName: item.employee.firstName, lastName: item.employee.lastName })),
     tasks: tasks.map((task) => ({ ...task, projectName: projectFor(task.projectId)?.name ?? "" })),
-    projects: projects.map((project) => ({ id: project.id, name: project.name, customerId: project.customerId, customerName: project.customerName })),
+    projects: projects.map((project) => ({ id: project.id, name: project.name, customerId: project.customerId, customerName: project.customerName, hourlyRateCents: project.hourlyRateCents })),
   };
 }
 

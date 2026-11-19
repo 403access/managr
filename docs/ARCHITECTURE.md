@@ -57,6 +57,10 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 `/analytics/report` is the printable customer report. It is a server render outside the app shell, like the invoice print route, and uses the same `analyticsView` with an optional `customer` filter. The **Als PDF drucken** button opens the browser print dialog, where the report is saved as a PDF. There is no server-side PDF file and nothing is sent to a customer.
 
+## Hourly rates
+
+`companies`, `customers`, `projects`, and `time_entries` each carry a nullable `hourly_rate_cents` (migration `0016_hourly_rates.sql`). `NULL` means "inherit". `src/domain/rates.ts` resolves the most specific stored rate — entry, project, customer, then the company default — and values booked minutes at it. `/settings` writes the company default, `/customers` the customer rate, `/projects` the project rate, and the **Zeit** add form and entry panel write the entry rate. `timeViewForRange` and `projectsView` add the effective rate and value to their output, and `set_hourly_rate`, `save_customer`, `save_project`, and `add_time` expose the same fields to the assistant and MCP clients. Nothing here posts to the journal.
+
 ## Milestones
 
 `milestones` is deliberately not scoped to a company: the page compares goals across the whole desk. `milestone_companies` links a goal to any number of companies; no row means the goal applies to the group as a whole. `/milestones` reads `milestonesView` in `src/server/views.ts`, which adds the linked companies, the overdue flag, and the effective progress. `src/domain/milestones.ts` holds the filters, quarter grouping, and the analysis by status, category, company, and quarter; `read_milestones`, `save_milestone`, and `delete_milestone` expose the same data and rules to the assistant and MCP clients. A milestone never posts to the journal and does not change the books.

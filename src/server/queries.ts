@@ -97,6 +97,7 @@ export function listProjects(companyId = loadCompany().id) {
       startedOn: projects.startedOn,
       endedOn: projects.endedOn,
       notes: projects.notes,
+      hourlyRateCents: projects.hourlyRateCents,
     })
     .from(projects)
     .leftJoin(customers, eq(customers.id, projects.customerId))

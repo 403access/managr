@@ -77,6 +77,17 @@ Projects tie a customer, tasks, deliverables, and time together. Open **Projekte
 
 The **Report als PDF** button opens `/analytics/report` for the selected year. A customer report limits the same figures to one customer. The report is printed through the browser print dialog, where it is saved as a PDF, like an invoice. Nothing is sent.
 
+## Hourly rates
+
+An hourly rate can be stored at four levels. The most specific one wins and the rest are inherited:
+
+- the time entry (the **Zeit** screen, or the entry panel afterwards)
+- the project (Projekte)
+- the customer (Kunden)
+- the active company's default (Einstellungen under **Abrechnung**)
+
+Only the rate is stored; the value of booked time is derived from it and the recorded minutes. Rates never post to the journal, and an invoice is still written by hand. The Time screen shows the effective rate and its source on every entry, plus the billable value of the visible range.
+
 ## Milestones across companies
 
 **Meilensteine** under Mehr at `/milestones` holds overarching goals that are not tied to the active company. A goal has a title, description, category, target date, status (planned, active, achieved, missed), and progress. It can name several companies, or none for a goal that applies to the whole group. The year selector scopes the list and the analysis by target year.

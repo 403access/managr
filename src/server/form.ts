@@ -12,6 +12,15 @@ export function euros(formData: FormData, name: string): number | null {
   return parseEuroToCents(text(formData, name));
 }
 
+/** An empty field is `null`; a filled one has to parse, or the caller gets an error. */
+export function optionalEuros(formData: FormData, name: string, label: string): number | null {
+  const raw = text(formData, name);
+  if (!raw) return null;
+  const cents = parseEuroToCents(raw);
+  if (cents === null) throw new Error(`${label} needs an amount like 95,00.`);
+  return cents;
+}
+
 export function checked(formData: FormData, name: string): boolean {
   const value = formData.get(name);
   return value === "on" || value === "true" || value === "1";

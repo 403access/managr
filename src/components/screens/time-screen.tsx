@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, Fragment, type ReactNode } from "react";
-import { deleteTask, deleteTime, saveTask, saveTime, toggleTask } from "@/server/actions";
+import { deleteTask, deleteTime, saveTask, saveTime, saveTimeRate, toggleTask } from "@/server/actions";
 import type { timeView } from "@/server/views";
 import { TASK_TYPES, type TaskType } from "@/domain/analytics";
 import { addDays, formatDate } from "@/domain/calendar";
+import { formatEuro } from "@/domain/money";
 import {
   DEFAULT_TASK_SORT,
   DEFAULT_TIME_ENTRY_SORT,
@@ -23,7 +24,7 @@ import {
   type TimeEntrySort,
 } from "@/domain/time";
 import { queryKeys, viewPath } from "@/client/query-keys";
-import { formatDuration } from "@/components/amounts";
+import { formatDuration, euroInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { AddSheet } from "@/components/add-sheet";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
@@ -126,6 +127,9 @@ function TimeBody({ data }: { data: Week }) {
                           ))}
                         </SelectInput>
                       </Field>
+                      <Field label={t("rates.entry")} hint={t("rates.entryHint")}>
+                        <TextInput name="hourlyRate" inputMode="decimal" placeholder="95,00" />
+                      </Field>
                     </div>
                     <Field label={t("common.memo")}><TextInput name="memo" /></Field>
                     <Check name="billable" label={t("time.billableCheck")} />
@@ -190,6 +194,20 @@ function TimeBody({ data }: { data: Week }) {
 }
 
 type TimeEntry = Week["entries"][number];
+
+function EffectiveRate({ entry }: { entry: TimeEntry }) {
+  const { t } = useI18n();
+  if (!entry.rate) return <>{t("rates.noRate")}</>;
+  const source =
+    entry.rate.source === "entry"
+      ? t("rates.source.entry")
+      : entry.rate.source === "project"
+        ? t("rates.source.project")
+        : entry.rate.source === "customer"
+          ? t("rates.source.customer")
+          : t("rates.source.global");
+  return <>{t("rates.rateWithSource", { amount: formatEuro(entry.rate.cents), source })}</>;
+}
 
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -261,6 +279,10 @@ function TimeEntryPanel({
         <DetailRow label={t("time.task")}>{task ? task.title : t("time.none")}</DetailRow>
         <DetailRow label={t("time.taskType")}>{label(entry.taskType)}</DetailRow>
         <DetailRow label={t("time.billableCheck")}>{entry.billable ? t("time.billableCheck") : t("time.filterBillableNo")}</DetailRow>
+        <DetailRow label={t("rates.effective")}><EffectiveRate entry={entry} /></DetailRow>
+        <DetailRow label={t("rates.value")}>
+          <span className="font-mono tabular-nums">{formatEuro(entry.valueCents)}</span>
+        </DetailRow>
         <DetailRow label={t("common.notes")}>{entry.memo || t("time.noMemo")}</DetailRow>
         {checks ? (
           <DetailRow label={t("time.detailsChecks")}>
@@ -276,6 +298,20 @@ function TimeEntryPanel({
         ) : null}
       </dl>
       <div className="mt-6 border-t border-line pt-4">
+        <ActionForm action={saveTimeRate} className="grid gap-3">
+          <input type="hidden" name="id" value={entry.id} />
+          <Field label={t("rates.entry")} hint={t("rates.entryHint")}>
+            <TextInput
+              name="hourlyRate"
+              inputMode="decimal"
+              placeholder="95,00"
+              defaultValue={entry.hourlyRateCents === null ? "" : euroInput(entry.hourlyRateCents)}
+            />
+          </Field>
+          <SubmitButton tone="quiet">{t("rates.saveEntry")}</SubmitButton>
+        </ActionForm>
+      </div>
+      <div className="mt-4 border-t border-line pt-4">
         <ActionForm action={deleteTime} confirm={t("time.removeEntry")}>
           <input type="hidden" name="id" value={entry.id} />
           <SubmitButton tone="danger">{t("common.remove")}</SubmitButton>
@@ -318,6 +354,11 @@ function EntryCards({ entries, selectedId, onOpen }: { entries: TimeEntries; sel
               ) : (
                 <span className="block font-mono text-sm">{formatDuration(entry.minutes)}</span>
               )}
+              {entry.rate ? (
+                <span className="block text-xs text-muted">
+                  <EffectiveRate entry={entry} /> · {formatEuro(entry.valueCents)}
+                </span>
+              ) : null}
               {entry.warnings.map((warning) => (
                 <span key={warning.message} className="block text-sm text-amber">
                   {tx(warning.message)}
@@ -349,7 +390,7 @@ function EntryTable({
   const { t, tx, label } = useI18n();
   return (
     <div className="overflow-x-auto rounded-2xl border border-line bg-card">
-      <table className="w-full min-w-[52rem] text-sm">
+      <table className="w-full min-w-[60rem] text-sm">
         <thead className="border-b border-line text-xs tracking-wide text-muted uppercase">
           <tr>
             <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.detailsTime")}</th>
@@ -360,12 +401,13 @@ function EntryTable({
             <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.project")}</th>
             <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.taskType")}</th>
             <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.billableCheck")}</th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">{t("rates.effective")}</th>
           </tr>
         </thead>
         {groups.map((group) => (
           <tbody key={group.key} className="border-b border-line last:border-0">
             <tr className="bg-paper/70">
-              <th scope="colgroup" colSpan={8} className="px-3 py-2 text-left">
+              <th scope="colgroup" colSpan={9} className="px-3 py-2 text-left">
                 <span className="flex flex-wrap items-baseline justify-between gap-2">
                   <span>
                     <span className="font-medium text-ink">{formatDate(group.entryDate)}</span>
@@ -413,10 +455,20 @@ function EntryTable({
                   <td className="px-3 py-2 align-top">{entry.projectId ? entry.projectName : t("time.projectNone")}</td>
                   <td className="px-3 py-2 align-top">{label(entry.taskType)}</td>
                   <td className="px-3 py-2 align-top">{entry.billable ? t("time.billable") : "—"}</td>
+                  <td className="px-3 py-2 text-right align-top whitespace-nowrap">
+                    {entry.rate ? (
+                      <>
+                        <span className="block font-mono text-xs">{formatEuro(entry.rate.cents)}/Std.</span>
+                        <span className="block font-mono text-xs text-muted">{formatEuro(entry.valueCents)}</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
                 {entry.warnings.length > 0 ? (
                   <tr className="border-t border-line/60 bg-amber/5">
-                    <td colSpan={8} className="px-3 py-1.5 text-xs text-amber">
+                    <td colSpan={9} className="px-3 py-1.5 text-xs text-amber">
                       {entry.warnings.map((warning) => tx(warning.message)).join(" · ")}
                     </td>
                   </tr>
@@ -641,7 +693,12 @@ function WeekPanel({ data }: { data: Week }) {
           ) : (
             <EntryCards entries={sorted} selectedId={selectedId} onOpen={openEntry} />
           )}
-          <p className="mt-3 text-sm">{t("time.total", { duration: formatDuration(data.total) })}</p>
+          <p className="mt-3 text-sm">
+            {t("time.total", { duration: formatDuration(data.total) })}
+            {data.billableValueCents > 0
+              ? ` · ${t("rates.billableValue", { amount: formatEuro(data.billableValueCents) })}`
+              : ""}
+          </p>
         </>
       )}
     </>
