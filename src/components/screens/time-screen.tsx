@@ -482,9 +482,9 @@ function WeekPanel({ data }: { data: Week }) {
 
   if (inline && selected) {
     return (
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0">{content}</div>
-        <aside className="min-w-0 xl:sticky xl:top-4 xl:self-start">
+        <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start">
           <TimeEntryPanel key={selected.id} entry={selected} data={data} variant="inline" onClose={closeEntry} />
         </aside>
       </div>

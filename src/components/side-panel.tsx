@@ -105,7 +105,7 @@ export function SidePanel({
         ref={panelRef}
         role="region"
         aria-labelledby={headingId}
-        className="sticky top-0 hidden h-dvh w-[26rem] shrink-0 flex-col overflow-hidden border-l border-line bg-card 2xl:w-[28rem] xl:flex"
+        className="sticky top-0 hidden h-dvh w-[22rem] shrink-0 flex-col overflow-hidden border-l border-line bg-card lg:flex xl:w-[26rem] 2xl:w-[28rem]"
       >
         {header}
         {body}
