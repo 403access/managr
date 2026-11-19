@@ -226,7 +226,7 @@ function TimeEntryPanel({
         </DetailRow>
         <DetailRow label={t("time.person")}>{person ? `${person.firstName} ${person.lastName}` : t("time.nobody")}</DetailRow>
         <DetailRow label={t("time.project")}>{entry.projectId ? entry.projectName : t("time.projectNone")}</DetailRow>
-        {project?.customerName ? <DetailRow label={t("invoices.customer")}>{project.customerName}</DetailRow> : null}
+        {project?.customerName ? <DetailRow label={t("time.customer")}>{project.customerName}</DetailRow> : null}
         <DetailRow label={t("time.task")}>{task ? task.title : t("time.none")}</DetailRow>
         <DetailRow label={t("time.taskType")}>{label(entry.taskType)}</DetailRow>
         <DetailRow label={t("time.billableCheck")}>{entry.billable ? t("time.billableCheck") : t("time.filterBillableNo")}</DetailRow>
@@ -263,19 +263,28 @@ function WeekPanel({ data }: { data: Week }) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [person, setPerson] = useState("");
+  const [customer, setCustomer] = useState("");
   const [project, setProject] = useState("");
   const [taskType, setTaskType] = useState<TaskType | "">("");
   const [billable, setBillable] = useState<"" | "yes" | "no">("");
   const [sort, setSort] = useState<TimeEntrySort>(DEFAULT_TIME_ENTRY_SORT);
   const personFilter = person === "" ? null : person === "none" ? "none" : Number(person);
+  const customerFilter = customer === "" ? null : customer === "none" ? "none" : Number(customer);
   const projectFilter = project === "" ? null : project === "none" ? "none" : Number(project);
+  const customers = useMemo(() => {
+    const seen = new Map<number, string>();
+    for (const item of data.projects) {
+      if (item.customerId !== null && item.customerName) seen.set(item.customerId, item.customerName);
+    }
+    return [...seen.entries()].sort(([, left], [, right]) => left.localeCompare(right));
+  }, [data.projects]);
   const filtered = useMemo(
-    () => filterTimeEntries(data.entries, { query: search, person: personFilter, project: projectFilter, taskType, billable }),
-    [billable, data.entries, personFilter, projectFilter, search, taskType],
+    () => filterTimeEntries(data.entries, { query: search, person: personFilter, project: projectFilter, customer: customerFilter, taskType, billable }),
+    [billable, customerFilter, data.entries, personFilter, projectFilter, search, taskType],
   );
   const sorted = useMemo(() => sortTimeEntries(filtered, sort), [filtered, sort]);
   const shownMinutes = useMemo(() => filtered.reduce((sum, entry) => sum + entry.minutes, 0), [filtered]);
-  const active = Boolean(search.trim() || person || project || taskType || billable);
+  const active = Boolean(search.trim() || person || customer || project || taskType || billable);
   const selected = selectedId === null ? null : data.entries.find((entry) => entry.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -304,6 +313,7 @@ function WeekPanel({ data }: { data: Week }) {
   function reset() {
     setSearch("");
     setPerson("");
+    setCustomer("");
     setProject("");
     setTaskType("");
     setBillable("");
@@ -362,6 +372,15 @@ function WeekPanel({ data }: { data: Week }) {
                   <option value="none">{t("time.filterNoPerson")}</option>
                   {data.people.map((item) => (
                     <option key={item.id} value={String(item.id)}>{item.firstName} {item.lastName}</option>
+                  ))}
+                </SelectInput>
+              </Field>
+              <Field label={t("time.customer")}>
+                <SelectInput value={customer} onChange={(event) => setCustomer(event.target.value)}>
+                  <option value="">{t("time.filterAll")}</option>
+                  <option value="none">{t("time.filterNoCustomer")}</option>
+                  {customers.map(([id, name]) => (
+                    <option key={id} value={String(id)}>{name}</option>
                   ))}
                 </SelectInput>
               </Field>

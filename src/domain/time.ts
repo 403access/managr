@@ -101,6 +101,8 @@ export type FilterableTimeEntry = {
   firstName: string;
   projectId: number | null;
   projectName: string;
+  /** Customer of the project, or `null` when the entry has no project or the project has no customer. */
+  customerId: number | null;
   taskType: string;
 };
 
@@ -110,11 +112,13 @@ export type TimeEntryFilter = {
   person: number | "none" | null;
   /** Project id, `"none"` for entries without a project, or `null` for every project. */
   project: number | "none" | null;
+  /** Customer id, `"none"` for entries without a customer, or `null` for every customer. */
+  customer: number | "none" | null;
   taskType: TaskType | "";
   billable: "" | "yes" | "no";
 };
 
-/** Time entries narrowed by free text, person, project, task type, and billable flag. */
+/** Time entries narrowed by free text, person, project, customer, task type, and billable flag. */
 export function filterTimeEntries<T extends FilterableTimeEntry>(entries: readonly T[], filter: TimeEntryFilter): T[] {
   const needle = normalize(filter.query.trim());
   return entries.filter((entry) => {
@@ -126,6 +130,11 @@ export function filterTimeEntries<T extends FilterableTimeEntry>(entries: readon
     if (filter.project === "none") {
       if (entry.projectId !== null) return false;
     } else if (filter.project !== null && entry.projectId !== filter.project) {
+      return false;
+    }
+    if (filter.customer === "none") {
+      if (entry.customerId !== null) return false;
+    } else if (filter.customer !== null && entry.customerId !== filter.customer) {
       return false;
     }
     if (filter.taskType && entry.taskType !== filter.taskType) return false;

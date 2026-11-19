@@ -26,6 +26,7 @@ const entries: Entry[] = [
     firstName: "Anna",
     projectId: 10,
     projectName: "Website Relaunch",
+    customerId: 100,
     taskType: "development",
   },
   {
@@ -39,6 +40,7 @@ const entries: Entry[] = [
     firstName: "",
     projectId: null,
     projectName: "",
+    customerId: null,
     taskType: "meeting",
   },
   {
@@ -52,6 +54,7 @@ const entries: Entry[] = [
     firstName: "Bilal",
     projectId: 11,
     projectName: "Beispiel AG",
+    customerId: 200,
     taskType: "admin",
   },
   {
@@ -65,6 +68,7 @@ const entries: Entry[] = [
     firstName: "Anna",
     projectId: 10,
     projectName: "Website Relaunch",
+    customerId: 100,
     taskType: "communication",
   },
 ];
@@ -73,7 +77,7 @@ function ids<T extends { id: number }>(list: T[]): number[] {
   return list.map((item) => item.id);
 }
 
-const noEntryFilter = { query: "", person: null, project: null, taskType: "", billable: "" } as const;
+const noEntryFilter = { query: "", person: null, project: null, customer: null, taskType: "", billable: "" } as const;
 
 describe("time entry filters", () => {
   it("returns every entry when no filter is set", () => {
@@ -97,6 +101,12 @@ describe("time entry filters", () => {
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, project: "none" }))).toEqual([2]);
   });
 
+  it("filters by customer, including entries without one", () => {
+    expect(ids(filterTimeEntries(entries, { ...noEntryFilter, customer: 100 }))).toEqual([1, 4]);
+    expect(ids(filterTimeEntries(entries, { ...noEntryFilter, customer: 200 }))).toEqual([3]);
+    expect(ids(filterTimeEntries(entries, { ...noEntryFilter, customer: "none" }))).toEqual([2]);
+  });
+
   it("filters by task type and billable flag", () => {
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, taskType: "meeting" }))).toEqual([2]);
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, billable: "yes" }))).toEqual([1, 3]);
@@ -107,6 +117,8 @@ describe("time entry filters", () => {
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, query: "website", person: 1, billable: "yes" }))).toEqual([1]);
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, query: "website", person: 1, billable: "no" }))).toEqual([4]);
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, taskType: "admin", project: "none" }))).toEqual([]);
+    expect(ids(filterTimeEntries(entries, { ...noEntryFilter, customer: 100, project: 10 }))).toEqual([1, 4]);
+    expect(ids(filterTimeEntries(entries, { ...noEntryFilter, customer: 200, project: 10 }))).toEqual([]);
   });
 });
 

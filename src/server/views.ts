@@ -807,7 +807,8 @@ function timeViewForRange(start: string, end: string, anchor: string) {
   const people = listPeople();
   const tasks = listTasks();
   const projects = listProjects();
-  const projectName = (id: number | null) => (id === null ? "" : projects.find((project) => project.id === id)?.name ?? "");
+  const projectById = new Map(projects.map((project) => [project.id, project]));
+  const projectFor = (id: number | null) => (id === null ? null : projectById.get(id) ?? null);
   const entries = listTimeInRange(start, end).map((entry) => {
     let minutes = 0;
     let warnings: { level: "stop" | "watch"; message: string }[] = [];
@@ -819,6 +820,7 @@ function timeViewForRange(start: string, end: string, anchor: string) {
       error = caught instanceof Error ? caught.message : "Check this entry.";
     }
     const person = people.find((item) => item.employee.id === entry.employeeId);
+    const project = projectFor(entry.projectId);
     return {
       id: entry.id,
       entryDate: entry.entryDate,
@@ -830,7 +832,8 @@ function timeViewForRange(start: string, end: string, anchor: string) {
       taskId: entry.taskId,
       employeeId: entry.employeeId,
       projectId: entry.projectId,
-      projectName: projectName(entry.projectId),
+      projectName: project?.name ?? "",
+      customerId: project?.customerId ?? null,
       taskType: entry.taskType,
       firstName: person?.employee.firstName ?? "",
       minutes,
@@ -849,8 +852,8 @@ function timeViewForRange(start: string, end: string, anchor: string) {
     entries,
     total: entries.reduce((sum, entry) => sum + (entry.error ? 0 : entry.minutes), 0),
     people: people.map((item) => ({ id: item.employee.id, firstName: item.employee.firstName, lastName: item.employee.lastName })),
-    tasks: tasks.map((task) => ({ ...task, projectName: projectName(task.projectId) })),
-    projects: projects.map((project) => ({ id: project.id, name: project.name, customerName: project.customerName })),
+    tasks: tasks.map((task) => ({ ...task, projectName: projectFor(task.projectId)?.name ?? "" })),
+    projects: projects.map((project) => ({ id: project.id, name: project.name, customerId: project.customerId, customerName: project.customerName })),
   };
 }
 

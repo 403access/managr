@@ -42,6 +42,7 @@ describe("time view ranges", () => {
     expect(range.entries.every((entry) => entry.entryDate >= range.start && entry.entryDate <= range.end)).toBe(true);
     expect(range.total).toBeGreaterThan(0);
     expect(range.anchor).toBe(today);
+    expect(range.entries.some((entry) => entry.customerId !== null)).toBe(true);
 
     const single = timeRangeView(today, today);
     expect(single.entries.every((entry) => entry.entryDate === today)).toBe(true);
