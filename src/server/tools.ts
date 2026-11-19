@@ -328,7 +328,7 @@ export const tools: DeskTool[] = [
   }),
   tool({
     name: "read_customers",
-    description: "All customers of the active company with addresses and buyer references.",
+    description: "All customers of the active company with addresses, contact details, websites, and buyer references.",
     input: {},
     run: () => customersView(),
   }),
@@ -1001,6 +1001,7 @@ export const tools: DeskTool[] = [
       city: z.string().trim().max(80).optional(),
       country: z.string().trim().max(80).optional(),
       email: z.string().trim().max(160).optional(),
+      website: z.string().trim().max(200).optional(),
       vatId: z.string().trim().max(32).optional(),
       buyerReference: z.string().trim().max(100).optional(),
     },
@@ -1016,6 +1017,7 @@ export const tools: DeskTool[] = [
         city: input.city ?? "",
         country: input.country || "Deutschland",
         email: input.email ?? "",
+        website: input.website ?? "",
         vatId: (input.vatId ?? "").toUpperCase(),
         buyerReference,
       };

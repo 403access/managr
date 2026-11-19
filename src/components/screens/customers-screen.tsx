@@ -19,6 +19,7 @@ function CustomerFields({ customer }: { customer?: Customer }) {
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label={t("common.name")}><TextInput name="name" defaultValue={customer?.name} /></Field>
       <Field label={t("common.email")}><TextInput name="email" defaultValue={customer?.email} /></Field>
+      <Field label={t("common.website")}><TextInput name="website" type="url" defaultValue={customer?.website} maxLength={200} /></Field>
       <Field label={t("common.street")}><TextInput name="street" defaultValue={customer?.street} /></Field>
       <Field label={t("common.postal")}><TextInput name="postalCode" defaultValue={customer?.postalCode} /></Field>
       <Field label={t("common.city")}><TextInput name="city" defaultValue={customer?.city} /></Field>

@@ -61,6 +61,7 @@ export const customers = sqliteTable("customers", {
   city: text("city").notNull().default(""),
   country: text("country").notNull().default("Deutschland"),
   email: text("email").notNull().default(""),
+  website: text("website").notNull().default(""),
   vatId: text("vat_id").notNull().default(""),
   buyerReference: text("buyer_reference").notNull().default(""),
 });

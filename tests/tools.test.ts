@@ -87,8 +87,11 @@ describe("invoice operations", () => {
         street: "Teststraße 4",
         postalCode: "10115",
         city: "Berlin",
+        website: "https://muster-toechter.example",
       }),
     );
+    const register = data<{ customers: { id: number; website: string }[] }>(await runTool("read_customers", {}));
+    expect(register.customers.find((row) => row.id === customer.id)?.website).toBe("https://muster-toechter.example");
     const draft = data<{ invoiceId: number; grossCents: number; review: { blockers: string[] } }>(
       await runTool("create_invoice", {
         customerId: customer.id,

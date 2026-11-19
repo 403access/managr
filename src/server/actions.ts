@@ -629,6 +629,7 @@ export async function saveCustomer(_state: ActionState, formData: FormData): Pro
       city: text(formData, "city"),
       country: text(formData, "country") || "Deutschland",
       email: text(formData, "email"),
+      website: text(formData, "website"),
       vatId: text(formData, "vatId").toUpperCase(),
       buyerReference,
     };

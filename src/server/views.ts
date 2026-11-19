@@ -106,6 +106,7 @@ function customerOptions(companyId = loadCompany().id) {
     city: customer.city,
     country: customer.country,
     email: customer.email,
+    website: customer.website,
     vatId: customer.vatId,
     buyerReference: customer.buyerReference,
   }));
