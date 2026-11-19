@@ -1,7 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Assistant, toolLabelFor } from "@/components/assistant";
+import { changeAction, type ChangeAction } from "@/domain/assistant-actions";
+import { needsApproval } from "@/domain/assistant-writes";
+import { ActionBadge, Assistant, formatMessageTime, toolLabelFor } from "@/components/assistant";
+import type { ChatMessage } from "@/client/chat-history";
 import { useI18n } from "@/components/locale-provider";
 import { SidePanel } from "@/components/side-panel";
 import { useDetailSidebarMode } from "@/components/settings-provider";
@@ -167,20 +170,46 @@ function Row({ label, value, hint }: { label: string; value: string; hint?: stri
 type ToolRow = ToolInfo & { label: string; access: ToolAccess; category: ToolCategory };
 
 export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tools: ToolInfo[]; mcpUrl: string }) {
-  const { t, locale } = useI18n();
+  const { t, tx, locale } = useI18n();
   const mode = useDetailSidebarMode("assistant");
   const wide = useWideLayout();
   const inline = mode === "inline" && wide;
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [history, setHistory] = useState<ChatMessage[]>([]);
+  const [panel, setPanel] = useState<"tools" | "history" | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | ToolAccess>("all");
   const [grouping, setGrouping] = useState<Grouping>("category");
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const toolsTriggerRef = useRef<HTMLButtonElement>(null);
+  const historyTriggerRef = useRef<HTMLButtonElement>(null);
 
-  function closeTools() {
-    setToolsOpen(false);
-    window.setTimeout(() => triggerRef.current?.focus(), 0);
+  function closePanel() {
+    const target = panel === "tools" ? toolsTriggerRef : historyTriggerRef;
+    setPanel(null);
+    window.setTimeout(() => target.current?.focus(), 0);
   }
+
+  const actions: {
+    key: string;
+    at?: string;
+    action: ChangeAction;
+    name: string;
+    input: unknown;
+    status: "running" | "ok" | "error";
+    summary: string;
+  }[] = history.flatMap((message) => {
+    if (message.role !== "assistant") return [];
+    return message.steps
+      .filter((step) => needsApproval(step.name))
+      .map((step) => ({
+        key: `${message.id}-${step.key}`,
+        at: message.details?.at,
+        action: changeAction(step.name, step.input),
+        name: step.name,
+        input: step.input,
+        status: step.status,
+        summary: step.summary,
+      }));
+  });
 
   const rows: ToolRow[] = tools.map((tool) => ({
     ...tool,
@@ -228,7 +257,7 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
       variant={inline ? "inline" : "overlay"}
       title={t("assistantPage.toolsTitle")}
       subtitle={t("assistantPage.toolsCount", { count: tools.length })}
-      onClose={closeTools}
+      onClose={closePanel}
     >
       <input
         type="search"
@@ -305,19 +334,68 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
     </SidePanel>
   );
 
+  const historyPanel = (
+    <SidePanel
+      variant={inline ? "inline" : "overlay"}
+      title={t("assistantPage.historyTitle")}
+      subtitle={t("assistantPage.historyCount", { count: actions.length })}
+      onClose={closePanel}
+    >
+      {actions.length === 0 ? (
+        <p className="text-sm text-muted">{t("assistantPage.historyEmpty")}</p>
+      ) : (
+        <ul className="grid gap-2">
+          {actions.map((action) => (
+            <li key={action.key} className="rounded-xl border border-line bg-white px-3 py-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <ActionBadge action={action.action} />
+                  <p className="text-sm font-medium">{toolLabelFor(action.name, t)}</p>
+                </div>
+                {action.at ? <span className="text-[11px] text-muted">{formatMessageTime(action.at, locale)}</span> : null}
+              </div>
+              <p
+                className={`mt-1 text-[11px] ${
+                  action.status === "ok" ? "text-moss" : action.status === "running" ? "text-muted" : "text-clay"
+                }`}
+              >
+                {action.status === "ok"
+                  ? t("assistantPage.historyDone")
+                  : action.status === "running"
+                    ? t("assistantPage.historyRunning")
+                    : action.summary
+                      ? tx(action.summary)
+                      : t("assistantPage.historyFailed")}
+              </p>
+              <details className="mt-1 text-[10px] text-muted">
+                <summary className="cursor-pointer select-none">{t("assistant.approval.raw")}</summary>
+                <pre className="mt-1 overflow-x-auto rounded bg-ink/5 p-1 font-mono text-[10px] leading-relaxed">
+                  {JSON.stringify(action.input, null, 2)}
+                </pre>
+              </details>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-4 border-t border-line pt-3 text-[11px] leading-relaxed text-muted">{t("assistantPage.historyNote")}</p>
+    </SidePanel>
+  );
+
+  const activePanel = panel === "tools" ? toolPanel : panel === "history" ? historyPanel : null;
+
   return (
     <>
       <PageHeader title={t("assistantPage.title")} lede={t("assistantPage.lede")} />
       <div
         className={
-          inline && toolsOpen
+          inline && activePanel
             ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start"
             : "grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
         }
       >
-        <Assistant variant="page" />
-        {inline && toolsOpen ? (
-          <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start">{toolPanel}</aside>
+        <Assistant variant="page" onHistory={setHistory} />
+        {inline && activePanel ? (
+          <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start">{activePanel}</aside>
         ) : (
           <aside className="grid gap-3">
             <Card>
@@ -333,16 +411,27 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
                 <Row label={t("assistantPage.confirm")} value={t("assistantPage.confirmValue")} />
               </dl>
             </Card>
-            <Card>
-              <h2 className="text-base">{t("assistantPage.history")}</h2>
-              <p className="mt-2 text-xs leading-relaxed text-muted">{t("assistantPage.historyHint")}</p>
-            </Card>
             <button
-              ref={triggerRef}
+              ref={historyTriggerRef}
               type="button"
-              onClick={() => setToolsOpen(true)}
+              onClick={() => setPanel("history")}
               aria-haspopup={inline ? undefined : "dialog"}
-              aria-expanded={toolsOpen}
+              aria-expanded={panel === "history"}
+              className="w-full rounded-2xl border border-line bg-card p-4 text-left transition hover:border-ink"
+            >
+              <span className="block font-display text-base">{t("assistantPage.history")}</span>
+              <span className="mt-2 block text-xs leading-relaxed text-muted">{t("assistantPage.historyHint")}</span>
+              <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-pine">
+                {actions.length > 0 ? t("assistantPage.historyActions", { count: actions.length }) : t("assistantPage.historyNoActions")}{" "}
+                <span aria-hidden="true">→</span>
+              </span>
+            </button>
+            <button
+              ref={toolsTriggerRef}
+              type="button"
+              onClick={() => setPanel("tools")}
+              aria-haspopup={inline ? undefined : "dialog"}
+              aria-expanded={panel === "tools"}
               className="w-full rounded-2xl border border-line bg-card p-4 text-left transition hover:border-ink"
             >
               <span className="block font-display text-base">{t("assistantPage.tools")}</span>
@@ -360,7 +449,7 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
           </aside>
         )}
       </div>
-      {!inline && toolsOpen ? toolPanel : null}
+      {!inline && activePanel ? activePanel : null}
     </>
   );
 }

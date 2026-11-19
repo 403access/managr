@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDate } from "@/domain/calendar";
+import { changeAction, type ChangeAction } from "@/domain/assistant-actions";
+import { needsApproval } from "@/domain/assistant-writes";
 import { formatEuro } from "@/domain/money";
 import { nextMessageId, readChat, readDraft, writeChat, writeDraft, type ChatMessage, type ChatMessageDetails, type ChatStep } from "@/client/chat-history";
 import { queryKeys, viewPath } from "@/client/query-keys";
@@ -54,12 +56,27 @@ type StreamEvent =
 type ProposalChange = {
   callId: string;
   name: string;
-  action: "add" | "update" | "delete";
+  action: ChangeAction;
   input: unknown;
   labels?: Record<string, string>;
 };
 
 type Proposal = { id: string; changes: ProposalChange[] };
+
+const ACTION_STYLE: Record<ChangeAction, string> = {
+  add: "bg-moss/15 text-moss",
+  update: "bg-amber/15 text-amber",
+  delete: "bg-clay/15 text-clay",
+};
+
+export function ActionBadge({ action }: { action: ChangeAction }) {
+  const { t } = useI18n();
+  return (
+    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ACTION_STYLE[action]}`}>
+      {t(`assistant.approval.${action}`)}
+    </span>
+  );
+}
 
 const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   read_companies: "assistant.tool.read_companies",
@@ -129,12 +146,7 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   web_fetch: "assistant.tool.web_fetch",
 };
 
-const READ_ONLY = /^read_/;
-const NO_WRITE = new Set(["daily_briefing", "vat_overview", "monthly_close_checklist", "draft_dunning_letter", "web_search", "web_fetch"]);
 
-function writes(name: string): boolean {
-  return !READ_ONLY.test(name) && !NO_WRITE.has(name);
-}
 
 function recordHref(step: Step): string | null {
   const data = (step.data ?? {}) as Record<string, unknown>;
@@ -226,7 +238,7 @@ function contextHint(tokens?: number): string | undefined {
   return `${Math.round(tokens / 1_000)}k`;
 }
 
-export function Assistant({ variant = "popover" }: { variant?: "popover" | "page" } = {}) {
+export function Assistant({ variant = "popover", onHistory }: { variant?: "popover" | "page"; onHistory?: (messages: ChatMessage[]) => void } = {}) {
   const { t, tx, label } = useI18n();
   const queryClient = useQueryClient();
   const page = variant === "page";
@@ -282,6 +294,10 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
       // A private window may refuse storage; the history then lasts for the session.
     }
   }, [messages, restored]);
+
+  useEffect(() => {
+    onHistory?.(messages);
+  }, [messages, onHistory]);
 
   useEffect(() => {
     let stored = "";
@@ -494,7 +510,7 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
                 index === steps.length - 1 ? { ...step, status: event.ok ? "ok" : "error", summary: event.summary, data: event.data } : step,
               );
               sync();
-              if (event.ok && writes(event.name)) {
+              if (event.ok && needsApproval(event.name)) {
                 void queryClient.invalidateQueries({ queryKey: ["view"] });
               }
             } else if (event.type === "reply") {
@@ -783,29 +799,35 @@ function Steps({ steps }: { steps: Step[] }) {
   const { t, tx } = useI18n();
   return (
     <ol className="grid gap-2">
-      {steps.map((step) => (
-        <li key={step.key}>
-          <div className="flex items-start gap-2">
-            {step.status === "running" ? (
-              <span className="mt-1 size-3.5 shrink-0 animate-spin rounded-full border-2 border-line border-t-pine" aria-hidden="true" />
-            ) : step.status === "ok" ? (
-              <span className="mt-0.5 shrink-0 text-moss" aria-hidden="true">✓</span>
-            ) : (
-              <span className="mt-0.5 shrink-0 text-clay" aria-hidden="true">✕</span>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className={`text-[12px] font-medium ${step.status === "error" ? "text-clay" : ""}`}>{toolLabelFor(step.name, t)}</p>
-              {step.status === "error" ? <p className="mt-0.5 text-[11px] text-clay">{tx(step.summary)}</p> : null}
-              {step.status === "ok" ? <StepCard step={step} /> : null}
+      {steps.map((step) => {
+        const action = needsApproval(step.name) ? changeAction(step.name, step.input) : null;
+        return (
+          <li key={step.key}>
+            <div className="flex items-start gap-2">
+              {step.status === "running" ? (
+                <span className="mt-1 size-3.5 shrink-0 animate-spin rounded-full border-2 border-line border-t-pine" aria-hidden="true" />
+              ) : step.status === "ok" ? (
+                <span className="mt-0.5 shrink-0 text-moss" aria-hidden="true">✓</span>
+              ) : (
+                <span className="mt-0.5 shrink-0 text-clay" aria-hidden="true">✕</span>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className={`text-[12px] font-medium ${step.status === "error" ? "text-clay" : ""}`}>{toolLabelFor(step.name, t)}</p>
+                  {action ? <ActionBadge action={action} /> : null}
+                </div>
+                {step.status === "error" ? <p className="mt-0.5 text-[11px] text-clay">{tx(step.summary)}</p> : null}
+                {step.status === "ok" ? <StepCard step={step} /> : null}
+              </div>
             </div>
-          </div>
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ol>
   );
 }
 
-function formatMessageTime(iso: string, locale: string): string {
+export function formatMessageTime(iso: string, locale: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   return new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-GB", { dateStyle: "short", timeStyle: "short" }).format(date);
@@ -875,12 +897,6 @@ function MessageDetails({ details, role }: { details: ChatMessageDetails; role: 
     </details>
   );
 }
-
-const ACTION_STYLE: Record<ProposalChange["action"], string> = {
-  add: "bg-moss/15 text-moss",
-  update: "bg-amber/15 text-amber",
-  delete: "bg-clay/15 text-clay",
-};
 
 const FIELD_LABELS: Record<string, { de: string; en: string }> = {
   id: { de: "Datensatz", en: "Record" },
@@ -1044,9 +1060,7 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
                 />
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-1.5">
-                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ACTION_STYLE[change.action]}`}>
-                      {t(`assistant.approval.${change.action}`)}
-                    </span>
+                    <ActionBadge action={change.action} />
                     <span className="text-xs font-medium">{toolLabelFor(change.name, t)}</span>
                   </span>
                   {fields.length > 0 ? (
