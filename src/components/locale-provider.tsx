@@ -108,7 +108,7 @@ export function LanguageSwitch({ compact = false }: { compact?: boolean }) {
         aria-controls={open ? menuId : undefined}
         aria-label={translate("lang.label")}
         title={translate("lang.label")}
-        className={`inline-flex size-11 items-center justify-center gap-0.5 rounded-full border text-sm font-medium ${
+        className={`inline-flex size-11 items-center justify-center rounded-full border text-sm font-medium ${
           open ? "border-pine/40 bg-white text-ink shadow-sm" : "border-line bg-card text-ink hover:border-ink"
         }`}
         onClick={() => setOpen((value) => !value)}
@@ -120,13 +120,6 @@ export function LanguageSwitch({ compact = false }: { compact?: boolean }) {
         }}
       >
         {locale === "de" ? "DE" : "EN"}
-        <svg
-          viewBox="0 0 24 24"
-          className={`size-3 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
-          aria-hidden="true"
-        >
-          <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
       </button>
 
       {open ? (
