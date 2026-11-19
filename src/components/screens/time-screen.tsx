@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { deleteTask, deleteTime, saveTask, saveTime, toggleTask } from "@/server/actions";
 import type { timeView } from "@/server/views";
 import { TASK_TYPES, type TaskType } from "@/domain/analytics";
@@ -27,7 +27,10 @@ import { AddSheet } from "@/components/add-sheet";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
+import { useDetailSidebarMode } from "@/components/settings-provider";
+import { SidePanel } from "@/components/side-panel";
 import { useView, ViewGate } from "@/components/use-view";
+import { useWideLayout } from "@/components/use-wide-layout";
 import { Tab, Tabs } from "@/components/tabs";
 import { Card, Check, Empty, Field, PageHeader, Pill, SelectInput, TextInput } from "@/components/ui";
 
@@ -176,9 +179,88 @@ function TimeBody({ data }: { data: Week }) {
   );
 }
 
+type TimeEntry = Week["entries"][number];
+
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-0.5 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-3">
+      <dt className="text-xs font-medium tracking-wide text-muted uppercase sm:pt-0.5">{label}</dt>
+      <dd className="min-w-0 break-words">{children}</dd>
+    </div>
+  );
+}
+
+function TimeEntryPanel({
+  entry,
+  data,
+  variant,
+  onClose,
+}: {
+  entry: TimeEntry;
+  data: Week;
+  variant: "inline" | "overlay";
+  onClose: () => void;
+}) {
+  const { t, tx, label } = useI18n();
+  const person = data.people.find((item) => item.id === entry.employeeId) ?? null;
+  const project = entry.projectId === null ? null : data.projects.find((item) => item.id === entry.projectId) ?? null;
+  const task = entry.taskId === null ? null : data.tasks.find((item) => item.id === entry.taskId) ?? null;
+  const checks = Boolean(entry.error) || entry.warnings.length > 0;
+  return (
+    <SidePanel
+      variant={variant}
+      title={t("time.entryPanel")}
+      subtitle={`${formatDate(entry.entryDate)} · ${entry.startedAt}–${entry.endedAt}`}
+      onClose={onClose}
+    >
+      <dl className="grid gap-3 text-sm">
+        <DetailRow label={t("time.day")}>{formatDate(entry.entryDate)}</DetailRow>
+        <DetailRow label={t("time.detailsTime")}>{entry.startedAt}–{entry.endedAt}</DetailRow>
+        <DetailRow label={t("time.break")}>{t("time.minutesShort", { minutes: entry.breakMinutes })}</DetailRow>
+        <DetailRow label={t("time.detailsDuration")}>
+          {entry.error ? (
+            <span className="text-clay">{tx(entry.error)}</span>
+          ) : (
+            <span className="font-mono tabular-nums">{formatDuration(entry.minutes)}</span>
+          )}
+        </DetailRow>
+        <DetailRow label={t("time.person")}>{person ? `${person.firstName} ${person.lastName}` : t("time.nobody")}</DetailRow>
+        <DetailRow label={t("time.project")}>{entry.projectId ? entry.projectName : t("time.projectNone")}</DetailRow>
+        {project?.customerName ? <DetailRow label={t("invoices.customer")}>{project.customerName}</DetailRow> : null}
+        <DetailRow label={t("time.task")}>{task ? task.title : t("time.none")}</DetailRow>
+        <DetailRow label={t("time.taskType")}>{label(entry.taskType)}</DetailRow>
+        <DetailRow label={t("time.billableCheck")}>{entry.billable ? t("time.billableCheck") : t("time.filterBillableNo")}</DetailRow>
+        <DetailRow label={t("common.notes")}>{entry.memo || t("time.noMemo")}</DetailRow>
+        {checks ? (
+          <DetailRow label={t("time.detailsChecks")}>
+            <ul className="grid gap-1">
+              {entry.error ? <li className="text-clay">{tx(entry.error)}</li> : null}
+              {entry.warnings.map((warning) => (
+                <li key={warning.message} className={warning.level === "stop" ? "text-clay" : "text-amber"}>
+                  {tx(warning.message)}
+                </li>
+              ))}
+            </ul>
+          </DetailRow>
+        ) : null}
+      </dl>
+      <div className="mt-6 border-t border-line pt-4">
+        <ActionForm action={deleteTime} confirm={t("time.removeEntry")}>
+          <input type="hidden" name="id" value={entry.id} />
+          <SubmitButton tone="danger">{t("common.remove")}</SubmitButton>
+        </ActionForm>
+      </div>
+    </SidePanel>
+  );
+}
+
 function WeekPanel({ data }: { data: Week }) {
   const { t, tx, label } = useI18n();
   const router = useRouter();
+  const mode = useDetailSidebarMode("time");
+  const wide = useWideLayout();
+  const inline = mode === "inline" && wide;
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [person, setPerson] = useState("");
   const [project, setProject] = useState("");
@@ -194,6 +276,30 @@ function WeekPanel({ data }: { data: Week }) {
   const sorted = useMemo(() => sortTimeEntries(filtered, sort), [filtered, sort]);
   const shownMinutes = useMemo(() => filtered.reduce((sum, entry) => sum + entry.minutes, 0), [filtered]);
   const active = Boolean(search.trim() || person || project || taskType || billable);
+  const selected = selectedId === null ? null : data.entries.find((entry) => entry.id === selectedId) ?? null;
+
+  useEffect(() => {
+    const match = /^#time-(\d+)$/.exec(window.location.hash);
+    if (!match) return;
+    const id = Number(match[1]);
+    if (data.entries.some((entry) => entry.id === id)) setSelectedId(id);
+  }, [data.entries]);
+
+  useEffect(() => {
+    if (selectedId === null || data.entries.some((entry) => entry.id === selectedId)) return;
+    setSelectedId(null);
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  }, [data.entries, selectedId]);
+
+  const closeEntry = useCallback(() => {
+    setSelectedId(null);
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  }, []);
+
+  function openEntry(id: number) {
+    setSelectedId(id);
+    window.history.replaceState(null, "", `#time-${id}`);
+  }
 
   function reset() {
     setSearch("");
@@ -224,7 +330,7 @@ function WeekPanel({ data }: { data: Week }) {
     }
   }
 
-  return (
+  const content = (
     <>
       <Card className="mb-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -308,26 +414,38 @@ function WeekPanel({ data }: { data: Week }) {
           ) : (
             <div className="grid gap-2">
               {sorted.map((entry) => (
-                <Card key={entry.id}>
+                <Card
+                  key={entry.id}
+                  id={`time-${entry.id}`}
+                  className={`scroll-mt-6 transition ${selectedId === entry.id ? "border-pine/60 bg-pine/5" : "hover:border-ink/30"}`}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium">
+                    <button
+                      type="button"
+                      onClick={() => openEntry(entry.id)}
+                      className="min-w-0 flex-1 cursor-pointer rounded-lg text-left focus-visible:ring-2 focus-visible:ring-pine"
+                    >
+                      <span className="block text-sm font-medium">
                         {t("time.span", { date: formatDate(entry.entryDate), start: entry.startedAt, end: entry.endedAt, minutes: entry.breakMinutes })}
-                      </p>
-                      <p className="text-sm text-muted">
+                      </span>
+                      <span className="block text-sm text-muted">
                         {entry.memo || t("time.noMemo")}
                         {entry.firstName ? ` · ${entry.firstName}` : ""}
                         {entry.projectId ? ` · ${entry.projectName}` : ""}
                         {entry.taskType !== "other" ? ` · ${label(entry.taskType)}` : ""}
                         {entry.billable ? ` · ${t("time.billable")}` : ""}
-                      </p>
-                      {entry.error ? <p className="text-sm text-clay">{tx(entry.error)}</p> : <p className="font-mono text-sm">{formatDuration(entry.minutes)}</p>}
+                      </span>
+                      {entry.error ? (
+                        <span className="block text-sm text-clay">{tx(entry.error)}</span>
+                      ) : (
+                        <span className="block font-mono text-sm">{formatDuration(entry.minutes)}</span>
+                      )}
                       {entry.warnings.map((warning) => (
-                        <p key={warning.message} className="text-sm text-amber">
+                        <span key={warning.message} className="block text-sm text-amber">
                           {tx(warning.message)}
-                        </p>
+                        </span>
                       ))}
-                    </div>
+                    </button>
                     <ActionForm action={deleteTime} compact>
                       <input type="hidden" name="id" value={entry.id} />
                       <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
@@ -340,6 +458,24 @@ function WeekPanel({ data }: { data: Week }) {
           <p className="mt-3 text-sm">{t("time.total", { duration: formatDuration(data.total) })}</p>
         </>
       )}
+    </>
+  );
+
+  if (inline && selected) {
+    return (
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0">{content}</div>
+        <aside className="min-w-0 xl:sticky xl:top-4 xl:self-start">
+          <TimeEntryPanel key={selected.id} entry={selected} data={data} variant="inline" onClose={closeEntry} />
+        </aside>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {content}
+      {selected ? <TimeEntryPanel key={selected.id} entry={selected} data={data} variant="overlay" onClose={closeEntry} /> : null}
     </>
   );
 }
