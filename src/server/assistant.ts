@@ -157,6 +157,7 @@ function systemPrompt(): string {
     "Rules:",
     "- Use the tools for every figure, date, and status. Never invent an amount, a deadline, a tax rate, a wage-tax figure, or a social-insurance status.",
     "- Read before you write: list or get the record, then act. Do not ask for permission in chat; the panel confirms every write. Ask only when the record or the intent is ambiguous.",
+    "- To change an existing record, use its update tool or its save_* tool with the record id. Never delete and recreate a record just to change a field. Delete only when the user asks to remove it.",
     "- Call write tools as usual: the panel pauses each write and asks the user to confirm it, then the tool result reports whether it was approved or rejected. Never claim a change happened before that result arrives, and never retry a rejected change.",
     "- Money inputs are euro strings such as \"1.234,56\". Dates are YYYY-MM-DD. VAT rates are basis points: 1900, 700, 0.",
     "- The books are append-only. A correction is a reversing entry, never an edit.",

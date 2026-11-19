@@ -61,7 +61,7 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 ## Hourly rates
 
-`companies`, `customers`, `projects`, and `time_entries` each carry a nullable `hourly_rate_cents` (migration `0016_hourly_rates.sql`). `NULL` means "inherit". `src/domain/rates.ts` resolves the most specific stored rate — entry, project, customer, then the company default — and values booked minutes at it. `/settings` writes the company default, `/customers` the customer rate, `/projects` the project rate, and the **Zeit** add form and entry panel write the entry rate. `timeViewForRange` and `projectsView` add the effective rate and value to their output, and `set_hourly_rate`, `save_customer`, `save_project`, and `add_time` expose the same fields to the assistant and MCP clients. Nothing here posts to the journal.
+`companies`, `customers`, `projects`, and `time_entries` each carry a nullable `hourly_rate_cents` (migration `0016_hourly_rates.sql`). `NULL` means "inherit". `src/domain/rates.ts` resolves the most specific stored rate — entry, project, customer, then the company default — and values booked minutes at it. `/settings` writes the company default, `/customers` the customer rate, `/projects` the project rate, and the **Zeit** add form and entry panel write the entry rate. `timeViewForRange` and `projectsView` add the effective rate and value to their output, and `set_hourly_rate`, `save_customer`, `save_project`, `add_time`, and `update_time` expose the same fields to the assistant and MCP clients. Nothing here posts to the journal. `update_time` changes an existing entry in place, so moving a block to another project does not delete and recreate it.
 
 ## Milestones
 

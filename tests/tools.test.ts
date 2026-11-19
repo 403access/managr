@@ -1,8 +1,10 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
+import { timeEntries } from "@/db/schema";
 import { runTool, toolJsonSchema, tools } from "@/server/tools";
 
 const repo = process.cwd();
@@ -40,6 +42,33 @@ describe("tool registry", () => {
     const guides = toolJsonSchema(tools.find((tool) => tool.name === "read_guides")!);
     expect(guides.type).toBe("object");
     expect(Object.keys(guides.properties as Record<string, unknown>)).toEqual(["topic", "locale"]);
+  });
+
+  it("updates a time entry in place instead of deleting and recreating it", async () => {
+    const added = data<{ id: number }>(
+      await runTool("add_time", {
+        entryDate: "2026-10-23",
+        startedAt: "11:30",
+        endedAt: "13:30",
+        memo: "Update me",
+      }),
+    );
+    const projects = data<{ projects: { id: number; name: string }[] }>(await runTool("read_projects", {}));
+    const target = projects.projects[0];
+    expect(target).toBeTruthy();
+
+    const updated = data<{ id: number; projectId: number | null }>(
+      await runTool("update_time", { id: added.id, projectId: target.id }),
+    );
+    expect(updated.projectId).toBe(target.id);
+    const row = getDb().select().from(timeEntries).where(eq(timeEntries.id, added.id)).get();
+    expect(row?.projectId).toBe(target.id);
+    expect(row?.memo).toBe("Update me");
+    expect(row?.startedAt).toBe("11:30");
+
+    const cleared = data<{ projectId: number | null }>(await runTool("update_time", { id: added.id, projectId: null }));
+    expect(cleared.projectId).toBeNull();
+    expect(getDb().select().from(timeEntries).where(eq(timeEntries.id, added.id)).get()?.projectId).toBeNull();
   });
 
   it("refuses an unknown tool and a malformed input", async () => {

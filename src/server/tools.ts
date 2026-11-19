@@ -1819,8 +1819,77 @@ export const tools: DeskTool[] = [
     },
   }),
   tool({
+    name: "update_time",
+    description:
+      "Change an existing time entry in place: project, task, day, times, break, memo, person, billing, task type, or rate. Use this to move an entry to another project; do not delete and recreate it. Omitted fields stay as they are.",
+    input: {
+      id: z.number().int().positive().describe("The time entry id from read_time."),
+      entryDate: z.string().optional().describe("YYYY-MM-DD."),
+      startedAt: z.string().optional().describe('Start time, for example "09:00".'),
+      endedAt: z.string().optional().describe('End time, for example "17:30".'),
+      breakMinutes: z.number().int().min(0).max(600).optional(),
+      memo: z.string().trim().max(400).optional(),
+      personId: z.number().int().positive().nullable().optional(),
+      taskId: z.number().int().positive().nullable().optional(),
+      projectId: z.number().int().positive().nullable().optional(),
+      taskType: z.string().trim().optional().describe("development, design, planning, research, documentation, meeting, communication, admin, or other."),
+      billable: z.boolean().optional(),
+      hourlyRate: z.string().trim().optional().describe('Rate for this entry in euro, for example "120,00". Pass an empty string to inherit.'),
+    },
+    run: (input) => {
+      const db = getDb();
+      const company = requireCompany();
+      const entry = db
+        .select()
+        .from(timeEntries)
+        .where(and(eq(timeEntries.id, input.id), eq(timeEntries.companyId, company.id), isNull(timeEntries.deletedAt)))
+        .get();
+      if (!entry) throw new Error("Time entry not found.");
+
+      const entryDate = input.entryDate ? date(input.entryDate, "The day") : entry.entryDate;
+      const startedAt = input.startedAt ?? entry.startedAt;
+      const endedAt = input.endedAt ?? entry.endedAt;
+      const breakMinutes = input.breakMinutes ?? entry.breakMinutes;
+      const minutes = durationMinutes(startedAt, endedAt, breakMinutes);
+      const stop = timeWarnings(minutes, breakMinutes).find((warning) => warning.level === "stop");
+      if (stop) throw new Error(stop.message);
+
+      if (input.personId !== undefined && input.personId !== null) requireEmployee(input.personId);
+      const task = input.taskId !== undefined && input.taskId !== null ? requireTask(input.taskId) : null;
+      const taskId = input.taskId === undefined ? entry.taskId : input.taskId;
+      let projectId: number | null;
+      if (input.projectId !== undefined) projectId = input.projectId;
+      else if (input.taskId !== undefined) projectId = task?.projectId ?? null;
+      else projectId = entry.projectId;
+      if (projectId !== null) requireProject(projectId);
+
+      const taskType = input.taskType
+        ? oneOf(input.taskType, TASK_TYPES, "Task type")
+        : task?.taskType ?? entry.taskType;
+
+      db.update(timeEntries)
+        .set({
+          entryDate,
+          startedAt,
+          endedAt,
+          breakMinutes,
+          memo: input.memo ?? entry.memo,
+          taskId,
+          projectId,
+          employeeId: input.personId === undefined ? entry.employeeId : input.personId,
+          billable: input.billable ?? entry.billable,
+          taskType,
+          hourlyRateCents: input.hourlyRate === undefined ? entry.hourlyRateCents : (rateCents(input.hourlyRate) ?? null),
+        })
+        .where(eq(timeEntries.id, entry.id))
+        .run();
+
+      return { id: entry.id, minutes, projectId, taskType };
+    },
+  }),
+  tool({
     name: "delete_time",
-    description: "Remove a time entry.",
+    description: "Remove a time entry. To change an existing entry, use update_time instead.",
     input: idInput,
     run: (input) => {
       const db = getDb();

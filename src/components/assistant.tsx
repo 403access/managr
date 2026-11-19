@@ -110,6 +110,7 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   post_payroll: "assistant.tool.post_payroll",
   pay_shareholder: "assistant.tool.pay_shareholder",
   add_time: "assistant.tool.add_time",
+  update_time: "assistant.tool.update_time",
   delete_time: "assistant.tool.delete_time",
   add_task: "assistant.tool.add_task",
   set_task_status: "assistant.tool.set_task_status",
@@ -154,6 +155,7 @@ function recordHref(step: Step): string | null {
     case "post_journal_entry":
       return "/ledger";
     case "add_time":
+    case "update_time":
     case "add_task":
     case "set_task_status":
       return "/time";
@@ -886,6 +888,7 @@ function fieldLabel(key: string, locale: string): string {
 }
 
 function fieldValue(key: string, value: unknown, locale: string, t: Translate): string {
+  if (value === null || value === "") return t("assistant.approval.empty");
   if (typeof value === "boolean") return value ? t("assistant.approval.yes") : t("assistant.approval.no");
   if (typeof value === "number") {
     if (key === "vatBps" || key === "shareBps" || key === "progressBps") {
@@ -911,7 +914,7 @@ function changeFields(input: unknown): { key: string; value: unknown }[] {
     return input === undefined || input === null ? [] : [{ key: "value", value: input }];
   }
   return Object.entries(input as Record<string, unknown>)
-    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .filter(([, value]) => value !== undefined)
     .map(([key, value]) => ({ key, value }));
 }
 

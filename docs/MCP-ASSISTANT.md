@@ -87,7 +87,7 @@ Write tools follow the server actions:
 - **Invoices:** `save_customer`, `create_invoice`, `issue_invoice`, `update_buyer_reference`, `record_invoice_payment`, `void_invoice`, `delete_invoice_draft`
 - **Books:** `post_expense`, `post_vat_prepayment`, `post_journal_entry`
 - **People:** `create_person`, `update_person`, `add_salary_change`, `delete_salary_change`, `save_director_contract`, `delete_director_contract`, `save_founder_health`, `delete_founder_health`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
-- **Time, tasks, deadlines:** `add_time`, `delete_time`, `save_project`, `delete_project`, `set_hourly_rate`, `add_task`, `set_task_status`, `delete_task`, `set_obligation`, `add_deadline`, `complete_deadline`, `delete_deadline`
+- **Time, tasks, deadlines:** `add_time`, `update_time`, `delete_time`, `save_project`, `delete_project`, `set_hourly_rate`, `add_task`, `set_task_status`, `delete_task`, `set_obligation`, `add_deadline`, `complete_deadline`, `delete_deadline`
 - **Milestones:** `save_milestone`, `delete_milestone`
 - **Legal:** `set_compliance_done`, `save_resolution`
 

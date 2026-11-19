@@ -89,7 +89,7 @@ export function changeLabels(name: string, input: unknown): Record<string, strin
       } else if (name === "delete_deadline") {
         const row = db.select({ title: customDeadlines.title }).from(customDeadlines).where(eq(customDeadlines.id, entityId)).get();
         if (row) labels.id = row.title;
-      } else if (name === "delete_time") {
+      } else if (name === "delete_time" || name === "update_time") {
         const row = db
           .select({ entryDate: timeEntries.entryDate, startedAt: timeEntries.startedAt, endedAt: timeEntries.endedAt, memo: timeEntries.memo })
           .from(timeEntries)
