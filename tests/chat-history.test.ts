@@ -35,7 +35,15 @@ describe("assistant chat history", () => {
     const chat: ChatMessage[] = [
       {
         ...message(1, "user", "Zeiten für IT Works"),
-        details: { at: "2026-11-19T08:30:00.000Z", model: "Qwen Max", provider: "Qwen Cloud", local: false, mcpServer: "managr-mcp" },
+        details: {
+          at: "2026-11-19T08:30:00.000Z",
+          model: "Qwen Max",
+          provider: "Qwen Cloud",
+          local: false,
+          mcpServer: "managr-mcp",
+          retries: 2,
+          lastRetryAt: "2026-11-19T08:35:00.000Z",
+        },
       },
       {
         ...message(2, "assistant", "Drei Zeiten gebucht."),

@@ -20,6 +20,9 @@ export type ChatMessageDetails = {
   mcpServer?: string;
   toolCalls?: number;
   status?: "ok" | "error" | "stopped";
+  /** How often a sent user message was retried, and when it last was. */
+  retries?: number;
+  lastRetryAt?: string;
 };
 
 export type ChatMessage = { id: number; role: "user" | "assistant"; content: string; steps: ChatStep[]; details?: ChatMessageDetails };
@@ -54,6 +57,8 @@ function isDetails(value: unknown): value is ChatMessageDetails {
   if (value.local !== undefined && typeof value.local !== "boolean") return false;
   if (value.mcpServer !== undefined && typeof value.mcpServer !== "string") return false;
   if (value.toolCalls !== undefined && typeof value.toolCalls !== "number") return false;
+  if (value.retries !== undefined && typeof value.retries !== "number") return false;
+  if (value.lastRetryAt !== undefined && typeof value.lastRetryAt !== "string") return false;
   if (value.status !== undefined && value.status !== "ok" && value.status !== "error" && value.status !== "stopped") return false;
   return true;
 }

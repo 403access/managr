@@ -245,6 +245,7 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const pending = streaming !== null;
+  const lastUserMessageId = [...messages].reverse().find((message) => message.role === "user")?.id ?? null;
 
   useEffect(() => {
     let active = true;
@@ -353,29 +354,52 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
     storeSelection(next);
   }
 
-  async function send(raw: string) {
+  async function send(raw: string, retryOf?: number) {
+    if (pending) return;
     const content = raw.trim();
-    if (!content || pending) return;
+    if (!retryOf && !content) return;
     const startedAt = Date.now();
+    const nowIso = new Date(startedAt).toISOString();
     const promptModel = selection
       ? (catalog?.models.find((model) => model.providerID === selection.providerID && model.modelID === selection.modelID) ?? null)
       : null;
-    const question: Message = {
-      id: nextId++,
-      role: "user",
-      content,
-      steps: [],
-      details: {
-        at: new Date(startedAt).toISOString(),
-        model: promptModel?.name ?? (settings?.model || undefined),
-        provider: promptModel?.providerName,
-        local: promptModel?.local ?? settings?.local,
-        mcpServer: MCP_SERVER,
-      },
-    };
-    const history = [...messages, question];
-    setMessages(history);
-    setDraft("");
+    let history: Message[];
+    let retryBackup: Message[] | null = null;
+    if (retryOf !== undefined) {
+      // Regenerate the last user turn in place: the message stays, the old
+      // answer is replaced, and the retry is noted in its details.
+      const lastUser = [...messages].reverse().find((message) => message.role === "user");
+      if (!lastUser || lastUser.id !== retryOf) return;
+      const index = messages.findIndex((message) => message.id === retryOf);
+      if (index < 0) return;
+      const target = messages[index];
+      retryBackup = messages.slice(index + 1);
+      const details: ChatMessageDetails = {
+        ...(target.details ?? { at: nowIso }),
+        at: target.details?.at ?? nowIso,
+        retries: (target.details?.retries ?? 0) + 1,
+        lastRetryAt: nowIso,
+      };
+      history = [...messages.slice(0, index), { ...target, details }];
+      setMessages(history);
+    } else {
+      const question: Message = {
+        id: nextId++,
+        role: "user",
+        content,
+        steps: [],
+        details: {
+          at: nowIso,
+          model: promptModel?.name ?? (settings?.model || undefined),
+          provider: promptModel?.providerName,
+          local: promptModel?.local ?? settings?.local,
+          mcpServer: MCP_SERVER,
+        },
+      };
+      history = [...messages, question];
+      setMessages(history);
+      setDraft("");
+    }
     setError("");
     let answer = "";
     let steps: Step[] = [];
@@ -509,6 +533,9 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
           status: controller.signal.aborted ? "stopped" : errorText ? "error" : "ok",
         };
         setMessages((current) => [...current, { id: nextId++, role: "assistant", content: answer, steps, details }]);
+      } else if (retryBackup && retryBackup.length > 0) {
+        // A retry that produced nothing puts the previous answer back.
+        setMessages((current) => [...current, ...retryBackup]);
       }
       setStreaming(null);
       setError(errorText ? tx(errorText) : "");
@@ -671,7 +698,16 @@ MANAGR_AI_API_KEY=…`}</pre>
                     {message.role === "user" ? (
                       <>
                         <div className="max-w-[95%] rounded-2xl bg-pine px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-paper">{message.content}</div>
-                        {message.details ? <MessageDetails details={message.details} role="user" /> : null}
+                        {message.details || (!pending && message.id === lastUserMessageId) ? (
+                          <div className="mt-1 flex flex-col items-end gap-1">
+                            {message.details ? <MessageDetails details={message.details} role="user" /> : null}
+                            {!pending && message.id === lastUserMessageId ? (
+                              <button type="button" onClick={() => void send("", message.id)} className="text-[11px] font-medium text-pine hover:underline">
+                                {t("assistant.retry")}
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </>
                     ) : (
                       <>
@@ -808,6 +844,15 @@ function MessageDetails({ details, role }: { details: ChatMessageDetails; role: 
           ? t("assistant.details.status.error")
           : t("assistant.details.status.stopped");
     rows.push({ label: t("assistant.details.status"), value: status });
+  }
+  if (details.retries !== undefined && details.retries > 0) {
+    rows.push({ label: t("assistant.details.retries"), value: t("assistant.details.retryCount", { count: details.retries }) });
+    if (details.lastRetryAt) {
+      rows.push({
+        label: t("assistant.details.retryLast"),
+        value: formatMessageTime(details.lastRetryAt, locale),
+      });
+    }
   }
   return (
     <details className={`mt-1 w-fit max-w-[95%] text-[11px] text-muted ${role === "user" ? "ml-auto" : ""}`}>
