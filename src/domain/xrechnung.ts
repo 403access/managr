@@ -1,8 +1,11 @@
 import { parseIso, formatDate } from "./calendar";
 import { isCorporation, legalFormLabel } from "./company";
+import { isValidBic, isValidIban } from "./iban";
 import { isKleinunternehmerNote, reviewInvoice } from "./invoice";
 import { lineNetCents, isSupportedVat } from "./vat";
 import { percentOf } from "./money";
+
+export { isValidBic, isValidIban } from "./iban";
 
 /**
  * XRechnung 3.0.2 in UBL is the e-invoice this desk writes (§14 UStG, EN 16931).
@@ -88,22 +91,6 @@ export function countryCode(value: string): string | null {
     .replace(/\./g, "")
     .replace(/\s+/g, " ");
   return COUNTRY_NAMES[folded] ?? null;
-}
-
-export function isValidIban(value: string): boolean {
-  const compact = value.replace(/\s/g, "").toUpperCase();
-  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(compact) || compact.length > 34) return false;
-  const rearranged = compact.slice(4) + compact.slice(0, 4);
-  let remainder = 0;
-  for (const char of rearranged) {
-    const chunk = char >= "A" && char <= "Z" ? String(char.charCodeAt(0) - 55) : char;
-    for (const digit of chunk) remainder = (remainder * 10 + Number(digit)) % 97;
-  }
-  return remainder === 1;
-}
-
-export function isValidBic(value: string): boolean {
-  return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(value.replace(/\s/g, "").toUpperCase());
 }
 
 export function xrechnungFilename(number: string): string {

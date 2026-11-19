@@ -12,6 +12,7 @@ import { queryKeys, viewPath } from "@/client/query-keys";
 import { euroInput, percentInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { AddSheet } from "@/components/add-sheet";
+import { BankDetailsFields } from "@/components/bank-details-fields";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { ReserveHint } from "@/components/reserve-hint";
@@ -286,9 +287,7 @@ export function CompanyScreen() {
               <Card>
                 <ActionForm action={updateBank}>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label={t("company.bankName")}><TextInput name="bankName" defaultValue={company.bankName} /></Field>
-                    <Field label="IBAN"><TextInput name="iban" defaultValue={company.iban} /></Field>
-                    <Field label="BIC"><TextInput name="bic" defaultValue={company.bic} /></Field>
+                    <BankDetailsFields iban={company.iban} bic={company.bic} bankName={company.bankName} />
                     <Field label={t("company.prefix")}><TextInput name="invoicePrefix" defaultValue={company.invoicePrefix} /></Field>
                     <Field label={t("company.terms")}><TextInput name="paymentTermsDays" inputMode="numeric" defaultValue={String(company.paymentTermsDays)} /></Field>
                   </div>
