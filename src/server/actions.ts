@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { getDb } from "@/db/client";
@@ -158,8 +158,54 @@ function pricedLines(lines: InvoicePayload["lines"], klein: boolean) {
     if (unitNetCents === null || unitNetCents < 0) throw new Error(`Price is not valid on ${label}.`);
     const vatBps = klein ? 0 : line.vatBps;
     if (!isSupportedVat(vatBps)) throw new Error("Unsupported VAT rate.");
-    return { description: line.description, quantityMilli, unitNetCents, vatBps, netCents: lineNetCents(quantityMilli, unitNetCents) };
+    return {
+      description: line.description,
+      quantityMilli,
+      unitNetCents,
+      vatBps,
+      netCents: lineNetCents(quantityMilli, unitNetCents),
+      timeEntryId: line.timeEntryId,
+      timeActivityId: line.timeActivityId,
+    };
   });
+}
+
+/** A line taken from time must name a real activity, and an activity is billed once. */
+function reviewInvoiceTimeLinks(
+  db: ReturnType<typeof getDb>,
+  lines: ReturnType<typeof pricedLines>,
+  invoiceId: number | null,
+  companyId: number,
+) {
+  const linked = lines.filter((line) => line.timeEntryId !== null || line.timeActivityId !== null);
+  if (linked.length === 0) return;
+  if (linked.some((line) => line.timeEntryId === null || line.timeActivityId === null)) {
+    throw new Error("A time line needs both its time entry and its activity.");
+  }
+  const activityIds = linked.map((line) => line.timeActivityId!);
+  if (new Set(activityIds).size !== activityIds.length) throw new Error("An activity appears twice on the invoice.");
+  const found = db
+    .select({ id: timeEntryActivities.id, entryId: timeEntryActivities.timeEntryId, companyId: timeEntries.companyId })
+    .from(timeEntryActivities)
+    .innerJoin(timeEntries, eq(timeEntries.id, timeEntryActivities.timeEntryId))
+    .where(inArray(timeEntryActivities.id, activityIds))
+    .all();
+  if (found.length !== activityIds.length || found.some((row) => row.companyId !== companyId)) {
+    throw new Error("A time activity was not found.");
+  }
+  const entryOf = new Map(found.map((row) => [row.id, row.entryId]));
+  if (linked.some((line) => entryOf.get(line.timeActivityId!) !== line.timeEntryId)) {
+    throw new Error("A time activity does not belong to its time entry.");
+  }
+  const conditions = [inArray(invoiceLines.timeActivityId, activityIds), isNull(invoices.deletedAt), ne(invoices.status, "void")];
+  if (invoiceId !== null) conditions.push(ne(invoices.id, invoiceId));
+  const taken = db
+    .select({ id: invoiceLines.timeActivityId })
+    .from(invoiceLines)
+    .innerJoin(invoices, eq(invoices.id, invoiceLines.invoiceId))
+    .where(and(...conditions))
+    .all();
+  if (taken.length > 0) throw new Error("A time activity is already on another invoice.");
 }
 
 export async function dismissSample(): Promise<ActionState> {
@@ -774,6 +820,7 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
       const customerId = resolveCustomer(db, payload, company.id);
       const customer = db.select().from(customers).where(eq(customers.id, customerId)).get();
       if (!customer) throw new Error("Choose a customer.");
+      reviewInvoiceTimeLinks(db, lines, payload.invoiceId, company.id);
       if (intent === "issue") {
         const review = reviewInvoice({
           legalName: company.legalName,
@@ -827,7 +874,16 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
       }
       lines.forEach((line, index) => {
         db.insert(invoiceLines)
-          .values({ invoiceId: id!, position: index + 1, description: line.description, quantityMilli: line.quantityMilli, unitNetCents: line.unitNetCents, vatBps: line.vatBps })
+          .values({
+            invoiceId: id!,
+            position: index + 1,
+            description: line.description,
+            quantityMilli: line.quantityMilli,
+            unitNetCents: line.unitNetCents,
+            vatBps: line.vatBps,
+            timeEntryId: line.timeEntryId,
+            timeActivityId: line.timeActivityId,
+          })
           .run();
       });
       if (intent === "issue") {

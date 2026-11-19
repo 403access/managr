@@ -96,9 +96,9 @@ An hourly rate can be stored at four levels. The most specific one wins and the 
 - the customer (Kunden)
 - the active company's default (Einstellungen under **Abrechnung**)
 
-Only the rate is stored; the value of booked time is derived from it and the recorded minutes. Rates never post to the journal, and an invoice is still written by hand. The Time screen shows the effective rate and its source on every entry, plus the billable value of the visible range.
+Only the rate is stored; the value of booked time is derived from it and the recorded minutes. Rates never post to the journal. The Time screen shows the effective rate and its source on every entry, plus the billable value of the visible range. The invoice form lists the customer's open, billable activities; choosing one adds it as a line at the effective rate, and the entry's duration is split evenly across its activities. An activity that a draft or issued invoice already carries is no longer offered.
 
-Each time entry has **Aktivitäten** and an **interne Notiz**. Every activity has its own line in the form and is meant for the customer later, inside the time item on an invoice. The internal note is only for the desk; it never goes on a customer document. The add form and the entry panel both keep the line breaks. Old entries that stored their activities in the memo are moved by `bun run db:time-activities`, which writes a backup first and can be checked with `--dry-run`.
+Each time entry has **Aktivitäten** and an **interne Notiz**. Every activity has its own line in the form and becomes its own position on a customer invoice. The internal note is only for the desk; it never goes on a customer document. The add form and the entry panel both keep the line breaks. Old entries that stored their activities in the memo are moved by `bun run db:time-activities`, which writes a backup first and can be checked with `--dry-run`.
 
 ## Milestones across companies
 

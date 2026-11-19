@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { saveInvoice } from "@/server/actions";
-import { addDays } from "@/domain/calendar";
+import { addDays, formatDate } from "@/domain/calendar";
 import { KLEINUNTERNEHMER_NOTE, reviewInvoice } from "@/domain/invoice";
 import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
@@ -46,7 +46,28 @@ export type Seller = {
   kleinunternehmer: boolean;
 };
 
-type Line = { description: string; quantity: string; unitNet: string; vatBps: number };
+export type TimeActivityOption = {
+  id: number;
+  timeEntryId: number;
+  customerId: number;
+  entryDate: string;
+  projectName: string;
+  description: string;
+  lineDescription: string;
+  quantity: string;
+  unitNet: string;
+  hourlyRateCents: number | null;
+  vatBps: number;
+};
+
+type Line = {
+  description: string;
+  quantity: string;
+  unitNet: string;
+  vatBps: number;
+  timeEntryId?: number | null;
+  timeActivityId?: number | null;
+};
 
 type Draft = {
   id: number;
@@ -65,6 +86,7 @@ const emptyCustomer = { name: "", street: "", postalCode: "", city: "", country:
 export function InvoiceForm({
   seller,
   customers,
+  timeActivities,
   today,
   termsDays,
   defaultVatBps,
@@ -72,6 +94,7 @@ export function InvoiceForm({
 }: {
   seller: Seller;
   customers: CustomerOption[];
+  timeActivities: TimeActivityOption[];
   today: string;
   termsDays: number;
   defaultVatBps: number;
@@ -101,6 +124,14 @@ export function InvoiceForm({
 
   const chosen = customers.find((item) => item.id === customerId) ?? null;
   const buyer = mode === "existing" && chosen ? chosen : { ...customer, id: 0 };
+  const customerActivities = useMemo(
+    () => (mode === "existing" && customerId !== null ? timeActivities.filter((item) => item.customerId === customerId) : []),
+    [customerId, mode, timeActivities],
+  );
+  const selectedActivityIds = useMemo(
+    () => new Set(lines.map((line) => line.timeActivityId).filter((id): id is number => typeof id === "number")),
+    [lines],
+  );
 
   const pricedLines = useMemo(
     () =>
@@ -281,6 +312,43 @@ export function InvoiceForm({
     setLines((current) => current.map((line, lineIndex) => (lineIndex === index ? { ...line, ...patch } : line)));
   }
 
+  function addActivity(activity: TimeActivityOption) {
+    setLines((current) => {
+      if (current.some((line) => line.timeActivityId === activity.id)) return current;
+      const onlyBlank = current.length === 1 && !current[0].description.trim() && !current[0].unitNet.trim();
+      const base = onlyBlank ? [] : current;
+      return [
+        ...base,
+        {
+          description: activity.lineDescription,
+          quantity: activity.quantity,
+          unitNet: activity.unitNet,
+          vatBps: activity.vatBps,
+          timeEntryId: activity.timeEntryId,
+          timeActivityId: activity.id,
+        },
+      ];
+    });
+  }
+
+  function removeActivity(id: number) {
+    setLines((current) => current.filter((line) => line.timeActivityId !== id));
+  }
+
+  function toggleActivity(activity: TimeActivityOption) {
+    if (selectedActivityIds.has(activity.id)) removeActivity(activity.id);
+    else addActivity(activity);
+  }
+
+  function selectAllActivities() {
+    customerActivities.filter((activity) => !selectedActivityIds.has(activity.id)).forEach(addActivity);
+  }
+
+  function clearActivities() {
+    const ids = new Set(customerActivities.map((activity) => activity.id));
+    setLines((current) => current.filter((line) => line.timeActivityId == null || !ids.has(line.timeActivityId)));
+  }
+
   return (
     <ActionForm
       action={saveInvoice}
@@ -352,6 +420,59 @@ export function InvoiceForm({
           </SelectInput>
         </Field>
       )}
+      {mode === "existing" ? (
+        <Card>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="text-xl">{t("invoices.timeTitle")}</h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{t("invoices.timeHint")}</p>
+            </div>
+            {customerActivities.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={buttonClass("quiet")} onClick={selectAllActivities}>
+                  {t("invoices.timeSelectAll")}
+                </button>
+                {customerActivities.some((activity) => selectedActivityIds.has(activity.id)) ? (
+                  <button type="button" className={buttonClass("quiet")} onClick={clearActivities}>
+                    {t("invoices.timeClear")}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          {customerActivities.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">{t("invoices.timeEmpty")}</p>
+          ) : (
+            <div className="mt-3 grid max-h-96 gap-2 overflow-y-auto pr-1">
+              {customerActivities.map((activity) => {
+                const checked = selectedActivityIds.has(activity.id);
+                return (
+                  <label
+                    key={activity.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${checked ? "border-pine/40 bg-pine/5" : "border-line bg-white hover:border-ink/30"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1 size-4 shrink-0 accent-pine"
+                      checked={checked}
+                      onChange={() => toggleActivity(activity)}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">{activity.description}</span>
+                      <span className="mt-1 block text-xs leading-relaxed text-muted">
+                        {formatDate(activity.entryDate)}
+                        {activity.projectName ? ` · ${activity.projectName}` : ""}
+                        {` · ${activity.quantity} h`}
+                        {` · ${activity.hourlyRateCents === null ? t("invoices.timeNoRate") : `${formatEuro(activity.hourlyRateCents)}/h`}`}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      ) : null}
       <div className="grid gap-3">
         {lines.map((line, index) => (
           <div key={index} className="grid gap-3 rounded-2xl border border-line bg-white p-3 @[34rem]:grid-cols-12">

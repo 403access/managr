@@ -14,6 +14,7 @@ import {
   directorContracts,
   employees,
   founderHealth,
+  invoiceLines,
   projects,
   shareholderLoanMovements,
   shareholderLoans,
@@ -28,6 +29,7 @@ import {
   deleteProject,
   saveDirectorContract,
   saveFounderHealth,
+  saveInvoice,
   saveProject,
   saveTask,
   saveTime,
@@ -206,5 +208,65 @@ describe("project time", () => {
     const deletedProject = db.select().from(projects).all().find((row) => row.id === project!.id);
     expect(deletedProject?.deletedAt).toBeTruthy();
     expect(db.select().from(timeEntries).all().find((row) => row.id === entered!.id)?.projectId).toBe(project!.id);
+  });
+});
+
+describe("invoice lines from time activities", () => {
+  function draftWithActivity(customerId: number, timeEntryId: number, timeActivityId: number) {
+    const form = new FormData();
+    form.set(
+      "payload",
+      JSON.stringify({
+        invoiceId: null,
+        customerMode: "existing",
+        customerId,
+        newCustomer: { name: "", street: "", postalCode: "", city: "", country: "Deutschland", email: "", vatId: "" },
+        issueDate: "2026-10-31",
+        serviceDate: "2026-10-31",
+        dueDate: "2026-11-14",
+        notes: "",
+        buyerReference: "",
+        amountDisplay: "net",
+        lines: [
+          {
+            description: "Projekt: Konzept",
+            quantity: "1",
+            unitNet: "30,00",
+            vatBps: 1900,
+            timeEntryId,
+            timeActivityId,
+          },
+        ],
+      }),
+    );
+    form.set("intent", "draft");
+    return form;
+  }
+
+  it("stores the activity link and refuses to bill the same activity twice", async () => {
+    const db = activateSampleCompany();
+    const company = db.select().from(companies).all().find((row) => row.isActive)!;
+    const customerId = Number(db.insert(customers).values({ companyId: company.id, name: "Zeitkunde", hourlyRateCents: 3_000 }).run().lastInsertRowid);
+    const projectId = Number(
+      db.insert(projects).values({ companyId: company.id, customerId, name: "Projekt", startedOn: "2026-10-01" }).run().lastInsertRowid,
+    );
+    const entryId = Number(
+      db
+        .insert(timeEntries)
+        .values({ companyId: company.id, entryDate: "2026-10-01", startedAt: "09:00", endedAt: "10:00", breakMinutes: 0, projectId, billable: true, taskType: "development" })
+        .run().lastInsertRowid,
+    );
+    const activityId = Number(
+      db.insert(timeEntryActivities).values({ timeEntryId: entryId, position: 0, description: "Konzept" }).run().lastInsertRowid,
+    );
+
+    await saveInvoice(initialState, draftWithActivity(customerId, entryId, activityId));
+
+    const line = db.select().from(invoiceLines).all().find((row) => row.timeActivityId === activityId);
+    expect(line?.timeEntryId).toBe(entryId);
+    expect(line?.description).toBe("Projekt: Konzept");
+
+    const second = await saveInvoice(initialState, draftWithActivity(customerId, entryId, activityId));
+    expect(second?.error).toContain("already on another invoice");
   });
 });

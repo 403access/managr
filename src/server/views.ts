@@ -5,6 +5,7 @@ import { currentDirectorContract, reviewDirectorContract } from "@/domain/direct
 import { reviewDirectorSalary } from "@/domain/director-salary";
 import { reviewFounderHealth } from "@/domain/founder-health";
 import { reviewInvoice } from "@/domain/invoice";
+import { activityQuantityMilli, invoiceLineDescription } from "@/domain/invoice-time";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
 import { policyReminders } from "@/domain/obligations";
 import { nextSalaryChange } from "@/domain/salary";
@@ -22,6 +23,7 @@ import { euroInput, quantityInput } from "@/components/amounts";
 import { formatEuro, formatPercentBps } from "@/domain/money";
 import {
   accountBalances,
+  billedTimeActivityIds,
   getFounderHealth,
   listBankAccounts,
   listBankTransactions,
@@ -482,11 +484,94 @@ export function invoiceView(id: number) {
   return { ...loaded, blockers: review.blockers, eInvoiceBlockers, today: todayIso() };
 }
 
+export type InvoiceTimeActivity = {
+  id: number;
+  timeEntryId: number;
+  customerId: number;
+  entryDate: string;
+  projectName: string;
+  description: string;
+  lineDescription: string;
+  quantity: string;
+  unitNet: string;
+  hourlyRateCents: number | null;
+  vatBps: number;
+};
+
+/**
+ * The billable activities of a customer's time entries that no live invoice
+ * carries yet. Each activity becomes one invoice line; the entry's duration is
+ * split evenly across the entry's activities.
+ */
+function invoiceTimeActivities(invoiceId: number | null): InvoiceTimeActivity[] {
+  const company = loadCompany();
+  const billed = new Set(billedTimeActivityIds(invoiceId));
+  const entries = listTimeInRange("0001-01-01", "9999-12-31").filter((entry) => entry.billable);
+  if (entries.length === 0) return [];
+
+  const activities = listTimeActivities(entries.map((entry) => entry.id));
+  const activitiesByEntry = new Map<number, typeof activities>();
+  for (const activity of activities) {
+    const list = activitiesByEntry.get(activity.timeEntryId);
+    if (list) list.push(activity);
+    else activitiesByEntry.set(activity.timeEntryId, [activity]);
+  }
+
+  const projectById = new Map(listProjects(company.id).map((project) => [project.id, project]));
+  const taskProjectId = new Map(listTasks().map((task) => [task.id, task.projectId]));
+  const customerById = new Map(listCustomers(company.id).map((customer) => [customer.id, customer]));
+
+  return entries
+    .flatMap((entry) => {
+      const entryActivities = activitiesByEntry.get(entry.id) ?? [];
+      if (entryActivities.length === 0) return [];
+      const projectId = entry.projectId ?? (entry.taskId === null ? null : taskProjectId.get(entry.taskId) ?? null);
+      const project = projectId === null ? null : projectById.get(projectId) ?? null;
+      const customerId = project?.customerId ?? null;
+      if (customerId === null) return [];
+      let minutes: number;
+      try {
+        minutes = durationMinutes(entry.startedAt, entry.endedAt, entry.breakMinutes);
+      } catch {
+        return [];
+      }
+      if (minutes <= 0) return [];
+      const rate = effectiveHourlyRate({
+        entryCents: entry.hourlyRateCents,
+        projectCents: project?.hourlyRateCents ?? null,
+        customerCents: customerById.get(customerId)?.hourlyRateCents ?? null,
+        globalCents: company.hourlyRateCents,
+      });
+      const quantities = activityQuantityMilli(minutes, entryActivities.length);
+      return entryActivities.map((activity, index) => ({
+        id: activity.id,
+        timeEntryId: entry.id,
+        customerId,
+        entryDate: entry.entryDate,
+        projectName: project?.name ?? "",
+        description: activity.description,
+        lineDescription: invoiceLineDescription(project?.name ?? "", activity.description),
+        quantity: quantityInput(quantities[index]),
+        unitNet: rate ? euroInput(rate.cents) : "",
+        hourlyRateCents: rate?.cents ?? null,
+        vatBps: company.kleinunternehmer ? 0 : company.defaultVatBps,
+      }));
+    })
+    .filter((activity) => !billed.has(activity.id))
+    .sort(
+      (left, right) =>
+        right.entryDate.localeCompare(left.entryDate) ||
+        left.projectName.localeCompare(right.projectName, "de") ||
+        left.description.localeCompare(right.description, "de"),
+    );
+}
+
 export function invoiceNewView() {
   const company = loadCompany();
   return {
     seller: sellerFrom(company),
     customers: customerOptions(),
+    timeActivities: invoiceTimeActivities(null),
     today: todayIso(),
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,
@@ -504,6 +589,7 @@ export function invoiceEditView(id: number) {
     kind: "draft" as const,
     seller: sellerFrom(company),
     customers: customerOptions(company.id),
+    timeActivities: invoiceTimeActivities(loaded.invoice.id),
     today: todayIso(),
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,
@@ -521,6 +607,8 @@ export function invoiceEditView(id: number) {
         quantity: quantityInput(line.quantityMilli),
         unitNet: euroInput(line.unitNetCents),
         vatBps: line.vatBps,
+        timeEntryId: line.timeEntryId,
+        timeActivityId: line.timeActivityId,
       })),
     },
   };

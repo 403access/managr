@@ -125,6 +125,9 @@ export const invoiceLines = sqliteTable("invoice_lines", {
   quantityMilli: integer("quantity_milli").notNull(),
   unitNetCents: integer("unit_net_cents").notNull(),
   vatBps: integer("vat_bps").notNull(),
+  /** The time entry and activity this line bills, when the line came from time. */
+  timeEntryId: integer("time_entry_id").references(() => timeEntries.id),
+  timeActivityId: integer("time_activity_id").references(() => timeEntryActivities.id),
 });
 
 export const payments = sqliteTable("payments", {

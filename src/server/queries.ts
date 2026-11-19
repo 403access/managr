@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   absences,
@@ -155,6 +155,24 @@ export function listMilestones() {
       .map((link) => link.companyId)
       .sort((left, right) => left - right),
   }));
+}
+
+/**
+ * Activities that a live invoice already bills. A void invoice and a deleted
+ * draft release their activities again. The invoice being edited is left out so
+ * its own lines stay visible.
+ */
+export function billedTimeActivityIds(exceptInvoiceId: number | null = null): number[] {
+  const conditions = [isNull(invoices.deletedAt), ne(invoices.status, "void"), isNotNull(invoiceLines.timeActivityId)];
+  if (exceptInvoiceId !== null) conditions.push(ne(invoices.id, exceptInvoiceId));
+  return getDb()
+    .select({ id: invoiceLines.timeActivityId })
+    .from(invoiceLines)
+    .innerJoin(invoices, eq(invoices.id, invoiceLines.invoiceId))
+    .where(and(...conditions))
+    .all()
+    .map((row) => row.id)
+    .filter((id): id is number => id !== null);
 }
 
 /** Activity lines for the given entries, in their stored order. */

@@ -48,6 +48,8 @@ An invoice states its amounts as net prices with VAT added, or as gross prices w
 
 The invoice form renders the same document component as the print page (`src/components/invoice-document.tsx`) as a live preview. Saving a draft or issuing an invoice opens that preview again and requires confirmation, so no invoice is created unseen.
 
+For a chosen customer the form lists the activities of their billable time entries that no live invoice carries yet. Each activity becomes one line, described as `project: activity`, priced at the effective hourly rate. The entry's duration is split evenly across its activities (`activityQuantityMilli` in `src/domain/invoice-time.ts`); cumulative rounding keeps the entry's total exact to the milli-hour. `invoice_lines.time_entry_id` and `time_activity_id` keep the link, so a draft or issued invoice reserves its activities and a void invoice or deleted draft releases them again. The save refuses an activity that another invoice already carries. A line keeps the text and price it had when written; later changes to the time entry do not rewrite an issued invoice.
+
 ## E-Rechnung (XRechnung)
 
 The e-invoice this desk writes is an XRechnung 3.0.2 file in UBL syntax. That is an EN 16931 invoice and therefore an e-invoice under §14 UStG. The specification is at <https://xeinkauf.de/xrechnung/>. The file is rendered on download. It is not stored and not sent. The invoice screen can check the rendered file with the KoSIT validator running on this computer; the check result is not stored. ZUGFeRD is not produced. A void invoice stays a reversing journal entry; the desk does not write a credit note.
@@ -164,7 +166,7 @@ Working-time warnings follow §3 and §4 ArbZG (8 hours, 10-hour cap, 30- and 45
 
 A time entry names at most one person. The normal case is an employee in `employees`, which carries payroll and social-insurance consequences. A customer's staff member is a row in `contacts` instead: a light record with a name, optional customer, role, and contact details. `time_entries.contact_id` points at it, and `employee_id` stays null. The two columns are mutually exclusive in the form and the tool, but a contact never enters payroll, the org chart, or a contribution estimate. Removing a contact is a soft delete so a recorded entry keeps its name.
 
-An hourly rate is not a statutory figure. It is stored at four levels — company default, customer, project, and time entry — and the most specific stored value wins (`src/domain/rates.ts`). A rate values booked minutes for display; it is not an invoice line and never posts to the journal.
+An hourly rate is not a statutory figure. It is stored at four levels — company default, customer, project, and time entry — and the most specific stored value wins (`src/domain/rates.ts`). A rate values booked minutes for display and becomes the unit price when the activity is chosen on an invoice. The rate itself never posts to the journal; issuing the invoice posts the line like any other line.
 
 ## Documents and legal records
 

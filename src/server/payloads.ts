@@ -26,10 +26,12 @@ export const invoicePayloadSchema = z.object({
         quantity: z.string().trim().max(20),
         unitNet: z.string().trim().max(20),
         vatBps: z.number().int(),
+        timeEntryId: z.number().int().positive().nullable().default(null),
+        timeActivityId: z.number().int().positive().nullable().default(null),
       }),
     )
     .min(1)
-    .max(30),
+    .max(200),
 });
 
 export const journalPayloadSchema = z.object({
