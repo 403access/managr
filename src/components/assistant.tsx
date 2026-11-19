@@ -1061,7 +1061,7 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
   );
 }
 
-function toolLabelFor(name: string, t: (key: MessageKey) => string): string {
+export function toolLabelFor(name: string, t: (key: MessageKey) => string): string {
   const key = TOOL_LABEL_KEYS[name];
   return key ? t(key) : name.replaceAll("_", " ");
 }

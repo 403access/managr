@@ -127,7 +127,7 @@ The repository's `.opencode/opencode.json` registers `managr-mcp` at `/api/mcp` 
 
 `(app)/layout.tsx` hydrates the shell. The shell is a client component: sidebar from 768px up, bottom navigation below that. The invoice print route sits outside the shell. Screens, the mobile menu, invoice lines, and journal lines are client components. The page files stay server components so they can prefetch the view.
 
-`/assistant` is the full-page form of the chat: the same client component as the floating panel with `variant="page"`, beside server-rendered status cards for the model picker, web search, the MCP endpoint, the tool count, and privacy. The shell hides the floating button on that route.
+`/assistant` is the full-page form of the chat: the same client component as the floating panel with `variant="page"`, beside server-rendered status cards for the model picker, web search, the MCP endpoint, the tool count, and privacy. The tool card opens a searchable sidebar built from `enabledTools()`, grouped into reads, writes, briefings, and web tools. The shell hides the floating button on that route.
 
 The command bar opens from the sidebar, the mobile header, or `Cmd/Ctrl+K`. `commandView` in `src/server/views.ts` builds one index from the same list queries the screens use: navigation pages plus invoices, customers, people, projects and tasks, documents, deadlines, milestones, legal records, company records, and accounts. The browser caches `GET /api/views/command` with TanStack Query, filters page titles and entry text locally, and navigates to the record route or the tab that holds it.
 
