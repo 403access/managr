@@ -331,15 +331,12 @@ function EntryTable({
             <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.project")}</th>
             <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.taskType")}</th>
             <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.billableCheck")}</th>
-            <th scope="col" className="px-3 py-2">
-              <span className="sr-only">{t("time.tableActions")}</span>
-            </th>
           </tr>
         </thead>
         {groups.map((group) => (
           <tbody key={group.key} className="border-b border-line last:border-0">
             <tr className="bg-paper/70">
-              <th scope="colgroup" colSpan={9} className="px-3 py-2 text-left">
+              <th scope="colgroup" colSpan={8} className="px-3 py-2 text-left">
                 <span className="flex flex-wrap items-baseline justify-between gap-2">
                   <span>
                     <span className="font-medium text-ink">{formatDate(group.entryDate)}</span>
@@ -387,16 +384,10 @@ function EntryTable({
                   <td className="px-3 py-2 align-top">{entry.projectId ? entry.projectName : t("time.projectNone")}</td>
                   <td className="px-3 py-2 align-top">{label(entry.taskType)}</td>
                   <td className="px-3 py-2 align-top">{entry.billable ? t("time.billable") : "—"}</td>
-                  <td className="px-3 py-2 align-top" onClick={(event) => event.stopPropagation()}>
-                    <ActionForm action={deleteTime} compact>
-                      <input type="hidden" name="id" value={entry.id} />
-                      <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
-                    </ActionForm>
-                  </td>
                 </tr>
                 {entry.warnings.length > 0 ? (
                   <tr className="border-t border-line/60 bg-amber/5">
-                    <td colSpan={9} className="px-3 py-1.5 text-xs text-amber">
+                    <td colSpan={8} className="px-3 py-1.5 text-xs text-amber">
                       {entry.warnings.map((warning) => tx(warning.message)).join(" · ")}
                     </td>
                   </tr>
