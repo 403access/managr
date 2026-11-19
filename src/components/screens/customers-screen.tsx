@@ -215,7 +215,7 @@ function CustomerDetails({ data }: { data: CustomerDetail }) {
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <Link href={`/time?week=${entry.entryDate}`} className="text-sm font-medium text-pine">
                       {formatDate(entry.entryDate)}
-                      {entry.memo ? ` · ${entry.memo}` : ""}
+                      {entry.activities.length > 0 ? ` · ${entry.activities.join(" · ")}` : entry.memo ? ` · ${entry.memo}` : ""}
                     </Link>
                     <span className="font-mono text-sm tabular-nums">{formatDuration(entry.minutes)}</span>
                   </div>

@@ -61,6 +61,8 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 ## Hourly rates
 
+A time entry has two separate texts. `time_entry_activities` holds the activity lines in their stored order; they are the lines that later belong inside the time item on a customer invoice. `time_entries.memo` is the internal note: the Time screen shows it, and it must never be printed for a customer. The add form and the entry panel give every activity its own textarea, so a line break is a real stored activity. `0018_time_entry_activities.sql` creates the table, and `bun run db:time-activities` is the one-time move that split an old memo into activities, cleared the memo, and wrote a backup first.
+
 `companies`, `customers`, `projects`, and `time_entries` each carry a nullable `hourly_rate_cents` (migration `0016_hourly_rates.sql`). `NULL` means "inherit". `src/domain/rates.ts` resolves the most specific stored rate — entry, project, customer, then the company default — and values booked minutes at it. `/settings` writes the company default, `/customers` the customer rate, `/projects` the project rate, and the **Zeit** add form and entry panel write the entry rate. `timeViewForRange` and `projectsView` add the effective rate and value to their output, and `set_hourly_rate`, `save_customer`, `save_project`, `add_time`, and `update_time` expose the same fields to the assistant and MCP clients. Nothing here posts to the journal. `update_time` changes an existing entry in place, so moving a block to another project does not delete and recreate it.
 
 ## Milestones

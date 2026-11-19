@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   absences,
@@ -17,6 +17,7 @@ import {
   shareholders,
   tasks,
   timeEntries,
+  timeEntryActivities,
 } from "@/db/schema";
 import { formatEuro } from "@/domain/money";
 import { TRASH_KINDS, type TrashEntry, type TrashKind } from "@/domain/trash";
@@ -157,19 +158,32 @@ function listKind(kind: TrashKind): TrashEntry[] {
           detail: [row.status, row.dueDate].filter(Boolean).join(" · "),
           deletedAt: row.deletedAt!,
         }));
-    case "time":
-      return db
+    case "time": {
+      const entries = db
         .select()
         .from(timeEntries)
         .where(and(eq(timeEntries.companyId, companyId), isNotNull(timeEntries.deletedAt)))
-        .all()
-        .map((row) => ({
-          kind,
-          id: row.id,
-          label: `${row.entryDate} · ${row.startedAt}–${row.endedAt}`,
-          detail: row.memo,
-          deletedAt: row.deletedAt!,
-        }));
+        .all();
+      const activitiesByEntry = new Map<number, string[]>();
+      const activityRows = entries.length === 0 ? [] : db
+        .select()
+        .from(timeEntryActivities)
+        .where(inArray(timeEntryActivities.timeEntryId, entries.map((entry) => entry.id)))
+        .orderBy(asc(timeEntryActivities.timeEntryId), asc(timeEntryActivities.position))
+        .all();
+      for (const activity of activityRows) {
+        const list = activitiesByEntry.get(activity.timeEntryId);
+        if (list) list.push(activity.description);
+        else activitiesByEntry.set(activity.timeEntryId, [activity.description]);
+      }
+      return entries.map((row) => ({
+        kind,
+        id: row.id,
+        label: `${row.entryDate} · ${row.startedAt}–${row.endedAt}`,
+        detail: activitiesByEntry.get(row.id)?.join(" · ") || row.memo,
+        deletedAt: row.deletedAt!,
+      }));
+    }
     case "deadline":
       return db
         .select()

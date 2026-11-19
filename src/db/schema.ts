@@ -295,6 +295,18 @@ export const timeEntries = sqliteTable("time_entries", {
   deletedAt: text("deleted_at"),
 });
 
+/** The lines of work on a time entry. The entry's memo stays an internal note. */
+export const timeEntryActivities = sqliteTable(
+  "time_entry_activities",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    timeEntryId: integer("time_entry_id").notNull().references(() => timeEntries.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    description: text("description").notNull(),
+  },
+  (table) => [index("time_entry_activities_entry_idx").on(table.timeEntryId)],
+);
+
 export const documents = sqliteTable("documents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),

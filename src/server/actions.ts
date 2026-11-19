@@ -33,6 +33,7 @@ import {
   shareholders,
   tasks,
   timeEntries,
+  timeEntryActivities,
 } from "@/db/schema";
 import { ACCOUNTS, CHART, type DraftLine } from "@/domain/accounts";
 import { TASK_TYPES } from "@/domain/analytics";
@@ -69,7 +70,7 @@ import { salaryForMonth } from "@/domain/salary";
 import { loanInterestCents, loanOutstandingCents } from "@/domain/shareholder-loan";
 import { estimateContributions, payrollAmounts } from "@/domain/social";
 import { isStateCode } from "@/domain/states";
-import { durationMinutes, timeWarnings } from "@/domain/time";
+import { durationMinutes, timeActivitiesProblem, timeWarnings } from "@/domain/time";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { removeUpload, saveUpload } from "./files";
 import { connectBank, syncBankConnection } from "./bank";
@@ -1552,6 +1553,26 @@ export async function deleteTask(_state: ActionState, formData: FormData): Promi
   }
 }
 
+type TimeActivityWriter = Pick<ReturnType<typeof getDb>, "delete" | "insert">;
+
+function writeTimeActivities(db: TimeActivityWriter, entryId: number, activities: readonly string[]): void {
+  db.delete(timeEntryActivities).where(eq(timeEntryActivities.timeEntryId, entryId)).run();
+  activities.forEach((description, index) => {
+    db.insert(timeEntryActivities).values({ timeEntryId: entryId, position: index, description }).run();
+  });
+}
+
+function timeActivitiesFrom(formData: FormData): string[] {
+  // The screen posts one field per activity, so each textarea is one line item.
+  const activities = formData
+    .getAll("activities")
+    .map((value) => String(value).trim())
+    .filter((value) => value.length > 0);
+  const problem = timeActivitiesProblem(activities);
+  if (problem) throw new Error(problem);
+  return activities;
+}
+
 export async function saveTime(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const entryDate = requireDate(text(formData, "entryDate"), "The day");
@@ -1572,7 +1593,8 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
     const projectId = task?.projectId ?? optionalId(formData, "projectId") ?? null;
     if (projectId && !db.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.companyId, company.id), isNull(projects.deletedAt))).get()) throw new Error("Project not found.");
     const taskType = text(formData, "taskType") ? oneOf(text(formData, "taskType"), TASK_TYPES, "Task type") : task?.taskType ?? "other";
-    db.insert(timeEntries)
+    const activities = timeActivitiesFrom(formData);
+    const created = db.insert(timeEntries)
       .values({
         companyId: company.id,
         entryDate,
@@ -1588,8 +1610,31 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
         hourlyRateCents: optionalEuros(formData, "hourlyRate", "The entry hourly rate"),
       })
       .run();
+    writeTimeActivities(db, Number(created.lastInsertRowid), activities);
     const watch = warnings.map((warning) => warning.message).join(" ");
     return saved(watch ? `Time saved. ${watch}` : "Time saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+/** Replaces the activity lines and the internal note on an existing entry. */
+export async function saveTimeDetails(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const id = requiredId(formData);
+    const db = getDb();
+    const entry = db
+      .select()
+      .from(timeEntries)
+      .where(and(eq(timeEntries.id, id), eq(timeEntries.companyId, requireCompany().id), isNull(timeEntries.deletedAt)))
+      .get();
+    if (!entry) throw new Error("Time entry not found.");
+    const activities = timeActivitiesFrom(formData);
+    db.transaction((tx) => {
+      tx.update(timeEntries).set({ memo: text(formData, "memo") }).where(eq(timeEntries.id, id)).run();
+      writeTimeActivities(tx, id, activities);
+    });
+    return saved("Time entry saved.");
   } catch (error) {
     return failed(error);
   }

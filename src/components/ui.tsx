@@ -13,7 +13,8 @@ export function buttonClass(tone: ButtonTone = "primary"): string {
   return `inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium transition disabled:opacity-60 ${tones[tone]}`;
 }
 
-export const inputClass = "min-h-11 w-full rounded-xl border border-line bg-white px-3 text-base text-ink";
+const inputBase = "w-full rounded-xl border border-line bg-white px-3 text-base text-ink";
+export const inputClass = `min-h-11 ${inputBase}`;
 export const textLinkClass = "inline-flex min-h-11 items-center text-sm font-medium text-pine";
 
 export function LinkButton({ href, children, tone = "primary" }: { href: string; children: ReactNode; tone?: ButtonTone }) {
@@ -42,8 +43,13 @@ export function SelectInput(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={`${inputClass} select-input`} />;
 }
 
-export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`${inputClass} min-h-28 py-3`} />;
+export function TextArea({ compact = false, className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { compact?: boolean }) {
+  return (
+    <textarea
+      {...props}
+      className={`${compact ? `${inputBase} min-h-16 py-2` : `${inputBase} min-h-28 py-3`} ${className}`}
+    />
+  );
 }
 
 export function Check({ name, label, defaultChecked, hint }: { name: string; label: string; defaultChecked?: boolean; hint?: string }) {

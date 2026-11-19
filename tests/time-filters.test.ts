@@ -21,7 +21,8 @@ const entries: Entry[] = [
     entryDate: "2026-11-09",
     startedAt: "09:00",
     minutes: 450,
-    memo: "Startseite gebaut",
+    memo: "",
+    activities: ["Startseite gebaut"],
     billable: true,
     employeeId: 1,
     firstName: "Anna",
@@ -35,7 +36,8 @@ const entries: Entry[] = [
     entryDate: "2026-11-09",
     startedAt: "14:00",
     minutes: 60,
-    memo: "Teamrunde",
+    memo: "Interner Hinweis zur Teamrunde",
+    activities: ["Teamrunde"],
     billable: false,
     employeeId: null,
     firstName: "",
@@ -49,7 +51,8 @@ const entries: Entry[] = [
     entryDate: "2026-11-10",
     startedAt: "08:30",
     minutes: 120,
-    memo: "Angebot Müller",
+    memo: "",
+    activities: ["Angebot Müller"],
     billable: true,
     employeeId: 2,
     firstName: "Bilal",
@@ -63,7 +66,8 @@ const entries: Entry[] = [
     entryDate: "2026-11-11",
     startedAt: "10:00",
     minutes: 30,
-    memo: "Übergabe",
+    memo: "",
+    activities: ["Übergabe"],
     billable: false,
     employeeId: 1,
     firstName: "Anna",
@@ -85,11 +89,12 @@ describe("time entry filters", () => {
     expect(ids(filterTimeEntries(entries, noEntryFilter))).toEqual([1, 2, 3, 4]);
   });
 
-  it("filters by free text over memo, person, and project, ignoring case and umlauts", () => {
+  it("filters by free text over activities, note, person, and project, ignoring case and umlauts", () => {
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, query: "muller" }))).toEqual([3]);
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, query: "UBERGABE" }))).toEqual([4]);
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, query: "anna" }))).toEqual([1, 4]);
     expect(ids(filterTimeEntries(entries, { ...noEntryFilter, query: "beispiel" }))).toEqual([3]);
+    expect(ids(filterTimeEntries(entries, { ...noEntryFilter, query: "interner hinweis" }))).toEqual([2]);
   });
 
   it("filters by person, including entries without one", () => {

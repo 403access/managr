@@ -20,6 +20,7 @@ import {
   shareholders,
   tasks,
   timeEntries,
+  timeEntryActivities,
 } from "@/db/schema";
 import {
   addShareholderLoan,
@@ -30,6 +31,7 @@ import {
   saveProject,
   saveTask,
   saveTime,
+  saveTimeDetails,
   switchCompany,
 } from "@/server/actions";
 import { initialState } from "@/server/form";
@@ -173,12 +175,30 @@ describe("project time", () => {
     timeForm.set("breakMinutes", "60");
     timeForm.set("taskId", String(task!.id));
     timeForm.set("taskType", "");
+    timeForm.append("activities", "  Komponenten gebaut  ");
+    timeForm.append("activities", "");
+    timeForm.append("activities", "Abstimmung mit dem Kunden");
+    timeForm.set("memo", "Nur intern: Rückfrage offen");
     timeForm.set("billable", "on");
     expect(await saveTime(initialState, timeForm)).toEqual({ error: "", message: "Time saved." });
     const entered = db.select().from(timeEntries).all().find((row) => row.entryDate === "2026-02-03");
     expect(entered?.projectId).toBe(project!.id);
     expect(entered?.taskType).toBe("development");
     expect(entered?.billable).toBe(true);
+    expect(entered?.memo).toBe("Nur intern: Rückfrage offen");
+    expect(
+      db.select().from(timeEntryActivities).all().filter((row) => row.timeEntryId === entered!.id).map((row) => row.description),
+    ).toEqual(["Komponenten gebaut", "Abstimmung mit dem Kunden"]);
+
+    const detailsForm = new FormData();
+    detailsForm.set("id", String(entered!.id));
+    detailsForm.set("activities", "Nur eine Tätigkeit");
+    detailsForm.set("memo", "");
+    expect(await saveTimeDetails(initialState, detailsForm)).toEqual({ error: "", message: "Time entry saved." });
+    expect(
+      db.select().from(timeEntryActivities).all().filter((row) => row.timeEntryId === entered!.id).map((row) => row.description),
+    ).toEqual(["Nur eine Tätigkeit"]);
+    expect(db.select().from(timeEntries).all().find((row) => row.id === entered!.id)?.memo).toBe("");
 
     const deleteForm = new FormData();
     deleteForm.set("id", String(project!.id));

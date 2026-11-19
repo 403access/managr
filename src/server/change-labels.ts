@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   absences,
@@ -14,6 +14,7 @@ import {
   shareholders,
   tasks,
   timeEntries,
+  timeEntryActivities,
 } from "@/db/schema";
 
 /**
@@ -91,11 +92,20 @@ export function changeLabels(name: string, input: unknown): Record<string, strin
         if (row) labels.id = row.title;
       } else if (name === "delete_time" || name === "update_time") {
         const row = db
-          .select({ entryDate: timeEntries.entryDate, startedAt: timeEntries.startedAt, endedAt: timeEntries.endedAt, memo: timeEntries.memo })
+          .select({ entryDate: timeEntries.entryDate, startedAt: timeEntries.startedAt, endedAt: timeEntries.endedAt })
           .from(timeEntries)
           .where(eq(timeEntries.id, entityId))
           .get();
-        if (row) labels.id = `${row.entryDate} ${row.startedAt}–${row.endedAt}${row.memo ? ` · ${row.memo}` : ""}`;
+        if (row) {
+          const activities = db
+            .select({ description: timeEntryActivities.description })
+            .from(timeEntryActivities)
+            .where(eq(timeEntryActivities.timeEntryId, entityId))
+            .orderBy(asc(timeEntryActivities.position))
+            .all()
+            .map((activity) => activity.description);
+          labels.id = `${row.entryDate} ${row.startedAt}–${row.endedAt}${activities.length > 0 ? ` · ${activities.join(" · ")}` : ""}`;
+        }
       } else if (name === "delete_absence") {
         const row = db
           .select({ kind: absences.kind, startDate: absences.startDate, endDate: absences.endDate })

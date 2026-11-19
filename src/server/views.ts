@@ -45,6 +45,7 @@ import {
   listShareholderLoans,
   listTasks,
   listTime,
+  listTimeActivities,
   listTimeInRange,
   listCompanies,
   loadBankConnection,
@@ -339,7 +340,15 @@ export function customerView(id: number) {
   const people = listOrgMembers();
   const personById = new Map(people.map((person) => [person.id, `${person.firstName} ${person.lastName}`.trim()]));
 
-  const entries = listTimeInRange("0001-01-01", "9999-12-31")
+  const allEntries = listTimeInRange("0001-01-01", "9999-12-31");
+  const activitiesByEntry = new Map<number, string[]>();
+  for (const activity of listTimeActivities(allEntries.map((entry) => entry.id))) {
+    const list = activitiesByEntry.get(activity.timeEntryId);
+    if (list) list.push(activity.description);
+    else activitiesByEntry.set(activity.timeEntryId, [activity.description]);
+  }
+
+  const entries = allEntries
     .flatMap((entry) => {
       const projectId = entry.projectId ?? (entry.taskId === null ? null : taskById.get(entry.taskId)?.projectId ?? null);
       if (projectId === null || !projectIds.has(projectId)) return [];
@@ -357,6 +366,7 @@ export function customerView(id: number) {
         startedAt: entry.startedAt,
         endedAt: entry.endedAt,
         memo: entry.memo,
+        activities: activitiesByEntry.get(entry.id) ?? [],
         billable: entry.billable,
         taskType: entry.taskType,
         projectId,
@@ -876,7 +886,14 @@ function timeViewForRange(start: string, end: string, anchor: string) {
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const projectFor = (id: number | null) => (id === null ? null : projectById.get(id) ?? null);
-  const entries = listTimeInRange(start, end).map((entry) => {
+  const storedEntries = listTimeInRange(start, end);
+  const activitiesByEntry = new Map<number, string[]>();
+  for (const activity of listTimeActivities(storedEntries.map((entry) => entry.id))) {
+    const list = activitiesByEntry.get(activity.timeEntryId);
+    if (list) list.push(activity.description);
+    else activitiesByEntry.set(activity.timeEntryId, [activity.description]);
+  }
+  const entries = storedEntries.map((entry) => {
     let minutes = 0;
     let warnings: { level: "stop" | "watch"; message: string }[] = [];
     let error = "";
@@ -902,6 +919,7 @@ function timeViewForRange(start: string, end: string, anchor: string) {
       endedAt: entry.endedAt,
       breakMinutes: entry.breakMinutes,
       memo: entry.memo,
+      activities: activitiesByEntry.get(entry.id) ?? [],
       billable: entry.billable,
       taskId: entry.taskId,
       employeeId: entry.employeeId,

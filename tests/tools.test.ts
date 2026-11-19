@@ -4,7 +4,7 @@ import path from "path";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { timeEntries } from "@/db/schema";
+import { timeEntries, timeEntryActivities } from "@/db/schema";
 import { runTool, toolJsonSchema, tools } from "@/server/tools";
 
 const repo = process.cwd();
@@ -50,6 +50,7 @@ describe("tool registry", () => {
         entryDate: "2026-10-23",
         startedAt: "11:30",
         endedAt: "13:30",
+        activities: ["Erste Tätigkeit", "Zweite Tätigkeit"],
         memo: "Update me",
       }),
     );
@@ -65,6 +66,14 @@ describe("tool registry", () => {
     expect(row?.projectId).toBe(target.id);
     expect(row?.memo).toBe("Update me");
     expect(row?.startedAt).toBe("11:30");
+    expect(
+      getDb().select().from(timeEntryActivities).all().filter((activity) => activity.timeEntryId === added.id).map((activity) => activity.description),
+    ).toEqual(["Erste Tätigkeit", "Zweite Tätigkeit"]);
+
+    await runTool("update_time", { id: added.id, activities: ["Ersetzt"] });
+    expect(
+      getDb().select().from(timeEntryActivities).all().filter((activity) => activity.timeEntryId === added.id).map((activity) => activity.description),
+    ).toEqual(["Ersetzt"]);
 
     const cleared = data<{ projectId: number | null }>(await runTool("update_time", { id: added.id, projectId: null }));
     expect(cleared.projectId).toBeNull();

@@ -91,11 +91,38 @@ function normalize(value: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+export const MAX_TIME_ACTIVITIES = 50;
+export const MAX_TIME_ACTIVITY_LENGTH = 400;
+
+/**
+ * One activity per line. The one-time migration reads an old memo with this;
+ * the screen itself sends a separate field for every activity.
+ */
+export function parseTimeActivities(value: string): string[] {
+  return value
+    .split(/\r\n|[\r\n\u2028\u2029]/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+/** The message a save returns, or `null` when the activity list is usable. */
+export function timeActivitiesProblem(activities: readonly string[]): string | null {
+  if (activities.length > MAX_TIME_ACTIVITIES) {
+    return `A time entry holds at most ${MAX_TIME_ACTIVITIES} activities.`;
+  }
+  if (activities.some((activity) => activity.length > MAX_TIME_ACTIVITY_LENGTH)) {
+    return `An activity is limited to ${MAX_TIME_ACTIVITY_LENGTH} characters.`;
+  }
+  return null;
+}
+
 export type FilterableTimeEntry = {
   entryDate: string;
   startedAt: string;
   minutes: number;
+  /** Internal note. It is never shown to a customer. */
   memo: string;
+  activities: readonly string[];
   billable: boolean;
   employeeId: number | null;
   firstName: string;
@@ -141,7 +168,7 @@ export function filterTimeEntries<T extends FilterableTimeEntry>(entries: readon
     if (filter.billable === "yes" && !entry.billable) return false;
     if (filter.billable === "no" && entry.billable) return false;
     if (!needle) return true;
-    return normalize([entry.memo, entry.firstName, entry.projectName].join(" ")).includes(needle);
+    return normalize([entry.activities.join(" "), entry.memo, entry.firstName, entry.projectName].join(" ")).includes(needle);
   });
 }
 

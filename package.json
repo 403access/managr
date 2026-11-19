@@ -17,6 +17,7 @@
     "db:demo:set": "tsx scripts/databases.ts set demo",
     "db:prod:set": "tsx scripts/databases.ts set production",
     "db:prod:init": "tsx scripts/databases.ts init production",
+    "db:time-activities": "tsx scripts/migrate-time-activities.ts",
     "docker:restart": "docker compose up --build -d",
     "docker:restart:desk": "docker compose up --build -d desk",
     "docker:restart:site": "docker compose up --build -d site",

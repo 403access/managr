@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, Fragment, type ReactNode } from "react";
-import { deleteTask, deleteTime, saveTask, saveTime, saveTimeRate, toggleTask } from "@/server/actions";
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment, type ReactNode } from "react";
+import { deleteTask, deleteTime, saveTask, saveTime, saveTimeDetails, saveTimeRate, toggleTask } from "@/server/actions";
 import type { timeView } from "@/server/views";
 import { TASK_TYPES, type TaskType } from "@/domain/analytics";
 import { addDays, formatDate } from "@/domain/calendar";
@@ -35,7 +35,7 @@ import { SidePanel } from "@/components/side-panel";
 import { useView, ViewGate } from "@/components/use-view";
 import { useWideLayout } from "@/components/use-wide-layout";
 import { Tab, Tabs } from "@/components/tabs";
-import { Card, Check, Empty, Field, PageHeader, Pill, SelectInput, TextInput } from "@/components/ui";
+import { Card, Check, Empty, Field, PageHeader, Pill, SelectInput, TextArea, TextInput } from "@/components/ui";
 
 type Week = ReturnType<typeof timeView>;
 
@@ -131,7 +131,10 @@ function TimeBody({ data }: { data: Week }) {
                         <TextInput name="hourlyRate" inputMode="decimal" placeholder="95,00" />
                       </Field>
                     </div>
-                    <Field label={t("common.memo")}><TextInput name="memo" /></Field>
+                    <ActivityField />
+                    <Field label={t("time.internalNote")} hint={t("time.internalNoteHint")}>
+                      <TextArea name="memo" />
+                    </Field>
                     <Check name="billable" label={t("time.billableCheck")} />
                     <SubmitButton>{t("time.save")}</SubmitButton>
                   </ActionForm>
@@ -218,6 +221,77 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
   );
 }
 
+/** One controlled input per activity, so every activity is its own line. */
+function ActivityFields({ defaultValue = [] }: { defaultValue?: string[] }) {
+  const { t } = useI18n();
+  const [rows, setRows] = useState(() =>
+    (defaultValue.length > 0 ? defaultValue : [""]).map((value, index) => ({ id: index, value })),
+  );
+  const nextId = useRef(rows.length);
+
+  function addRow() {
+    const id = nextId.current;
+    nextId.current += 1;
+    setRows((current) => [...current, { id, value: "" }]);
+  }
+
+  function removeRow(id: number) {
+    setRows((current) => (current.length > 1 ? current.filter((row) => row.id !== id) : current));
+  }
+
+  function updateRow(id: number, value: string) {
+    setRows((current) => current.map((row) => (row.id === id ? { ...row, value } : row)));
+  }
+
+  return (
+    <div className="grid gap-2">
+      {rows.map((row, index) => (
+        <div key={row.id} className="flex items-start gap-2">
+          <TextArea
+            compact
+            rows={2}
+            wrap="off"
+            className="whitespace-pre"
+            name="activities"
+            value={row.value}
+            onChange={(event) => updateRow(row.id, event.target.value)}
+            aria-label={t("time.activityNumber", { number: index + 1 })}
+          />
+          <button
+            type="button"
+            onClick={() => removeRow(row.id)}
+            disabled={rows.length === 1}
+            aria-label={t("time.removeActivity")}
+            title={t("time.removeActivity")}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-line bg-card text-lg text-muted transition hover:border-ink hover:text-ink disabled:opacity-40"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addRow}
+        disabled={rows.length >= 50}
+        className="inline-flex min-h-11 items-center self-start text-sm font-medium text-pine underline-offset-4 hover:underline disabled:opacity-40"
+      >
+        + {t("time.addActivity")}
+      </button>
+    </div>
+  );
+}
+
+function ActivityField({ defaultValue }: { defaultValue?: string[] }) {
+  const { t } = useI18n();
+  return (
+    <div className="grid gap-1 text-sm">
+      <span className="font-medium">{t("time.activities")}</span>
+      <ActivityFields defaultValue={defaultValue} />
+      <span className="text-xs leading-relaxed text-muted">{t("time.activitiesHint")}</span>
+    </div>
+  );
+}
+
 function TimeEntryPanel({
   entry,
   data,
@@ -283,7 +357,18 @@ function TimeEntryPanel({
         <DetailRow label={t("rates.value")}>
           <span className="font-mono tabular-nums">{formatEuro(entry.valueCents)}</span>
         </DetailRow>
-        <DetailRow label={t("common.notes")}>{entry.memo || t("time.noMemo")}</DetailRow>
+        <DetailRow label={t("time.activities")}>
+          {entry.activities.length === 0 ? (
+            t("time.noActivities")
+          ) : (
+            <ul className="grid gap-1">
+              {entry.activities.map((activity, index) => (
+                <li key={`${index}-${activity}`}>{activity}</li>
+              ))}
+            </ul>
+          )}
+        </DetailRow>
+        <DetailRow label={t("time.internalNote")}>{entry.memo || t("time.noInternalNote")}</DetailRow>
         {checks ? (
           <DetailRow label={t("time.detailsChecks")}>
             <ul className="grid gap-1">
@@ -298,6 +383,16 @@ function TimeEntryPanel({
         ) : null}
       </dl>
       <div className="mt-6 border-t border-line pt-4">
+        <ActionForm action={saveTimeDetails} className="grid gap-3">
+          <input type="hidden" name="id" value={entry.id} />
+          <ActivityField key={entry.activities.join("\u0000")} defaultValue={entry.activities} />
+          <Field label={t("time.internalNote")} hint={t("time.internalNoteHint")}>
+            <TextArea name="memo" defaultValue={entry.memo} />
+          </Field>
+          <SubmitButton tone="quiet">{t("time.saveDetails")}</SubmitButton>
+        </ActionForm>
+      </div>
+      <div className="mt-4 border-t border-line pt-4">
         <ActionForm action={saveTimeRate} className="grid gap-3">
           <input type="hidden" name="id" value={entry.id} />
           <Field label={t("rates.entry")} hint={t("rates.entryHint")}>
@@ -342,13 +437,25 @@ function EntryCards({ entries, selectedId, onOpen }: { entries: TimeEntries; sel
               <span className="block text-sm font-medium">
                 {t("time.span", { date: formatDate(entry.entryDate), start: entry.startedAt, end: entry.endedAt, minutes: entry.breakMinutes })}
               </span>
-              <span className="block text-sm text-muted">
-                {entry.memo || t("time.noMemo")}
-                {entry.firstName ? ` · ${entry.firstName}` : ""}
-                {entry.projectId ? ` · ${entry.projectName}` : ""}
-                {entry.taskType !== "other" ? ` · ${label(entry.taskType)}` : ""}
-                {entry.billable ? ` · ${t("time.billable")}` : ""}
+              <span className="mt-1 block text-sm text-muted">
+                {entry.activities.length === 0 ? (
+                  t("time.noActivities")
+                ) : (
+                  entry.activities.map((activity, index) => (
+                    <span key={`${index}-${activity}`} className="block">
+                      {activity}
+                    </span>
+                  ))
+                )}
               </span>
+              <span className="block text-sm text-muted">
+                {[entry.firstName, entry.projectId ? entry.projectName : "", entry.taskType !== "other" ? label(entry.taskType) : "", entry.billable ? t("time.billable") : ""]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+              {entry.memo ? (
+                <span className="block text-xs text-muted">{t("time.internalNote")}: {entry.memo}</span>
+              ) : null}
               {entry.error ? (
                 <span className="block text-sm text-clay">{tx(entry.error)}</span>
               ) : (
@@ -434,9 +541,16 @@ function EntryTable({
                     >
                       {entry.startedAt}–{entry.endedAt}
                     </button>
-                    {entry.memo ? (
+                    {entry.activities.length > 0 ? (
+                      <span
+                        className="mt-0.5 block max-w-[16rem] truncate text-xs text-muted"
+                        title={entry.activities.join("\n")}
+                      >
+                        {entry.activities.join(" · ")}
+                      </span>
+                    ) : entry.memo ? (
                       <span className="mt-0.5 block max-w-[16rem] truncate text-xs text-muted" title={entry.memo}>
-                        {entry.memo}
+                        {t("time.internalNote")}: {entry.memo}
                       </span>
                     ) : null}
                   </td>

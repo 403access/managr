@@ -34,6 +34,7 @@ import {
   shareholders,
   tasks,
   timeEntries,
+  timeEntryActivities,
 } from "@/db/schema";
 import type { AccountType, PnlGroup } from "@/domain/accounts";
 import { ACCOUNTS, signedBalance } from "@/domain/accounts";
@@ -128,6 +129,17 @@ export function listMilestones() {
       .map((link) => link.companyId)
       .sort((left, right) => left - right),
   }));
+}
+
+/** Activity lines for the given entries, in their stored order. */
+export function listTimeActivities(entryIds: readonly number[]) {
+  if (entryIds.length === 0) return [];
+  return getDb()
+    .select()
+    .from(timeEntryActivities)
+    .where(inArray(timeEntryActivities.timeEntryId, [...entryIds]))
+    .orderBy(asc(timeEntryActivities.timeEntryId), asc(timeEntryActivities.position))
+    .all();
 }
 
 export function listTimeInRange(from: string, to: string) {

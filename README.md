@@ -96,6 +96,8 @@ An hourly rate can be stored at four levels. The most specific one wins and the 
 
 Only the rate is stored; the value of booked time is derived from it and the recorded minutes. Rates never post to the journal, and an invoice is still written by hand. The Time screen shows the effective rate and its source on every entry, plus the billable value of the visible range.
 
+Each time entry has **Aktivitäten** and an **interne Notiz**. Every activity has its own line in the form and is meant for the customer later, inside the time item on an invoice. The internal note is only for the desk; it never goes on a customer document. The add form and the entry panel both keep the line breaks. Old entries that stored their activities in the memo are moved by `bun run db:time-activities`, which writes a backup first and can be checked with `--dry-run`.
+
 ## Milestones across companies
 
 **Meilensteine** under Mehr at `/milestones` holds overarching goals that are not tied to the active company. A goal has a title, description, category, target date, status (planned, active, achieved, missed), and progress. It can name several companies, or none for a goal that applies to the whole group. The year selector scopes the list and the analysis by target year.

@@ -28,6 +28,7 @@ import {
   shareholders,
   tasks,
   timeEntries,
+  timeEntryActivities,
 } from "@/db/schema";
 import { GUIDE_IDS, filterSourceGroups, guides, guideSources, pick, type Localized, type Source } from "@/content/sources";
 import { ACCOUNTS, CHART, type DraftLine } from "@/domain/accounts";
@@ -58,7 +59,7 @@ import { salaryForMonth } from "@/domain/salary";
 import { loanInterestCents, loanOutstandingCents } from "@/domain/shareholder-loan";
 import { estimateContributions, payrollAmounts } from "@/domain/social";
 import { isStateCode } from "@/domain/states";
-import { durationMinutes, timeWarnings } from "@/domain/time";
+import { durationMinutes, timeActivitiesProblem, timeWarnings } from "@/domain/time";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { buyerReferenceProblem } from "@/domain/xrechnung";
 import { socialInput } from "./people";
@@ -270,6 +271,20 @@ function requireDeadline(id: number) {
 }
 
 type PricedLine = { description: string; quantityMilli: number; unitNetCents: number; vatBps: number; netCents: number };
+
+function timeActivitiesFrom(input: string[] | undefined): string[] {
+  const activities = (input ?? []).map((activity) => activity.trim()).filter((activity) => activity.length > 0);
+  const problem = timeActivitiesProblem(activities);
+  if (problem) throw new Error(problem);
+  return activities;
+}
+
+function writeTimeActivities(db: ReturnType<typeof getDb>, entryId: number, activities: readonly string[]): void {
+  db.delete(timeEntryActivities).where(eq(timeEntryActivities.timeEntryId, entryId)).run();
+  activities.forEach((description, index) => {
+    db.insert(timeEntryActivities).values({ timeEntryId: entryId, position: index, description }).run();
+  });
+}
 
 function priceLines(lines: z.infer<typeof lineInput>[], klein: boolean): PricedLine[] {
   return lines.map((line, index) => {
@@ -1772,13 +1787,14 @@ export const tools: DeskTool[] = [
   tool({
     name: "add_time",
     description:
-      "Record working time. A pause is not its own entry: leave it as a gap between blocks or pass it as breakMinutes on the surrounding entry. Breaks and the 8/10-hour limits are checked; an entry that violates §4 ArbZG is refused.",
+      "Record working time. A pause is not its own entry: leave it as a gap between blocks or pass it as breakMinutes on the surrounding entry. Breaks and the 8/10-hour limits are checked; an entry that violates §4 ArbZG is refused. Put the individual lines of work in activities; memo is an internal note and never goes on an invoice.",
     input: {
       entryDate: z.string().optional().describe("YYYY-MM-DD. Defaults to today."),
       startedAt: z.string().describe('Start time, for example "09:00".'),
       endedAt: z.string().describe('End time, for example "17:30".'),
       breakMinutes: z.number().int().min(0).max(600).optional(),
-      memo: z.string().trim().max(400).optional(),
+      activities: z.array(z.string().trim().min(1).max(400)).max(50).optional().describe("The individual lines of work. One activity per invoice line item later."),
+      memo: z.string().trim().max(2000).optional().describe("Internal note, visible only on this desk. Never shown to a customer."),
       personId: z.number().int().positive().optional(),
       taskId: z.number().int().positive().optional(),
       projectId: z.number().int().positive().optional(),
@@ -1798,6 +1814,7 @@ export const tools: DeskTool[] = [
       const projectId = task?.projectId ?? input.projectId ?? null;
       if (projectId) requireProject(projectId);
       const taskType = input.taskType ? oneOf(input.taskType, TASK_TYPES, "Task type") : task?.taskType ?? "other";
+      const activities = timeActivitiesFrom(input.activities);
       const created = db
         .insert(timeEntries)
         .values({
@@ -1815,20 +1832,23 @@ export const tools: DeskTool[] = [
           hourlyRateCents: rateCents(input.hourlyRate) ?? null,
         })
         .run();
-      return { id: Number(created.lastInsertRowid), minutes, projectId, taskType };
+      const id = Number(created.lastInsertRowid);
+      writeTimeActivities(db, id, activities);
+      return { id, minutes, projectId, taskType, activities };
     },
   }),
   tool({
     name: "update_time",
     description:
-      "Change an existing time entry in place: project, task, day, times, break, memo, person, billing, task type, or rate. Use this to move an entry to another project; do not delete and recreate it. Omitted fields stay as they are.",
+      "Change an existing time entry in place: project, task, day, times, break, activities, note, person, billing, task type, or rate. Use this to move an entry to another project; do not delete and recreate it. Omitted fields stay as they are.",
     input: {
       id: z.number().int().positive().describe("The time entry id from read_time."),
       entryDate: z.string().optional().describe("YYYY-MM-DD."),
       startedAt: z.string().optional().describe('Start time, for example "09:00".'),
       endedAt: z.string().optional().describe('End time, for example "17:30".'),
       breakMinutes: z.number().int().min(0).max(600).optional(),
-      memo: z.string().trim().max(400).optional(),
+      activities: z.array(z.string().trim().min(1).max(400)).max(50).optional().describe("Replace the activity lines. Pass an empty array to clear them."),
+      memo: z.string().trim().max(2000).optional().describe("Replace the internal note. Never shown to a customer."),
       personId: z.number().int().positive().nullable().optional(),
       taskId: z.number().int().positive().nullable().optional(),
       projectId: z.number().int().positive().nullable().optional(),
@@ -1866,6 +1886,7 @@ export const tools: DeskTool[] = [
       const taskType = input.taskType
         ? oneOf(input.taskType, TASK_TYPES, "Task type")
         : task?.taskType ?? entry.taskType;
+      const activities = input.activities === undefined ? null : timeActivitiesFrom(input.activities);
 
       db.update(timeEntries)
         .set({
@@ -1884,6 +1905,7 @@ export const tools: DeskTool[] = [
         .where(eq(timeEntries.id, entry.id))
         .run();
 
+      if (activities) writeTimeActivities(db, entry.id, activities);
       return { id: entry.id, minutes, projectId, taskType };
     },
   }),
