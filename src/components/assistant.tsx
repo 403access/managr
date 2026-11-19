@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDate } from "@/domain/calendar";
 import { formatEuro } from "@/domain/money";
-import { nextMessageId, readChat, writeChat, type ChatMessage, type ChatStep } from "@/client/chat-history";
+import { nextMessageId, readChat, writeChat, type ChatMessage, type ChatMessageDetails, type ChatStep } from "@/client/chat-history";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import type { MessageKey } from "@/i18n";
 import { Combobox } from "./combobox";
@@ -183,6 +183,8 @@ function recordHref(step: Step): string | null {
 let nextId = 1;
 
 const MODEL_STORAGE_KEY = "managr-assistant-model";
+/** The desk's own tool registry, also served at /api/mcp. */
+const MCP_SERVER = "managr-mcp";
 
 function readStoredSelection(): Selection | null {
   try {
@@ -316,7 +318,23 @@ export function Assistant() {
   async function send(raw: string) {
     const content = raw.trim();
     if (!content || pending) return;
-    const question: Message = { id: nextId++, role: "user", content, steps: [] };
+    const startedAt = Date.now();
+    const promptModel = selection
+      ? (catalog?.models.find((model) => model.providerID === selection.providerID && model.modelID === selection.modelID) ?? null)
+      : null;
+    const question: Message = {
+      id: nextId++,
+      role: "user",
+      content,
+      steps: [],
+      details: {
+        at: new Date(startedAt).toISOString(),
+        model: promptModel?.name ?? (settings?.model || undefined),
+        provider: promptModel?.providerName,
+        local: promptModel?.local ?? settings?.local,
+        mcpServer: MCP_SERVER,
+      },
+    };
     const history = [...messages, question];
     setMessages(history);
     setDraft("");
@@ -325,6 +343,7 @@ export function Assistant() {
     let steps: Step[] = [];
     let stepSeq = 0;
     let errorText = "";
+    let modelInfo: { name: string; providerID?: string; modelID?: string; baseUrl: string; local: boolean } | null = null;
     setStreaming({ content: "", steps: [] });
     const sync = () => setStreaming({ content: answer, steps });
     const controller = new AbortController();
@@ -382,6 +401,13 @@ export function Assistant() {
               continue;
             }
             if (event.type === "model") {
+              modelInfo = {
+                name: event.model,
+                providerID: event.providerID,
+                modelID: event.modelID,
+                baseUrl: event.baseUrl,
+                local: Boolean(event.local),
+              };
               setSettings({ configured: true, model: event.model, baseUrl: event.baseUrl, local: Boolean(event.local) });
             } else if (event.type === "delta") {
               answer += event.text;
@@ -416,7 +442,23 @@ export function Assistant() {
     } finally {
       abortRef.current = null;
       if (answer || steps.length > 0) {
-        setMessages((current) => [...current, { id: nextId++, role: "assistant", content: answer, steps }]);
+        const providerName = modelInfo?.providerID
+          ? (catalog?.models.find(
+              (model) => model.providerID === modelInfo?.providerID && model.modelID === modelInfo?.modelID,
+            )?.providerName ?? modelInfo.providerID)
+          : promptModel?.providerName;
+        const details: ChatMessageDetails = {
+          at: new Date().toISOString(),
+          durationMs: Date.now() - startedAt,
+          model: modelInfo?.name ?? promptModel?.name ?? (settings?.model || undefined),
+          provider: providerName,
+          baseUrl: modelInfo?.baseUrl,
+          local: modelInfo?.local ?? promptModel?.local ?? settings?.local,
+          mcpServer: MCP_SERVER,
+          toolCalls: steps.length,
+          status: controller.signal.aborted ? "stopped" : errorText ? "error" : "ok",
+        };
+        setMessages((current) => [...current, { id: nextId++, role: "assistant", content: answer, steps, details }]);
       }
       setStreaming(null);
       setError(errorText ? tx(errorText) : "");
@@ -564,12 +606,18 @@ MANAGR_AI_API_KEY=…`}</pre>
                 {messages.map((message) => (
                   <li key={message.id} className={message.role === "user" ? "justify-self-end" : ""}>
                     {message.role === "user" ? (
-                      <div className="max-w-[95%] rounded-2xl bg-pine px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-paper">{message.content}</div>
+                      <>
+                        <div className="max-w-[95%] rounded-2xl bg-pine px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-paper">{message.content}</div>
+                        {message.details ? <MessageDetails details={message.details} role="user" /> : null}
+                      </>
                     ) : (
-                      <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
-                        {message.steps.length > 0 ? <Steps steps={message.steps} /> : null}
-                        {message.content ? <Markdown text={message.content} className="mt-2" /> : null}
-                      </div>
+                      <>
+                        <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
+                          {message.steps.length > 0 ? <Steps steps={message.steps} /> : null}
+                          {message.content ? <Markdown text={message.content} className="mt-2" /> : null}
+                        </div>
+                        {message.details ? <MessageDetails details={message.details} role="assistant" /> : null}
+                      </>
                     )}
                   </li>
                 ))}
@@ -653,6 +701,68 @@ function Steps({ steps }: { steps: Step[] }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+function formatMessageTime(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-GB", { dateStyle: "short", timeStyle: "short" }).format(date);
+}
+
+function formatDuration(ms: number, locale: string): string {
+  const seconds = Math.max(0, ms) / 1000;
+  return `${new Intl.NumberFormat(locale === "de" ? "de-DE" : "en-GB", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(seconds)} s`;
+}
+
+/** Time, model, endpoint, MCP server, and tool count behind one message. */
+function MessageDetails({ details, role }: { details: ChatMessageDetails; role: "user" | "assistant" }) {
+  const { t, locale } = useI18n();
+  const rows: { label: string; value: string; title?: string }[] = [];
+  if (details.model) rows.push({ label: t("assistant.details.model"), value: details.model });
+  if (details.provider) rows.push({ label: t("assistant.details.provider"), value: details.provider });
+  if (details.baseUrl) {
+    rows.push({
+      label: t("assistant.details.endpoint"),
+      value: `${details.baseUrl} · ${details.local ? t("assistant.details.local") : t("assistant.details.remote")}`,
+      title: details.baseUrl,
+    });
+  }
+  rows.push({ label: t("assistant.details.mcp"), value: details.mcpServer ?? MCP_SERVER });
+  if (role === "assistant" && details.toolCalls !== undefined) {
+    rows.push({ label: t("assistant.details.tools"), value: t("assistant.details.toolCount", { count: details.toolCalls }) });
+  }
+  if (role === "assistant" && details.status) {
+    const status =
+      details.status === "ok"
+        ? t("assistant.details.status.ok")
+        : details.status === "error"
+          ? t("assistant.details.status.error")
+          : t("assistant.details.status.stopped");
+    rows.push({ label: t("assistant.details.status"), value: status });
+  }
+  return (
+    <details className={`mt-1 w-fit max-w-[95%] text-[11px] text-muted ${role === "user" ? "ml-auto" : ""}`}>
+      <summary className="cursor-pointer select-none">
+        {formatMessageTime(details.at, locale)}
+        {details.durationMs !== undefined ? ` · ${formatDuration(details.durationMs, locale)}` : ""}
+        {" · "}
+        {t("assistant.details.summary")}
+      </summary>
+      <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 border-t border-line pt-1">
+        {rows.map((row) => (
+          <Fragment key={row.label}>
+            <dt>{row.label}</dt>
+            <dd className="truncate text-ink/80" title={row.title ?? row.value}>
+              {row.value}
+            </dd>
+          </Fragment>
+        ))}
+      </dl>
+    </details>
   );
 }
 

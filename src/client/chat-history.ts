@@ -7,7 +7,22 @@ export type ChatStep = {
   data?: unknown;
 };
 
-export type ChatMessage = { id: number; role: "user" | "assistant"; content: string; steps: ChatStep[] };
+/** What the panel shows under a message: when it ran, on what, and with which tools. */
+export type ChatMessageDetails = {
+  /** ISO timestamp of the message. */
+  at: string;
+  /** Assistant answers only: wall time of the run. */
+  durationMs?: number;
+  model?: string;
+  provider?: string;
+  baseUrl?: string;
+  local?: boolean;
+  mcpServer?: string;
+  toolCalls?: number;
+  status?: "ok" | "error" | "stopped";
+};
+
+export type ChatMessage = { id: number; role: "user" | "assistant"; content: string; steps: ChatStep[]; details?: ChatMessageDetails };
 
 const STORAGE_KEY = "managr-assistant-chat";
 const VERSION = 1;
@@ -29,6 +44,19 @@ function isStep(value: unknown): value is ChatStep {
   );
 }
 
+function isDetails(value: unknown): value is ChatMessageDetails {
+  if (!isRecord(value) || typeof value.at !== "string") return false;
+  if (value.durationMs !== undefined && typeof value.durationMs !== "number") return false;
+  if (value.model !== undefined && typeof value.model !== "string") return false;
+  if (value.provider !== undefined && typeof value.provider !== "string") return false;
+  if (value.baseUrl !== undefined && typeof value.baseUrl !== "string") return false;
+  if (value.local !== undefined && typeof value.local !== "boolean") return false;
+  if (value.mcpServer !== undefined && typeof value.mcpServer !== "string") return false;
+  if (value.toolCalls !== undefined && typeof value.toolCalls !== "number") return false;
+  if (value.status !== undefined && value.status !== "ok" && value.status !== "error" && value.status !== "stopped") return false;
+  return true;
+}
+
 function isMessage(value: unknown): value is ChatMessage {
   return (
     isRecord(value) &&
@@ -37,7 +65,8 @@ function isMessage(value: unknown): value is ChatMessage {
     (value.role === "user" || value.role === "assistant") &&
     typeof value.content === "string" &&
     Array.isArray(value.steps) &&
-    value.steps.every(isStep)
+    value.steps.every(isStep) &&
+    (value.details === undefined || isDetails(value.details))
   );
 }
 

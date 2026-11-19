@@ -30,6 +30,50 @@ describe("assistant chat history", () => {
     expect(readChat(storage)).toEqual(chat);
   });
 
+  it("keeps the details of a prompt and an answer", () => {
+    const storage = memoryStorage();
+    const chat: ChatMessage[] = [
+      {
+        ...message(1, "user", "Zeiten für IT Works"),
+        details: { at: "2026-11-19T08:30:00.000Z", model: "Qwen Max", provider: "Qwen Cloud", local: false, mcpServer: "managr-mcp" },
+      },
+      {
+        ...message(2, "assistant", "Drei Zeiten gebucht."),
+        details: {
+          at: "2026-11-19T08:30:04.200Z",
+          durationMs: 4200,
+          model: "Qwen Max",
+          provider: "Qwen Cloud",
+          baseUrl: "https://token-plan.example/v1",
+          local: false,
+          mcpServer: "managr-mcp",
+          toolCalls: 3,
+          status: "ok",
+        },
+      },
+    ];
+
+    writeChat(storage, chat);
+
+    expect(readChat(storage)).toEqual(chat);
+  });
+
+  it("keeps a message without details and drops one with broken details", () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      "managr-assistant-chat",
+      JSON.stringify({
+        version: 1,
+        messages: [
+          message(1, "user", "alt"),
+          { ...message(2, "assistant", "kaputt"), details: { at: 3, status: "vielleicht" } },
+        ],
+      }),
+    );
+
+    expect(readChat(storage)).toEqual([message(1, "user", "alt")]);
+  });
+
   it("returns nothing for empty, broken, or foreign storage", () => {
     const storage = memoryStorage();
     expect(readChat(storage)).toEqual([]);
