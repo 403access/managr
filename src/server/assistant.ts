@@ -306,7 +306,10 @@ export async function* streamAssistant(
   }
   const chat: Record<string, unknown>[] = [
     { role: "system", content: systemPrompt() },
-    ...turns.slice(-MAX_MESSAGES).map((turn) => ({ role: turn.role, content: turn.content })),
+    ...turns
+      .slice(-MAX_MESSAGES)
+      .filter((turn) => turn.role === "user" || turn.content.trim().length > 0)
+      .map((turn) => ({ role: turn.role, content: turn.content })),
   ];
 
   for (let step = 0; step < MAX_STEPS; step += 1) {

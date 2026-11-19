@@ -101,6 +101,24 @@ describe("assistant loop", () => {
     await expect(runAssistant([{ role: "user", content: "Hallo" }])).rejects.toBeInstanceOf(AssistantNotConfigured);
   });
 
+  it("skips an empty assistant turn and keeps only the recent turns", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const fetchMock = vi.fn().mockResolvedValueOnce(completion({ role: "assistant", content: "Alles klar." }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const turns = [
+      ...Array.from({ length: 30 }, (_, index) => ({ role: "user" as const, content: `Frage ${index + 1}` })),
+      { role: "assistant" as const, content: "   " },
+    ];
+    await runAssistant(turns);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.messages[0].role).toBe("system");
+    expect(body.messages.length).toBeLessThanOrEqual(25);
+    expect(body.messages.some((message: { content: string }) => message.content.trim() === "")).toBe(false);
+    expect(body.messages.at(-1).content).toBe("Frage 30");
+  });
+
   it("runs a read tool and returns the answer with a trace", async () => {
     vi.stubEnv("MANAGR_AI_MODEL", "test-model");
     const fetchMock = vi

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "managr-mcp": {
+        "type": "remote",
+        "url": "http://127.0.0.1:3000/api/mcp",
+        "oauth": false
+      }
+    }
+  },
+  "policies": [
+    { "action": "mcp.use", "resource": "*", "effect": "deny" },
+    { "action": "mcp.use", "resource": "managr-mcp", "effect": "allow" }
+  ]
+}

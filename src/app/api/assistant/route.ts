@@ -13,16 +13,15 @@ import { webEnabled } from "@/server/web";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const messageSchema = z.discriminatedUnion("role", [
+  z.object({ role: z.literal("user"), content: z.string().trim().min(1).max(8000) }),
+  // An assistant turn can be empty when a run stopped after a tool call, and a
+  // long answer can exceed the user limit. Both are history, not new input.
+  z.object({ role: z.literal("assistant"), content: z.string().max(32_000) }),
+]);
+
 const bodySchema = z.object({
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(["user", "assistant"]),
-        content: z.string().trim().min(1).max(8000),
-      }),
-    )
-    .min(1)
-    .max(40),
+  messages: z.array(messageSchema).min(1).max(200),
   selection: z
     .object({
       providerID: z.string().trim().min(1).max(200),
@@ -46,6 +45,12 @@ export function GET() {
 export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
+    // A rejected body must be diagnosable from the server log; the panel only
+    // shows the translated one-liner.
+    console.warn(
+      "assistant request rejected:",
+      parsed.error.issues.map((issue) => `${issue.path.join(".") || "body"}: ${issue.message}`).join("; "),
+    );
     return NextResponse.json({ error: "The message could not be read." }, { status: 400 });
   }
   let settings: ResolvedAssistantSettings;

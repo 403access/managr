@@ -331,11 +331,17 @@ export function Assistant() {
     abortRef.current = controller;
 
     try {
+      // An assistant turn that only ran tools has no text; it adds nothing to
+      // the model's context. Keep the request near the stored history size.
+      const turns = history
+        .filter((message) => message.role === "user" || message.content.trim().length > 0)
+        .slice(-40)
+        .map(({ role, content: text }) => ({ role, content: text }));
       const response = await fetch("/api/assistant", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          messages: history.map(({ role, content: text }) => ({ role, content: text })),
+          messages: turns,
           ...(selection ? { selection } : {}),
         }),
         signal: controller.signal,
