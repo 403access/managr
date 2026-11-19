@@ -5,6 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { saveInvoice } from "@/server/actions";
 import { addDays, formatDate } from "@/domain/calendar";
 import { KLEINUNTERNEHMER_NOTE, reviewInvoice, sortInvoicePositions } from "@/domain/invoice";
+import {
+  DEFAULT_INVOICE_TEMPLATE,
+  EMPTY_INVOICE_LETTER,
+  hasInvoiceLetter,
+  invoiceLetterFromTemplate,
+  type InvoiceLetter,
+} from "@/domain/invoice-letter";
 import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
@@ -13,7 +20,7 @@ import { InvoiceDocument, type InvoiceDocumentData } from "./invoice-document";
 import { useI18n } from "./locale-provider";
 import { useUiSettings } from "./settings-provider";
 import { ActionForm, SubmitButton } from "./action-form";
-import { buttonClass, Card, Field, inputClass, SelectInput } from "./ui";
+import { buttonClass, Card, Field, inputClass, SelectInput, TextArea } from "./ui";
 
 export type CustomerOption = {
   id: number;
@@ -61,6 +68,11 @@ export type TimeActivityOption = {
   vatBps: number;
 };
 
+export type InvoiceTemplateOption = InvoiceLetter & {
+  id: number;
+  name: string;
+};
+
 type Line = {
   description: string;
   quantity: string;
@@ -81,6 +93,7 @@ type Draft = {
   notes: string;
   buyerReference: string;
   amountDisplay: string;
+  letter: InvoiceLetter;
   lines: Line[];
 };
 
@@ -90,6 +103,7 @@ export function InvoiceForm({
   seller,
   customers,
   timeActivities,
+  templates,
   today,
   termsDays,
   defaultVatBps,
@@ -98,6 +112,7 @@ export function InvoiceForm({
   seller: Seller;
   customers: CustomerOption[];
   timeActivities: TimeActivityOption[];
+  templates: InvoiceTemplateOption[];
   today: string;
   termsDays: number;
   defaultVatBps: number;
@@ -119,6 +134,12 @@ export function InvoiceForm({
       draft?.lines ?? [{ description: "", quantity: "1", unitNet: "", vatBps: seller.kleinunternehmer ? 0 : defaultVatBps }],
       invoiceLineOrder,
     ),
+  );
+  const [letter, setLetter] = useState<InvoiceLetter>(() =>
+    draft ? { ...(draft.letter ?? EMPTY_INVOICE_LETTER) } : invoiceLetterFromTemplate(DEFAULT_INVOICE_TEMPLATE),
+  );
+  const [templateKey, setTemplateKey] = useState(() =>
+    draft ? (hasInvoiceLetter(draft.letter) ? "custom" : "none") : "default",
   );
   const [pendingIntent, setPendingIntent] = useState<"draft" | "issue" | null>(null);
   const confirmedSubmit = useRef(false);
@@ -215,10 +236,11 @@ export function InvoiceForm({
       exemptionNote: seller.kleinunternehmer ? KLEINUNTERNEHMER_NOTE : "",
       buyerReference,
       amountDisplay,
+      letter,
       lines: documentLines,
       ...totals,
     };
-  }, [amountDisplay, buyer.name, buyer.postalCode, buyer.street, buyer.city, buyer.vatId, buyerReference, dueDate, issueDate, notes, pricedLines, seller, serviceDate]);
+  }, [amountDisplay, buyer.name, buyer.postalCode, buyer.street, buyer.city, buyer.vatId, buyerReference, dueDate, issueDate, letter, notes, pricedLines, seller, serviceDate]);
 
   const review = reviewInvoice({
     legalName: seller.legalName,
@@ -314,11 +336,31 @@ export function InvoiceForm({
     notes,
     buyerReference,
     amountDisplay,
+    letter,
     lines: lines.map((line) => ({ ...line, vatBps: seller.kleinunternehmer ? 0 : line.vatBps })),
   });
 
   function updateLine(index: number, patch: Partial<Line>) {
     setLines((current) => current.map((line, lineIndex) => (lineIndex === index ? { ...line, ...patch } : line)));
+  }
+
+  function loadTemplate(key: string) {
+    setTemplateKey(key);
+    if (key === "none") {
+      setLetter(EMPTY_INVOICE_LETTER);
+      return;
+    }
+    if (key === "default") {
+      setLetter(invoiceLetterFromTemplate(DEFAULT_INVOICE_TEMPLATE));
+      return;
+    }
+    const template = templates.find((item) => `t:${item.id}` === key);
+    if (template) setLetter(invoiceLetterFromTemplate(template));
+  }
+
+  function updateLetter(patch: Partial<InvoiceLetter>) {
+    setLetter((current) => ({ ...current, ...patch }));
+    setTemplateKey("custom");
   }
 
   function addActivity(activity: TimeActivityOption) {
@@ -433,6 +475,51 @@ export function InvoiceForm({
           </SelectInput>
         </Field>
       )}
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-xl">{t("invoices.letterTitle")}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted">{t("invoices.letterLede")}</p>
+          </div>
+          <Link href="/settings#templates" className="text-sm font-medium text-pine underline underline-offset-2">
+            {t("invoices.letterManage")}
+          </Link>
+        </div>
+        <div className="mt-3 grid gap-3">
+          <Field label={t("invoices.letterTemplate")} hint={t("invoices.letterTemplateHint")}>
+            <SelectInput value={templateKey} onChange={(event) => loadTemplate(event.target.value)}>
+              <option value="none">{t("invoices.letterTemplateNone")}</option>
+              <option value="default">{t("invoices.letterTemplateDefault")}</option>
+              <option value="custom">{t("invoices.letterTemplateCustom")}</option>
+              {templates.map((template) => (
+                <option key={template.id} value={`t:${template.id}`}>{template.name}</option>
+              ))}
+            </SelectInput>
+          </Field>
+          <div className="grid gap-3 @[34rem]:grid-cols-2">
+            <Field label={t("invoices.letterSubject")}>
+              <input className={inputClass} value={letter.subject} maxLength={200} onChange={(event) => updateLetter({ subject: event.target.value })} />
+            </Field>
+            <Field label={t("invoices.letterSalutation")}>
+              <input className={inputClass} value={letter.salutation} maxLength={300} onChange={(event) => updateLetter({ salutation: event.target.value })} />
+            </Field>
+          </div>
+          <Field label={t("invoices.letterIntro")} hint={t("invoices.letterPlaceholders")}>
+            <TextArea value={letter.intro} maxLength={2000} onChange={(event) => updateLetter({ intro: event.target.value })} />
+          </Field>
+          <Field label={t("invoices.letterPayment")} hint={t("invoices.letterPlaceholders")}>
+            <TextArea value={letter.payment} maxLength={1000} onChange={(event) => updateLetter({ payment: event.target.value })} />
+          </Field>
+          <div className="grid gap-3 @[34rem]:grid-cols-2">
+            <Field label={t("invoices.letterClosing")}>
+              <TextArea compact value={letter.closing} maxLength={1000} onChange={(event) => updateLetter({ closing: event.target.value })} />
+            </Field>
+            <Field label={t("invoices.letterSignature")}>
+              <TextArea compact value={letter.signature} maxLength={300} onChange={(event) => updateLetter({ signature: event.target.value })} />
+            </Field>
+          </div>
+        </div>
+      </Card>
       {mode === "existing" ? (
         <Card>
           <div className="flex flex-wrap items-start justify-between gap-2">

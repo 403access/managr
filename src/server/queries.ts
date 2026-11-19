@@ -18,6 +18,7 @@ import {
   employees,
   founderHealth,
   invoiceLines,
+  invoiceTemplates,
   invoices,
   journalEntries,
   journalLines,
@@ -93,6 +94,16 @@ export function loadShareholders() {
 
 export function listCustomers(companyId = loadCompany().id) {
   return getDb().select().from(customers).where(eq(customers.companyId, companyId)).orderBy(asc(customers.name)).all();
+}
+
+/** Letter templates of one company, by name. The built-in default lives in the domain. */
+export function listInvoiceTemplates(companyId = loadCompany().id) {
+  return getDb()
+    .select()
+    .from(invoiceTemplates)
+    .where(eq(invoiceTemplates.companyId, companyId))
+    .orderBy(asc(invoiceTemplates.name))
+    .all();
 }
 
 /** External contact people, optionally including soft-deleted ones for old time entries. */

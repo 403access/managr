@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { loadInvoice } from "@/server/queries";
+import { invoiceLetterFromInvoice } from "@/domain/invoice-letter";
 import { InvoiceDocument } from "@/components/invoice-document";
 import { PrintButton } from "@/components/print-button";
 
@@ -50,6 +51,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
           exemptionNote: invoice.exemptionNote,
           buyerReference: invoice.buyerReference,
           amountDisplay: invoice.amountDisplay,
+          letter: invoiceLetterFromInvoice(invoice),
           lines,
           netCents: loaded.netCents,
           vatCents: loaded.vatCents,

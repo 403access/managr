@@ -5,6 +5,7 @@ import { currentDirectorContract, reviewDirectorContract } from "@/domain/direct
 import { reviewDirectorSalary } from "@/domain/director-salary";
 import { reviewFounderHealth } from "@/domain/founder-health";
 import { reviewInvoice, compareInvoiceDates, sortInvoicePositions } from "@/domain/invoice";
+import { invoiceLetterFromInvoice } from "@/domain/invoice-letter";
 import { activityQuantityMilli, invoiceLineDescription } from "@/domain/invoice-time";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
 import { policyReminders } from "@/domain/obligations";
@@ -49,6 +50,7 @@ import {
   listDirectorContracts,
   listDocuments,
   listInvoices,
+  listInvoiceTemplates,
   listJournal,
   listMilestones,
   listObligations,
@@ -159,6 +161,7 @@ export function settingsView() {
   return {
     settings: readUiSettings(),
     hourlyRateCents: loadCompany().hourlyRateCents,
+    templates: listInvoiceTemplates(),
   };
 }
 
@@ -597,6 +600,7 @@ export function invoiceNewView() {
     seller: sellerFrom(company),
     customers: customerOptions(),
     timeActivities: invoiceTimeActivities(null),
+    templates: listInvoiceTemplates(company.id),
     today: todayIso(),
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,
@@ -619,6 +623,7 @@ export function invoiceEditView(id: number) {
     seller: sellerFrom(company),
     customers: customerOptions(company.id),
     timeActivities: invoiceTimeActivities(loaded.invoice.id),
+    templates: listInvoiceTemplates(company.id),
     today: todayIso(),
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,
@@ -631,6 +636,7 @@ export function invoiceEditView(id: number) {
       notes: loaded.invoice.notes,
       buyerReference: loaded.invoice.buyerReference,
       amountDisplay: loaded.invoice.amountDisplay,
+      letter: invoiceLetterFromInvoice(loaded.invoice),
       lines: sortInvoicePositions(
         loaded.lines.map((line) => ({
           description: line.description,

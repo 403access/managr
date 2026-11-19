@@ -18,6 +18,7 @@ import {
   employees,
   founderHealth,
   invoiceLines,
+  invoiceTemplates,
   invoices,
   journalEntries,
   milestoneCompanies,
@@ -41,6 +42,7 @@ import { TASK_TYPES } from "@/domain/analytics";
 import { formatDate, nextDueDate, todayIso, type Recurrence } from "@/domain/calendar";
 import { DEFAULT_LEGAL_FORM, isCorporation, isLegalForm } from "@/domain/company";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, reviewInvoice } from "@/domain/invoice";
+import { EMPTY_INVOICE_LETTER } from "@/domain/invoice-letter";
 import { MILESTONE_CATEGORIES, MILESTONE_STATUSES, clampProgress } from "@/domain/milestones";
 import { managerProblem } from "@/domain/org";
 import { buyerReferenceProblem } from "@/domain/xrechnung";
@@ -275,6 +277,62 @@ export async function saveSettings(_state: ActionState, formData: FormData): Pro
       .where(eq(companies.id, requireCompany().id))
       .run();
     return saved("Settings saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function saveInvoiceTemplate(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const company = requireCompany();
+    const id = optionalId(formData);
+    const name = text(formData, "name");
+    if (!name) throw new Error("The template needs a name.");
+    const values = {
+      name,
+      subject: text(formData, "subject"),
+      salutation: text(formData, "salutation"),
+      intro: text(formData, "intro"),
+      payment: text(formData, "payment"),
+      closing: text(formData, "closing"),
+      signature: text(formData, "signature"),
+    };
+    const db = getDb();
+    const duplicate = db
+      .select()
+      .from(invoiceTemplates)
+      .where(and(
+        eq(invoiceTemplates.companyId, company.id),
+        eq(invoiceTemplates.name, name),
+        id ? ne(invoiceTemplates.id, id) : undefined,
+      ))
+      .get();
+    if (duplicate) throw new Error("A template with this name already exists.");
+    if (id) {
+      const existing = db
+        .select()
+        .from(invoiceTemplates)
+        .where(and(eq(invoiceTemplates.id, id), eq(invoiceTemplates.companyId, company.id)))
+        .get();
+      if (!existing) throw new Error("Template not found.");
+      db.update(invoiceTemplates).set(values).where(eq(invoiceTemplates.id, id)).run();
+      return saved("Template updated.");
+    }
+    db.insert(invoiceTemplates).values({ companyId: company.id, ...values }).run();
+    return saved("Template created.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function deleteInvoiceTemplate(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const id = requiredId(formData);
+    getDb()
+      .delete(invoiceTemplates)
+      .where(and(eq(invoiceTemplates.id, id), eq(invoiceTemplates.companyId, requireCompany().id)))
+      .run();
+    return saved("Template removed.");
   } catch (error) {
     return failed(error);
   }
@@ -826,6 +884,7 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
     if (!parsed.success) return { error: "The invoice could not be read. Check the lines and dates.", message: "" };
     const payload = parsed.data;
     const intent = text(formData, "intent") === "issue" ? "issue" : "draft";
+    const letter = payload.letter ?? EMPTY_INVOICE_LETTER;
     const db = getDb();
     const company = requireCompany();
     const lines = pricedLines(payload.lines, company.kleinunternehmer);
@@ -874,6 +933,12 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
         exemptionNote,
         buyerReference: payload.buyerReference,
         amountDisplay: payload.amountDisplay,
+        letterSubject: letter.subject,
+        letterSalutation: letter.salutation,
+        letterIntro: letter.intro,
+        letterPayment: letter.payment,
+        letterClosing: letter.closing,
+        letterSignature: letter.signature,
       };
       let id = payload.invoiceId;
       if (id) {

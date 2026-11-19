@@ -1,6 +1,7 @@
 import { formatDate } from "@/domain/calendar";
 import { isCorporation, legalFormLabel } from "@/domain/company";
 import { isKleinunternehmerNote } from "@/domain/invoice";
+import { fillInvoiceLetter, hasInvoiceLetter, invoicePaymentDays, type InvoiceLetter } from "@/domain/invoice-letter";
 import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
 import { allocateLineVat, type VatBreakdown } from "@/domain/vat";
 
@@ -49,6 +50,8 @@ export type InvoiceDocumentData = {
   exemptionNote: string;
   buyerReference: string;
   amountDisplay: string;
+  /** The human letter around the positions; empty fields fall back to the plain invoice. */
+  letter?: InvoiceLetter | null;
   lines: InvoiceDocumentLine[];
   netCents: number;
   vatCents: number;
@@ -69,6 +72,65 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
   const grossDisplay = data.amountDisplay === "gross" && !kleinunternehmer;
   const lineAmounts = allocateLineVat(data.lines.map((line) => ({ netCents: line.netCents, vatBps: line.vatBps })));
   const displayStamp = stamp ?? (data.status === "void" ? "STORNIERT" : data.status === "draft" ? "ENTWURF" : "");
+  const letter = data.letter && hasInvoiceLetter(data.letter) ? data.letter : null;
+  const variables = {
+    subject: letter?.subject ?? "",
+    amount: formatEuro(data.grossCents),
+    days: invoicePaymentDays(data.issueDate, data.dueDate),
+    dueDate: formatDay(data.dueDate),
+  };
+
+  const totals = (
+    <div className="mt-4 ml-auto grid max-w-xs gap-1">
+      {kleinunternehmer ? (
+        <p className="flex justify-between text-base font-medium"><span>Rechnungsbetrag</span><span className="font-mono">{formatEuro(data.grossCents)}</span></p>
+      ) : grossDisplay ? (
+        <>
+          <p className="flex justify-between text-base font-medium"><span>Rechnungsbetrag (brutto)</span><span className="font-mono">{formatEuro(data.grossCents)}</span></p>
+          <p className="flex justify-between text-muted"><span>davon Netto</span><span className="font-mono">{formatEuro(data.netCents)}</span></p>
+          {data.byRate.filter((rate) => rate.vatCents > 0).map((rate) => (
+            <p key={rate.vatBps} className="flex justify-between text-muted">
+              <span>davon Umsatzsteuer {formatPercentBps(rate.vatBps)}</span>
+              <span className="font-mono">{formatEuro(rate.vatCents)}</span>
+            </p>
+          ))}
+        </>
+      ) : (
+        <>
+          <p className="flex justify-between"><span>Netto</span><span className="font-mono">{formatEuro(data.netCents)}</span></p>
+          <p className="flex justify-between"><span>Umsatzsteuer</span><span className="font-mono">{formatEuro(data.vatCents)}</span></p>
+          <p className="flex justify-between text-base font-medium"><span>Brutto</span><span className="font-mono">{formatEuro(data.grossCents)}</span></p>
+        </>
+      )}
+    </div>
+  );
+
+  const bank = (title: string) => (
+    <div>
+      <p className="text-xs text-muted uppercase">{title}</p>
+      <p>{data.seller.bankName}</p>
+      <p>{data.seller.iban}</p>
+      <p>{data.seller.bic}</p>
+    </div>
+  );
+
+  const legal = (
+    <div>
+      {isCorporation(data.seller.legalForm) ? (
+        <>
+          <p>{data.seller.registerCourt}, {data.seller.registerNumber}</p>
+          <p>Geschäftsführer: {data.seller.managingDirector}</p>
+        </>
+      ) : (
+        <>
+          <p>{legalFormLabel(data.seller.legalForm)}</p>
+          {data.seller.managingDirector ? <p>Inhaber: {data.seller.managingDirector}</p> : null}
+        </>
+      )}
+      <p>{data.seller.taxNumber ? `Steuernummer ${data.seller.taxNumber}` : ""}</p>
+      <p>{data.seller.vatId ? `USt-IdNr. ${data.seller.vatId}` : ""}</p>
+    </div>
+  );
 
   return (
     <article className={`text-sm text-ink ${className}`}>
@@ -100,79 +162,85 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
           {data.buyerReference ? <><dt className="text-muted">Käuferreferenz</dt><dd>{data.buyerReference}</dd></> : null}
         </dl>
       </div>
-      <table className="mt-8 w-full text-sm">
-        <thead>
-          <tr className="border-b border-line text-left">
-            <th className="py-2 font-medium">Leistung</th>
-            <th className="py-2 font-medium">Menge</th>
-            <th className="py-2 text-right font-medium">Einzelpreis</th>
-            {kleinunternehmer ? null : <th className="py-2 text-right font-medium">USt</th>}
-            <th className="py-2 text-right font-medium">{kleinunternehmer ? "Betrag" : grossDisplay ? "Betrag (brutto)" : "Netto"}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.lines.length === 0 ? (
-            <tr className="border-b border-line">
-              <td className="py-2 text-muted" colSpan={kleinunternehmer ? 4 : 5}>Noch keine Position.</td>
-            </tr>
-          ) : data.lines.map((line, index) => (
-            <tr key={index} className="border-b border-line">
-              <td className="py-2">{line.description || "—"}</td>
-              <td className="py-2">{formatQuantity(line.quantityMilli)}</td>
-              <td className="py-2 text-right font-mono">{formatEuro(line.unitNetCents)}</td>
-              {kleinunternehmer ? null : <td className="py-2 text-right">{formatPercentBps(line.vatBps)}</td>}
-              <td className="py-2 text-right font-mono">{formatEuro(grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="mt-4 ml-auto grid max-w-xs gap-1">
-        {kleinunternehmer ? (
-          <p className="flex justify-between text-base font-medium"><span>Rechnungsbetrag</span><span className="font-mono">{formatEuro(data.grossCents)}</span></p>
-        ) : grossDisplay ? (
-          <>
-            <p className="flex justify-between text-base font-medium"><span>Rechnungsbetrag (brutto)</span><span className="font-mono">{formatEuro(data.grossCents)}</span></p>
-            <p className="flex justify-between text-muted"><span>davon Netto</span><span className="font-mono">{formatEuro(data.netCents)}</span></p>
-            {data.byRate.filter((rate) => rate.vatCents > 0).map((rate) => (
-              <p key={rate.vatBps} className="flex justify-between text-muted">
-                <span>davon Umsatzsteuer {formatPercentBps(rate.vatBps)}</span>
-                <span className="font-mono">{formatEuro(rate.vatCents)}</span>
-              </p>
-            ))}
-          </>
-        ) : (
-          <>
-            <p className="flex justify-between"><span>Netto</span><span className="font-mono">{formatEuro(data.netCents)}</span></p>
-            <p className="flex justify-between"><span>Umsatzsteuer</span><span className="font-mono">{formatEuro(data.vatCents)}</span></p>
-            <p className="flex justify-between text-base font-medium"><span>Brutto</span><span className="font-mono">{formatEuro(data.grossCents)}</span></p>
-          </>
-        )}
-      </div>
-      {data.exemptionNote ? <p className="mt-6">{data.exemptionNote}</p> : null}
-      {data.notes ? <p className="mt-3">{data.notes}</p> : null}
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <div>
-          <p className="text-xs text-muted uppercase">Zahlbar auf</p>
-          <p>{data.seller.bankName}</p>
-          <p>{data.seller.iban}</p>
-          <p>{data.seller.bic}</p>
-        </div>
-        <div>
-          {isCorporation(data.seller.legalForm) ? (
-            <>
-              <p>{data.seller.registerCourt}, {data.seller.registerNumber}</p>
-              <p>Geschäftsführer: {data.seller.managingDirector}</p>
-            </>
-          ) : (
-            <>
-              <p>{legalFormLabel(data.seller.legalForm)}</p>
-              {data.seller.managingDirector ? <p>Inhaber: {data.seller.managingDirector}</p> : null}
-            </>
-          )}
-          <p>{data.seller.taxNumber ? `Steuernummer ${data.seller.taxNumber}` : ""}</p>
-          <p>{data.seller.vatId ? `USt-IdNr. ${data.seller.vatId}` : ""}</p>
-        </div>
-      </div>
+
+      {letter ? (
+        <>
+          <div className="mt-8 grid gap-4">
+            {letter.subject ? (
+              <p><span className="font-medium">Betreff:</span> {letter.subject}</p>
+            ) : null}
+            {letter.salutation ? <p className="whitespace-pre-line">{letter.salutation}</p> : null}
+            {letter.intro ? <p className="whitespace-pre-line">{fillInvoiceLetter(letter.intro, variables)}</p> : null}
+            <div>
+              <p className="font-medium">Leistungsbeschreibung (Art und Umfang):</p>
+              <ul className="mt-2 grid gap-1.5">
+                {data.lines.length === 0 ? (
+                  <li className="text-muted">Noch keine Position.</li>
+                ) : data.lines.map((line, index) => (
+                  <li key={index} className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line/60 pb-1.5">
+                    <span className="min-w-0">{line.description || "—"}</span>
+                    <span className="font-mono text-xs whitespace-nowrap text-muted">
+                      {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
+                      {kleinunternehmer ? "" : ` · ${formatPercentBps(line.vatBps)} USt`}
+                      {" · "}
+                      <span className="text-ink">{formatEuro(grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          {totals}
+          {data.exemptionNote ? <p className="mt-6">{data.exemptionNote}</p> : null}
+          {data.notes ? <p className="mt-3">{data.notes}</p> : null}
+          {letter.payment ? <p className="mt-6 whitespace-pre-line">{fillInvoiceLetter(letter.payment, variables)}</p> : null}
+          <div className="mt-4">{bank("Bankverbindung")}</div>
+          {letter.closing ? <p className="mt-6 whitespace-pre-line">{fillInvoiceLetter(letter.closing, variables)}</p> : null}
+          {letter.signature || data.seller.managingDirector ? (
+            <div className="mt-8">
+              {letter.signature ? <p className="whitespace-pre-line">{fillInvoiceLetter(letter.signature, variables)}</p> : null}
+              {data.seller.managingDirector ? <p className="mt-2 font-medium">{data.seller.managingDirector}</p> : null}
+            </div>
+          ) : null}
+          <div className="mt-8 border-t border-line pt-3 text-xs leading-relaxed text-muted">{legal}</div>
+        </>
+      ) : (
+        <>
+          <table className="mt-8 w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left">
+                <th className="py-2 font-medium">Leistung</th>
+                <th className="py-2 font-medium">Menge</th>
+                <th className="py-2 text-right font-medium">Einzelpreis</th>
+                {kleinunternehmer ? null : <th className="py-2 text-right font-medium">USt</th>}
+                <th className="py-2 text-right font-medium">{kleinunternehmer ? "Betrag" : grossDisplay ? "Betrag (brutto)" : "Netto"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.lines.length === 0 ? (
+                <tr className="border-b border-line">
+                  <td className="py-2 text-muted" colSpan={kleinunternehmer ? 4 : 5}>Noch keine Position.</td>
+                </tr>
+              ) : data.lines.map((line, index) => (
+                <tr key={index} className="border-b border-line">
+                  <td className="py-2">{line.description || "—"}</td>
+                  <td className="py-2">{formatQuantity(line.quantityMilli)}</td>
+                  <td className="py-2 text-right font-mono">{formatEuro(line.unitNetCents)}</td>
+                  {kleinunternehmer ? null : <td className="py-2 text-right">{formatPercentBps(line.vatBps)}</td>}
+                  <td className="py-2 text-right font-mono">{formatEuro(grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {totals}
+          {data.exemptionNote ? <p className="mt-6">{data.exemptionNote}</p> : null}
+          {data.notes ? <p className="mt-3">{data.notes}</p> : null}
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {bank("Zahlbar auf")}
+            {legal}
+          </div>
+        </>
+      )}
     </article>
   );
 }

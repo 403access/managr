@@ -1,7 +1,8 @@
 "use client";
 
-import { saveSettings } from "@/server/actions";
+import { deleteInvoiceTemplate, saveInvoiceTemplate, saveSettings } from "@/server/actions";
 import type { settingsView } from "@/server/views";
+import { DEFAULT_INVOICE_TEMPLATE, type InvoiceLetter } from "@/domain/invoice-letter";
 import { DETAIL_PAGE_KEYS, resolveDetailSidebarMode, type DetailPageKey, type DetailSidebarMode } from "@/domain/settings";
 import type { MessageKey } from "@/i18n";
 import { queryKeys, viewPath } from "@/client/query-keys";
@@ -9,7 +10,7 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { euroInput } from "@/components/amounts";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Card, Field, PageHeader, SelectInput, TextInput } from "@/components/ui";
+import { Card, Field, PageHeader, SelectInput, TextArea, TextInput } from "@/components/ui";
 
 type Settings = ReturnType<typeof settingsView>;
 
@@ -32,6 +33,37 @@ function pageLabel(t: (key: MessageKey) => string, page: DetailPageKey): string 
 
 function modeLabel(t: (key: MessageKey) => string, mode: DetailSidebarMode): string {
   return mode === "inline" ? t("settings.modeInline") : t("settings.modeOverlay");
+}
+
+/** The letter fields shared by the new and the edit form of a template. */
+function TemplateFields({ defaults }: { defaults: InvoiceLetter }) {
+  const { t } = useI18n();
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t("invoices.letterSubject")}>
+          <TextInput name="subject" defaultValue={defaults.subject} maxLength={200} />
+        </Field>
+        <Field label={t("invoices.letterSalutation")}>
+          <TextInput name="salutation" defaultValue={defaults.salutation} maxLength={300} />
+        </Field>
+      </div>
+      <Field label={t("invoices.letterIntro")} hint={t("settings.templatesPlaceholders")}>
+        <TextArea name="intro" defaultValue={defaults.intro} maxLength={2000} />
+      </Field>
+      <Field label={t("invoices.letterPayment")} hint={t("settings.templatesPlaceholders")}>
+        <TextArea name="payment" defaultValue={defaults.payment} maxLength={1000} />
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t("invoices.letterClosing")}>
+          <TextArea compact name="closing" defaultValue={defaults.closing} maxLength={1000} />
+        </Field>
+        <Field label={t("invoices.letterSignature")}>
+          <TextArea compact name="signature" defaultValue={defaults.signature} maxLength={300} />
+        </Field>
+      </div>
+    </>
+  );
 }
 
 export function SettingsScreen() {
@@ -160,6 +192,50 @@ export function SettingsScreen() {
               <SubmitButton>{t("settings.save")}</SubmitButton>
             </div>
           </ActionForm>
+
+          <Card id="templates" className="mt-4 scroll-mt-6">
+            <h2 className="text-xl">{t("settings.templatesTitle")}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted">{t("settings.templatesLede")}</p>
+            {data.templates.length === 0 ? (
+              <p className="mt-4 text-sm text-muted">{t("settings.templatesEmpty")}</p>
+            ) : (
+              <div className="mt-4 grid gap-3">
+                {data.templates.map((template) => (
+                  <details key={template.id} className="rounded-xl border border-line bg-white p-3">
+                    <summary className="cursor-pointer text-sm font-medium">{template.name}</summary>
+                    <div className="mt-3 grid gap-3">
+                      <ActionForm action={saveInvoiceTemplate} className="grid gap-3">
+                        <input type="hidden" name="id" value={template.id} />
+                        <Field label={t("settings.templatesName")}>
+                          <TextInput name="name" defaultValue={template.name} maxLength={160} />
+                        </Field>
+                        <TemplateFields defaults={template} />
+                        <div>
+                          <SubmitButton tone="quiet">{t("settings.templatesUpdate")}</SubmitButton>
+                        </div>
+                      </ActionForm>
+                      <ActionForm action={deleteInvoiceTemplate} compact confirm={t("settings.templatesDeleteConfirm")}>
+                        <input type="hidden" name="id" value={template.id} />
+                        <SubmitButton tone="danger">{t("settings.templatesDelete")}</SubmitButton>
+                      </ActionForm>
+                    </div>
+                  </details>
+                ))}
+              </div>
+            )}
+            <details className="mt-4 rounded-xl border border-line bg-white p-3">
+              <summary className="cursor-pointer text-sm font-medium">{t("settings.templatesNew")}</summary>
+              <ActionForm action={saveInvoiceTemplate} className="mt-3 grid gap-3" resetOnSuccess>
+                <Field label={t("settings.templatesName")}>
+                  <TextInput name="name" required maxLength={160} />
+                </Field>
+                <TemplateFields defaults={DEFAULT_INVOICE_TEMPLATE} />
+                <div>
+                  <SubmitButton>{t("settings.templatesSave")}</SubmitButton>
+                </div>
+              </ActionForm>
+            </details>
+          </Card>
         </>
       )}
     </ViewGate>

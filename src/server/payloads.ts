@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const invoiceLetterSchema = z.object({
+  subject: z.string().trim().max(200).default(""),
+  salutation: z.string().trim().max(300).default(""),
+  intro: z.string().trim().max(2000).default(""),
+  payment: z.string().trim().max(1000).default(""),
+  closing: z.string().trim().max(1000).default(""),
+  signature: z.string().trim().max(300).default(""),
+});
+
 export const invoicePayloadSchema = z.object({
   invoiceId: z.number().int().positive().nullable(),
   customerMode: z.enum(["existing", "new"]),
@@ -19,6 +28,7 @@ export const invoicePayloadSchema = z.object({
   notes: z.string().max(2000),
   buyerReference: z.string().trim().max(100).default(""),
   amountDisplay: z.enum(["net", "gross"]).default("net"),
+  letter: invoiceLetterSchema.optional(),
   lines: z
     .array(
       z.object({

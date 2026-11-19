@@ -113,9 +113,27 @@ export const invoices = sqliteTable("invoices", {
   exemptionNote: text("exemption_note").notNull().default(""),
   buyerReference: text("buyer_reference").notNull().default(""),
   amountDisplay: text("amount_display").notNull().default("net"),
+  letterSubject: text("letter_subject").notNull().default(""),
+  letterSalutation: text("letter_salutation").notNull().default(""),
+  letterIntro: text("letter_intro").notNull().default(""),
+  letterPayment: text("letter_payment").notNull().default(""),
+  letterClosing: text("letter_closing").notNull().default(""),
+  letterSignature: text("letter_signature").notNull().default(""),
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
   deletedAt: text("deleted_at"),
 }, (table) => [uniqueIndex("invoices_company_number_unique").on(table.companyId, table.number)]);
+
+export const invoiceTemplates = sqliteTable("invoice_templates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  subject: text("subject").notNull().default(""),
+  salutation: text("salutation").notNull().default(""),
+  intro: text("intro").notNull().default(""),
+  payment: text("payment").notNull().default(""),
+  closing: text("closing").notNull().default(""),
+  signature: text("signature").notNull().default(""),
+}, (table) => [uniqueIndex("invoice_templates_company_name_unique").on(table.companyId, table.name)]);
 
 export const invoiceLines = sqliteTable("invoice_lines", {
   id: integer("id").primaryKey({ autoIncrement: true }),
