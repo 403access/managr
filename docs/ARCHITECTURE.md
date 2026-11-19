@@ -83,6 +83,16 @@ Three records sit beside the existing payroll and shareholder data:
 
 The person view and the company view expose these records to the screens. The same data is reachable through `read_person`, `read_company`, `save_director_contract`, `save_founder_health`, `add_shareholder_loan`, and `record_shareholder_loan_movement`.
 
+## Tax returns
+
+`/tax` reads `taxView` in `src/server/views.ts`, and `/tax/[id]` reads `taxFilingView`. `src/server/tax-filings.ts` is the only module that calculates a filing, stores its snapshot, runs the checks, and records a manual submission. `src/domain/tax-filing.ts` holds the periods, due dates, status machine, and checklist; `src/domain/elster-format.ts` holds the figure export and the VAT advance upload.
+
+`tax_filings` stores the frozen figures (`figures_json`), their SHA-256 (`figures_hash`), the last checks, and the status. `tax_filing_events` is append-only. `elster_settings` holds the environment, Hersteller-ID, product name, privacy acknowledgement, and reserved certificate columns; no certificate or PIN is stored yet. `elster_transmissions` records a manual filing with its ticket and optional protocol file under `data/elster/<company>/<year>/<filing>/`.
+
+`GET /tax/[id]/export?format=xml|csv|json` renders the file on demand. XML exists only for the VAT advance return and is the data part accepted by Mein ELSTER; it is not an ERiC transmission. CSV and JSON are a checkable data copy for the annual returns. `GET /tax/[id]/protocol/[transmissionId]` returns a stored manual protocol. No route sends anything to ELSTER. A submitted return is corrected, not reopened; a draft can be soft-deleted and restored from the trash.
+
+The assistant and MCP expose `read_tax_filings`, `read_tax_filing`, `prepare_tax_filing`, `calculate_tax_filing`, `run_tax_checks`, and `save_tax_note`. There is deliberately no release or transmit tool: a filing needs a human confirmation, and the PIN would never be readable by a tool.
+
 ## Money flow
 
 `/cashflow` reads `cashflowView` in `src/server/views.ts`. It combines the invoices of one calendar year with the year's journal rows: billing and payment status, then `moneyFlow` from `src/domain/money-flow.ts` splits gross revenue into purchases, net wages, wage tax, social insurance, VAT payable, corporate tax, solidarity surcharge, trade tax, and profit after tax. The domain function keeps the slices reconciled; a VAT credit or a loss becomes extra funding instead of a negative band. The view also walks the VAT chain, groups actual bank movements by posting source, and counts the VAT and wage-tax returns marked done. Corporate and trade tax remain the same planning estimate as the ledger. `read_cashflow` exposes the view to the assistant and MCP clients.

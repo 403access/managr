@@ -47,6 +47,7 @@ Shipped after the first version, in this order:
 14. A money-flow page follows one year from invoicing to the tax office: gross revenue split into purchases, net wages, wage tax, social insurance, VAT, corporate tax, solidarity surcharge, trade tax, and profit, plus the VAT chain and actual bank movements. The MCP server exposes it as `read_cashflow`.
 15. An org chart draws the reporting lines from the manager on each person, keeps former people out of the tree, and refuses a self-reference or a loop. The People page and `read_org` use the same view.
 16. A source register pairs each explanation with the official websites behind it and groups the sources by domain. `/sources`, `read_guides`, and `read_sources` read the same typed data.
+17. A tax-return workspace prepares VAT advance, VAT annual, corporate-tax, and trade-tax returns from the journal, freezes a figure snapshot with a hash, runs blocking and warning checks, and records a manual filing with its ticket and protocol. The VAT advance return exports a Mein ELSTER upload file; the annual returns export CSV and JSON. ELSTER/ERiC transmission remains a later phase.
 
 ## Founder self-payment — conversation roadmap
 
@@ -110,7 +111,7 @@ These need an external system or a different product decision. They are not stub
 - ZUGFeRD, and transmission of an e-invoice (Peppol, a portal, or e-mail). The KoSIT validator only runs on this computer when the check button is used; no tool submits a file.
 - DATEV EXTF export and a locked DATEV account map.
 - Bank CSV import.
-- ELSTER transmission.
+- ELSTER/ERiC transmission, certificates, and the local sidecar. The desk prepares, checks, and records a manual filing, but does not send it.
 - Lohnsteuer from ELStAM, church tax, and factor rules.
 - DEÜV filings, Beitragsnachweise, and U1/U2 fund rates (those rates are set by the collecting agency).
 - Emailing invoices.

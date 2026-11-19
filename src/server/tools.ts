@@ -104,7 +104,15 @@ import {
   shellView,
   timeView,
   obligationsView,
+  taxView,
+  taxFilingView,
 } from "./views";
+import {
+  calculateTaxFiling,
+  checkTaxFiling,
+  createTaxFiling,
+  saveTaxFilingNote,
+} from "./tax-filings";
 
 const KINDS = ["regular", "minijob", "midijob", "apprentice", "managing_director"] as const;
 const SV = ["automatic", "subject", "exempt"] as const;
@@ -512,6 +520,19 @@ export const tools: DeskTool[] = [
     description: "Statutory obligations with due dates and their state, plus custom deadlines and policy renewals.",
     input: { year: z.number().int().min(2000).max(2100).optional().describe("Calendar year. Defaults to the current year.") },
     run: (input) => obligationsView(input.year ?? Number(todayIso().slice(0, 4))),
+  }),
+  tool({
+    name: "read_tax_filings",
+    description:
+      "Prepared tax returns of one year with period, status, due date, figures, checks, and the recorded filing. Read this before preparing or checking a return. Nothing is transmitted.",
+    input: { year: z.number().int().min(2000).max(2100).optional().describe("Calendar year. Defaults to the current year.") },
+    run: (input) => taxView(input.year ?? Number(todayIso().slice(0, 4))),
+  }),
+  tool({
+    name: "read_tax_filing",
+    description: "One tax return with its figures, checks, history, and filing evidence. There is no transmission tool.",
+    input: { taxFilingId: z.number().int().positive().describe("The id from read_tax_filings.") },
+    run: (input) => taxFilingView(input.taxFilingId) ?? { error: "Tax return not found." },
   }),
   tool({
     name: "read_documents",
@@ -2256,6 +2277,47 @@ export const tools: DeskTool[] = [
         .onConflictDoUpdate({ target: [obligationStates.companyId, obligationStates.key], set: { status, updatedAt } })
         .run();
       return { key: input.key, status };
+    },
+  }),
+  tool({
+    name: "prepare_tax_filing",
+    description:
+      "Create a draft tax return for a period. It starts empty; calculate it afterwards. This prepares only: it does not release or file anything.",
+    input: {
+      kind: z.enum(["ustva", "ust-annual", "kst", "gewst"]).describe("ustva = VAT advance, ust-annual = VAT annual, kst = corporate tax, gewst = trade tax."),
+      year: z.number().int().min(2000).max(2100),
+      periodKey: z.string().trim().describe("A month such as 2026-03, a quarter such as 2026-Q1, or the year for an annual return."),
+    },
+    run: (input) => {
+      const filing = createTaxFiling(input, "assistant");
+      return { id: filing.id, kind: filing.kind, year: filing.year, periodKey: filing.periodKey, status: filing.status };
+    },
+  }),
+  tool({
+    name: "calculate_tax_filing",
+    description: "Calculate a prepared return from the journal and replace its figure snapshot. It does not release or file anything.",
+    input: { taxFilingId: z.number().int().positive() },
+    run: (input) => {
+      const filing = calculateTaxFiling(input.taxFilingId, "assistant");
+      return { id: filing.id, status: filing.status, figuresHash: filing.figuresHash };
+    },
+  }),
+  tool({
+    name: "run_tax_checks",
+    description: "Run the checklist against the stored return. Blocking points stop a release; warnings need a human confirmation.",
+    input: { taxFilingId: z.number().int().positive() },
+    run: (input) => {
+      const { filing, checks } = checkTaxFiling(input.taxFilingId, "assistant");
+      return { id: filing.id, status: filing.status, checks };
+    },
+  }),
+  tool({
+    name: "save_tax_note",
+    description: "Save an internal note on a tax return. It is not part of the filed data.",
+    input: { taxFilingId: z.number().int().positive(), note: z.string().max(4000) },
+    run: (input) => {
+      const filing = saveTaxFilingNote(input.taxFilingId, input.note, "assistant");
+      return { id: filing.id, saved: true };
     },
   }),
   tool({

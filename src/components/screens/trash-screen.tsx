@@ -20,6 +20,7 @@ const TRASH_LABEL: Record<TrashKind, MessageKey> = {
   task: "trash.kind.task",
   time: "trash.kind.time",
   deadline: "trash.kind.deadline",
+  "tax-filing": "trash.kind.tax-filing",
   document: "trash.kind.document",
   director_contract: "trash.kind.director_contract",
   founder_health: "trash.kind.founder_health",

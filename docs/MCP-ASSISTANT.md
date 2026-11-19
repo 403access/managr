@@ -13,13 +13,13 @@ Both surfaces use the same registry in `src/server/tools.ts`. There is no second
 
 ## Status
 
-All four phases have shipped. The widget is in the app shell, the MCP endpoint answers at `/api/mcp`, and the registry has read tools, write tools, and four deterministic briefings. The registry follows the screens: the org chart, the Qonto bank view, the money-flow page, analytics, milestones, and the source register are all reachable. The phase headings below describe what each one added.
+All four phases have shipped. The widget is in the app shell, the MCP endpoint answers at `/api/mcp`, and the registry has read tools, write tools, and four deterministic briefings. The registry follows the screens: the org chart, the Qonto bank view, the money-flow page, analytics, milestones, the source register, and the tax-return workspace are all reachable. The phase headings below describe what each one added.
 
 ## Boundaries
 
 - The assistant is a caller, not an authority. It may not file, send, or decide a tax or legal question, and it must not invent a wage-tax figure or a social-insurance status.
 - Books stay append-only. Corrections are reversing entries, exactly as on the screens.
-- Nothing is sent. No e-invoice, no e-mail, no ELSTER, no Peppol.
+- Nothing is sent. No e-invoice, no e-mail, no ELSTER, no Peppol. The tax tools read, prepare, calculate, check, and annotate a return, but never release or transmit it; the release and the manual-filing evidence stay on the screen.
 - File uploads stay on the screen. A tool may list documents, not write or delete files. The Qonto connection is set up on the bank screen; a tool reads the stored bank view and does not hold the key.
 - The assistant reaches a model only through the local opencode installation or the endpoint you configure. With a local model (Ollama or a local OpenAI-compatible server) the data stays on this computer; with a cloud model, the conversation and the tool results leave it. The widget says which model and provider are in use.
 - The provider credential stays on the server. managr reads it from opencode for the selected model, sends it only to that provider, and never returns it to the browser or stores it in the database.

@@ -9,6 +9,7 @@ export type TrashKind =
   | "task"
   | "time"
   | "deadline"
+  | "tax-filing"
   | "document"
   | "director_contract"
   | "founder_health"
@@ -33,6 +34,7 @@ export const TRASH_KINDS: TrashKind[] = [
   "task",
   "time",
   "deadline",
+  "tax-filing",
   "document",
   "director_contract",
   "founder_health",

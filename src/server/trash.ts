@@ -17,6 +17,7 @@ import {
   salaryPeriods,
   shareholders,
   tasks,
+  taxFilings,
   timeEntries,
   timeEntryActivities,
 } from "@/db/schema";
@@ -198,6 +199,19 @@ function listKind(kind: TrashKind): TrashEntry[] {
           detail: `${row.status} · ${row.dueDate}`,
           deletedAt: row.deletedAt!,
         }));
+    case "tax-filing":
+      return db
+        .select()
+        .from(taxFilings)
+        .where(and(eq(taxFilings.companyId, companyId), isNotNull(taxFilings.deletedAt)))
+        .all()
+        .map((row) => ({
+          kind,
+          id: row.id,
+          label: `${row.kind} ${row.year} ${row.periodKey}`,
+          detail: row.status,
+          deletedAt: row.deletedAt!,
+        }));
     case "document":
       return db
         .select()
@@ -337,6 +351,29 @@ export function restoreDeleted(kind: TrashKind, id: number): RestoreResult {
       case "deadline":
         db.update(customDeadlines).set({ deletedAt: null }).where(and(eq(customDeadlines.id, id), eq(customDeadlines.companyId, companyId))).run();
         break;
+      case "tax-filing": {
+        const row = db.select().from(taxFilings).where(and(eq(taxFilings.id, id), eq(taxFilings.companyId, companyId))).get();
+        if (!row) return { ok: false, error: "That entry was not found." };
+        if (!row.replacesId) {
+          const clash = db
+            .select()
+            .from(taxFilings)
+            .where(
+              and(
+                eq(taxFilings.companyId, companyId),
+                eq(taxFilings.kind, row.kind),
+                eq(taxFilings.year, row.year),
+                eq(taxFilings.periodKey, row.periodKey),
+                isNull(taxFilings.replacesId),
+                isNull(taxFilings.deletedAt),
+              ),
+            )
+            .get();
+          if (clash) return { ok: false, error: "An active return already exists for this period." };
+        }
+        db.update(taxFilings).set({ deletedAt: null }).where(eq(taxFilings.id, id)).run();
+        break;
+      }
       case "document":
         db.update(documents).set({ deletedAt: null }).where(and(eq(documents.id, id), eq(documents.companyId, companyId))).run();
         break;

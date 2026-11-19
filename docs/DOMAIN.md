@@ -160,6 +160,16 @@ A profit distribution is separate: `buildProfitDistribution` debits retained pro
 
 `src/domain/obligations.ts` builds statutory dates. Weekend and nationwide holiday shifts use §108 AO. It does not know every state holiday, and the screen says so. Advance-tax dates are the standard calendar-year dates; the Bescheid wins. Annual return deadlines are the end of the 7th month after the financial year, or the 14th month when a tax adviser is flagged. Disclosure is the end of the 12th month after the financial year.
 
+## Tax returns
+
+`src/domain/tax-filing.ts` owns the filing kinds (`ustva`, `ust-annual`, `kst`, `gewst`), the period arithmetic, the due date lookup, the status machine, and the checklist. It never opens the database. The period of a VAT advance return is a calendar month or quarter; an annual return uses the fiscal year ending in its label. The due date is read from `statutoryObligations` for the year after the period, so the calendar and the return cannot drift apart.
+
+The status path is `draft → calculated → checked → ready → submitted_manually`; a correction starts a new draft with `replaces_id` and leaves the original untouched. A block stops the release, a warning requires a deliberate confirmation, and an information line never does. The figure snapshot is frozen with a SHA-256 hash when calculated. A later journal change makes the stored check stale and blocks the release until the return is calculated again.
+
+`src/domain/elster-format.ts` builds the data part of the VAT advance upload for Mein ELSTER: month `1`–`12` or quarter `41`–`44`, Kz81 and Kz86 in whole euros, Kz66 and Kz83 to the cent. The XML is a working copy; ERiC, a Hersteller-ID, a certificate, and the actual ELSTER transmission are not part of this phase. The annual returns export as CSV and JSON for the adviser and for manual entry in Mein ELSTER. The desk never invents a ticket: `submitted_manually` requires a typed ticket, a date, a confirmation, and optionally a protocol file, and only then marks the statutory obligation done.
+
+`elster_settings` holds the environment, Hersteller-ID, product name, privacy acknowledgement, and the reserved certificate columns. No certificate or PIN is stored in this phase. `tax_filing_events` is append-only; `tax_filings` and its draft delete are separate. Submitted returns are never deleted, only corrected.
+
 ## Time
 
 Working-time warnings follow §3 and §4 ArbZG (8 hours, 10-hour cap, 30- and 45-minute breaks). Vacation minimum scales 24 weekdays by the working week (BUrlG). The weekday pattern is "the first N days of the week", which is an assumption the person screen states.

@@ -14,7 +14,7 @@ Read `docs/ARCHITECTURE.md` before changing structure. Read `docs/DOMAIN.md` bef
 
 managr is a local planning desk for one German UG (haftungsbeschränkt). It keeps Stammdaten, obligations, invoices, a double-entry ledger, people, time, documents, and legal records.
 
-It is not a tax adviser, payroll office, or filing portal. Estimates must say so in the UI. Do not add ELSTER submission, wage-tax calculation, DATEV export, bank feeds, or e-invoice XML unless the roadmap says that version includes them.
+It is not a tax adviser, payroll office, or filing portal. Estimates must say so in the UI. Tax returns may be prepared, calculated, checked, and recorded for manual filing. Do not add ELSTER/ERiC transmission, certificate or PIN storage, wage-tax calculation, DATEV export, bank feeds, or e-invoice XML unless the roadmap says that version includes them.
 
 ## Rules
 

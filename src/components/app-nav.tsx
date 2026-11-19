@@ -22,6 +22,7 @@ export function NavIconGlyph({ name }: { name: NavIcon }) {
       {name === "customers" ? <path {...common} d="M4 5.5h16V18.5H4zM8 8.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM5.8 15.5c.4-1.4 1.2-2 2.2-2s1.8.6 2.2 2M13 10h4M13 13.5h3" /> : null}
       {name === "time" ? <path {...common} d="M12 21a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17zM12 8v4.5l3 2" /> : null}
       {name === "dates" ? <path {...common} d="M5 5.5h14V20H5zM5 9.5h14M8 3.5v4M16 3.5v4" /> : null}
+      {name === "tax" ? <path {...common} d="M6 3.5h8l4 4V20.5H6zM14 3.5V8h4M9 16.5l6-6M9.5 11.2a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4zM14.5 17.2a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4z" /> : null}
       {name === "company" ? <path {...common} d="M4 20.5h16M6 20.5V8l6-4 6 4v12.5M10 20.5v-4h4v4" /> : null}
       {name === "ledger" ? <path {...common} d="M5 5h14v14H5zM5 9h14M5 13h14M9 5v14" /> : null}
       {name === "cashflow" ? <path {...common} d="M4 6.5h5v11H4zM13 8.5h7M13 12h7M13 15.5h5M17.5 14l2 1.5-2 1.5" /> : null}

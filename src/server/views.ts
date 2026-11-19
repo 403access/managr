@@ -17,6 +17,20 @@ import { bankPeriodSummary, bankTotals, maskSecret } from "@/domain/bank";
 import { analyzeMilestones, analyzeMilestonesByCompany, milestoneIsOverdue, milestoneProgress, milestoneYears, sortMilestones } from "@/domain/milestones";
 import { buildOrgChart } from "@/domain/org";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
+import {
+  checkSummary,
+  filingKindsFor,
+  filingPeriod,
+  filingPeriods,
+  formatPeriod,
+  isAnnualKind,
+  isEditable,
+  isSubmitted,
+  nextStatuses,
+  obligationKeyFor,
+  type TaxFilingKind,
+  type TaxFilingStatus,
+} from "@/domain/tax-filing";
 import { daySpan, durationMinutes, minimumVacationDays, resolveTimeRange, timeWarnings, vacationShortfall, weekStart } from "@/domain/time";
 import { effectiveHourlyRate, timeValueCents } from "@/domain/rates";
 import { euroInput, quantityInput } from "@/components/amounts";
@@ -60,6 +74,15 @@ import {
   signedAccount,
   vatPayableCents,
 } from "./queries";
+import {
+  getElsterSettings,
+  listFilingEvents,
+  listFilingTransmissions,
+  listTaxFilings,
+  loadTaxFiling,
+  parseChecks,
+  parseFigures,
+} from "./tax-filings";
 import { parseViewQuery, viewIsReady, type ViewName } from "./view-request";
 import { toXRechnungInput } from "./xrechnung";
 
@@ -1121,6 +1144,171 @@ export function obligationsView(year: number) {
   };
 }
 
+function elsterPublic(companyId: number) {
+  const settings = getElsterSettings(companyId);
+  return {
+    configured: Boolean(settings?.certificateName),
+    environment: settings?.environment ?? "test",
+    herstellerId: settings?.herstellerId ?? "",
+    softwareName: settings?.softwareName ?? "managr",
+    privacyAcknowledged: Boolean(settings?.privacyAcknowledgedAt),
+    privacyAcknowledgedAt: settings?.privacyAcknowledgedAt ?? null,
+    certificateName: settings?.certificateName ?? "",
+    certificateValidUntil: settings?.certificateValidUntil ?? null,
+    certificateFingerprint: settings?.certificateFingerprint ?? "",
+    ericVersion: settings?.ericVersion ?? "",
+    lastCheckedAt: settings?.lastCheckedAt ?? null,
+  };
+}
+
+export function taxView(year: number) {
+  const company = loadCompany();
+  const monthly = filingPeriods("ustva", year, company.fiscalYearStartMonth, "monthly");
+  const quarterly = filingPeriods("ustva", year, company.fiscalYearStartMonth, "quarterly");
+  const filings = listTaxFilings(year).map((filing) => {
+    const figures = parseFigures(filing.figuresJson);
+    const checks = parseChecks(filing.checksJson);
+    const summary = checkSummary(checks);
+    const latest = listFilingTransmissions(filing.id)[0];
+    return {
+      id: filing.id,
+      kind: filing.kind as TaxFilingKind,
+      year: filing.year,
+      periodKey: filing.periodKey,
+      periodLabel: formatPeriod(filing.kind as TaxFilingKind, filing.year, filing.periodKey),
+      period: filingPeriod(filing.kind as TaxFilingKind, filing.year, filing.periodKey, company.fiscalYearStartMonth),
+      status: filing.status as TaxFilingStatus,
+      dueDate: filing.dueDate,
+      figures,
+      checks,
+      summary,
+      figuresHash: filing.figuresHash,
+      formatVersion: filing.formatVersion,
+      replacesId: filing.replacesId,
+      submittedAt: filing.submittedAt,
+      notes: filing.notes,
+      canEdit: isEditable(filing.status as TaxFilingStatus),
+      submitted: isSubmitted(filing.status as TaxFilingStatus),
+      submission: latest
+        ? {
+            id: latest.id,
+            ticket: latest.ticket,
+            transport: latest.transport,
+            submittedAt: latest.finishedAt ?? latest.startedAt,
+            protocolName: latest.protocolName,
+            status: latest.status,
+          }
+        : null,
+    };
+  });
+  const aggregate = filings.reduce(
+    (sum, filing) =>
+      filing.canEdit
+        ? {
+            block: sum.block + filing.summary.block,
+            warn: sum.warn + filing.summary.warn,
+            info: sum.info + filing.summary.info,
+          }
+        : sum,
+    { block: 0, warn: 0, info: 0 },
+  );
+  return {
+    year,
+    today: todayIso(),
+    company: {
+      legalName: company.legalName,
+      kleinunternehmer: company.kleinunternehmer,
+      usesTaxAdvisor: company.usesTaxAdvisor,
+      fiscalYearStartMonth: company.fiscalYearStartMonth,
+    },
+    filings,
+    kinds: filingKindsFor(company),
+    periods: { monthly, quarterly },
+    aggregate,
+    elster: elsterPublic(company.id),
+  };
+}
+
+export function taxFilingView(id: number) {
+  const filing = loadTaxFiling(id);
+  if (!filing) return null;
+  const company = loadCompany();
+  const kind = filing.kind as TaxFilingKind;
+  const status = filing.status as TaxFilingStatus;
+  const figures = parseFigures(filing.figuresJson);
+  const checks = parseChecks(filing.checksJson);
+  const summary = checkSummary(checks);
+  const transmissions = listFilingTransmissions(filing.id).map((row) => ({
+    id: row.id,
+    environment: row.environment,
+    transport: row.transport,
+    startedAt: row.startedAt,
+    finishedAt: row.finishedAt,
+    status: row.status,
+    ticket: row.ticket,
+    protocolName: row.protocolName,
+    protocolSizeBytes: row.protocolSizeBytes,
+    errorCode: row.errorCode,
+    errorText: row.errorText,
+  }));
+  const events = listFilingEvents(filing.id).map((event) => {
+    let detail: Record<string, unknown> = {};
+    try {
+      detail = JSON.parse(event.detailJson) as Record<string, unknown>;
+    } catch {
+      detail = {};
+    }
+    return {
+      id: event.id,
+      at: event.at,
+      type: event.type,
+      actor: event.actor,
+      fromStatus: event.fromStatus,
+      toStatus: event.toStatus,
+      detail,
+    };
+  });
+  return {
+    today: todayIso(),
+    filing: {
+      id: filing.id,
+      kind,
+      year: filing.year,
+      periodKey: filing.periodKey,
+      periodLabel: formatPeriod(kind, filing.year, filing.periodKey),
+      period: filingPeriod(kind, filing.year, filing.periodKey, company.fiscalYearStartMonth),
+      status,
+      dueDate: filing.dueDate,
+      figures,
+      figuresHash: filing.figuresHash,
+      checks,
+      summary,
+      formatVersion: filing.formatVersion,
+      replacesId: filing.replacesId,
+      submittedAt: filing.submittedAt,
+      acceptedAt: filing.acceptedAt,
+      notes: filing.notes,
+      canEdit: isEditable(status),
+      canSubmit: status === "ready",
+      submitted: isSubmitted(status),
+      nextStatuses: nextStatuses(status),
+      obligationKey: obligationKeyFor(kind, filing.year, filing.periodKey),
+      hasFigures: figures !== null,
+    },
+    transmissions,
+    events,
+    elster: elsterPublic(company.id),
+    company: {
+      legalName: company.legalName,
+      taxNumber: company.taxNumber,
+      vatId: company.vatId,
+      kleinunternehmer: company.kleinunternehmer,
+    },
+    exportFormats: kind === "ustva" ? ["xml", "csv", "json"] : ["csv", "json"],
+    annual: isAnnualKind(kind),
+  };
+}
+
 export function documentsView() {
   return { documents: listDocuments() };
 }
@@ -1616,6 +1804,10 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return query.from && query.to ? timeDaysView(query.from, query.to) : null;
     case "obligations":
       return obligationsView(query.year);
+    case "tax":
+      return taxView(query.year);
+    case "tax-filing":
+      return taxFilingView(query.id!);
     case "documents":
       return documentsView();
     case "legal":

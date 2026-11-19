@@ -520,6 +520,88 @@ export const reserveMovements = sqliteTable("reserve_movements", {
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
 });
 
+export const taxFilings = sqliteTable(
+  "tax_filings",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    year: integer("year").notNull(),
+    periodKey: text("period_key").notNull(),
+    status: text("status").notNull().default("draft"),
+    dueDate: text("due_date"),
+    figuresJson: text("figures_json").notNull().default("{}"),
+    figuresHash: text("figures_hash").notNull().default(""),
+    checksJson: text("checks_json").notNull().default("[]"),
+    formatVersion: text("format_version").notNull().default(""),
+    replacesId: integer("replaces_id").references((): AnySQLiteColumn => taxFilings.id),
+    submittedAt: text("submitted_at"),
+    acceptedAt: text("accepted_at"),
+    notes: text("notes").notNull().default(""),
+    deletedAt: text("deleted_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [index("tax_filings_company_year_idx").on(table.companyId, table.year, table.kind)],
+);
+
+export const taxFilingEvents = sqliteTable(
+  "tax_filing_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    taxFilingId: integer("tax_filing_id").notNull().references(() => taxFilings.id, { onDelete: "cascade" }),
+    at: text("at").notNull(),
+    type: text("type").notNull(),
+    actor: text("actor").notNull(),
+    fromStatus: text("from_status").notNull().default(""),
+    toStatus: text("to_status").notNull().default(""),
+    detailJson: text("detail_json").notNull().default("{}"),
+    payloadHash: text("payload_hash").notNull().default(""),
+  },
+  (table) => [index("tax_filing_events_filing_idx").on(table.taxFilingId, table.at)],
+);
+
+export const elsterSettings = sqliteTable("elster_settings", {
+  companyId: integer("company_id").primaryKey().references(() => companies.id, { onDelete: "cascade" }),
+  environment: text("environment").notNull().default("test"),
+  herstellerId: text("hersteller_id").notNull().default(""),
+  softwareName: text("software_name").notNull().default("managr"),
+  softwareVersion: text("software_version").notNull().default(""),
+  certificateName: text("certificate_name").notNull().default(""),
+  certificateCiphertext: text("certificate_ciphertext").notNull().default(""),
+  certificateValidUntil: text("certificate_valid_until"),
+  certificateFingerprint: text("certificate_fingerprint").notNull().default(""),
+  privacyAcknowledgedAt: text("privacy_acknowledged_at"),
+  ericVersion: text("eric_version").notNull().default(""),
+  lastCheckedAt: text("last_checked_at"),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const elsterTransmissions = sqliteTable(
+  "elster_transmissions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    taxFilingId: integer("tax_filing_id").notNull().references(() => taxFilings.id, { onDelete: "cascade" }),
+    environment: text("environment").notNull(),
+    transport: text("transport").notNull(),
+    testMarker: text("test_marker").notNull().default(""),
+    startedAt: text("started_at").notNull(),
+    finishedAt: text("finished_at"),
+    status: text("status").notNull(),
+    ericVersion: text("eric_version").notNull().default(""),
+    requestSha256: text("request_sha256").notNull().default(""),
+    ticket: text("ticket").notNull().default(""),
+    protocolJson: text("protocol_json").notNull().default("{}"),
+    protocolPath: text("protocol_path").notNull().default(""),
+    protocolName: text("protocol_name").notNull().default(""),
+    protocolMime: text("protocol_mime").notNull().default(""),
+    protocolSizeBytes: integer("protocol_size_bytes").notNull().default(0),
+    errorCode: text("error_code").notNull().default(""),
+    errorText: text("error_text").notNull().default(""),
+  },
+  (table) => [index("elster_transmissions_filing_idx").on(table.taxFilingId, table.startedAt)],
+);
+
 /** A single, desk-wide row for display preferences. */
 export const appSettings = sqliteTable("app_settings", {
   id: integer("id").primaryKey(),

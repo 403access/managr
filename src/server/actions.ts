@@ -81,6 +81,18 @@ import { invoicePayloadSchema, journalPayloadSchema, type InvoicePayload } from 
 import { socialInput } from "./people";
 import { entryLines, payrollSourceId, postJournal } from "./posting";
 import { accountBalances, listSalaryPeriods, listShareholderLoans, loadCompany, signedAccount } from "./queries";
+import {
+  calculateTaxFiling as calculateFiling,
+  checkTaxFiling as checkFiling,
+  createCorrection as createFilingCorrection,
+  createTaxFiling as createFiling,
+  deleteTaxFiling as removeFiling,
+  releaseTaxFiling as releaseFiling,
+  reopenTaxFiling as reopenFiling,
+  saveElsterSettings as writeElsterSettings,
+  saveTaxFilingNote as writeFilingNote,
+  submitTaxFilingManually as submitFilingManually,
+} from "./tax-filings";
 import { clearLastDeletion, readLastDeletion, rememberDeletion } from "./deletions";
 import { isTrashKind, restoreDeleted, type RestoreResult } from "./trash";
 
@@ -1997,6 +2009,115 @@ export async function saveResolution(_state: ActionState, formData: FormData): P
       })
       .run();
     return saved("Resolution recorded. This is your note of the decision, not a generated document.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function prepareTaxFiling(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const year = wholeNumber(formData, "year");
+    if (!year) throw new Error("Choose a year.");
+    const filing = createFiling({
+      kind: text(formData, "kind"),
+      year,
+      periodKey: text(formData, "periodKey"),
+    });
+    return go(`/tax/${filing.id}`);
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function calculateTaxFiling(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    calculateFiling(requiredId(formData));
+    return saved("Tax return calculated from the books.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function checkTaxFilingAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const { checks } = checkFiling(requiredId(formData));
+    const blocks = checks.filter((check) => check.severity === "block").length;
+    const warnings = checks.filter((check) => check.severity === "warn").length;
+    return saved(`Check complete: ${blocks} blocking, ${warnings} warnings.`);
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function releaseTaxFiling(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    releaseFiling(requiredId(formData), checked(formData, "confirmWarnings"));
+    return saved("Tax return released. The figures are now frozen.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function reopenTaxFiling(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    reopenFiling(requiredId(formData));
+    return saved("Tax return reopened.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function submitTaxFilingManually(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const protocol = formData.get("protocol");
+    await submitFilingManually(requiredId(formData), {
+      ticket: text(formData, "ticket"),
+      submittedOn: requireDate(text(formData, "submittedOn"), "The submission"),
+      confirmed: checked(formData, "confirmed"),
+      protocol: protocol instanceof File ? protocol : null,
+    });
+    return saved("Manual submission recorded. The statutory date is marked done.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function correctTaxFiling(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const correction = createFilingCorrection(requiredId(formData));
+    return go(`/tax/${correction.id}`);
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function deleteTaxFiling(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const year = removeFiling(requiredId(formData));
+    return go(`/tax?year=${year}`);
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function saveTaxFilingNote(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    writeFilingNote(requiredId(formData), text(formData, "notes"));
+    return saved("Note saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function saveElsterSettings(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    writeElsterSettings({
+      environment: oneOf(text(formData, "environment") || "test", ["test", "production"] as const, "Environment"),
+      herstellerId: text(formData, "herstellerId"),
+      softwareName: text(formData, "softwareName"),
+      privacyAcknowledged: checked(formData, "privacyAcknowledged"),
+    });
+    return saved("ELSTER settings saved.");
   } catch (error) {
     return failed(error);
   }

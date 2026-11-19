@@ -18,6 +18,8 @@ export const VIEW_NAMES = [
   "time",
   "time-days",
   "obligations",
+  "tax",
+  "tax-filing",
   "documents",
   "legal",
   "projects",
@@ -73,6 +75,8 @@ export function parseViewQuery(params: URLSearchParams, today: string): ViewQuer
 }
 
 export function viewIsReady(name: ViewName, query: Pick<ViewQuery, "id">): boolean {
-  if (name === "invoice" || name === "invoice-edit" || name === "person" || name === "customer") return query.id !== null;
+  if (name === "invoice" || name === "invoice-edit" || name === "person" || name === "customer" || name === "tax-filing") {
+    return query.id !== null;
+  }
   return true;
 }
