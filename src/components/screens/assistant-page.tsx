@@ -36,6 +36,24 @@ type ToolCategory =
   | "web"
   | "other";
 type Grouping = "category" | "access" | "none";
+type HistoryGrouping = "category" | "action" | "day" | "none";
+type HistorySort = "newest" | "oldest" | "tool";
+type ActionOutcome = "ok" | "rejected" | "error";
+type HistoryAction = {
+  key: string;
+  at?: string;
+  action: ChangeAction;
+  name: string;
+  label: string;
+  input: unknown;
+  outcome: ActionOutcome;
+  summary: string;
+  category: ToolCategory;
+};
+
+const REJECTED_SUMMARY = "The user rejected this change.";
+const ACTION_ORDER: ChangeAction[] = ["add", "update", "delete"];
+const OUTCOME_ORDER: ActionOutcome[] = ["ok", "rejected", "error"];
 
 const BRIEFINGS = new Set(["daily_briefing", "vat_overview", "monthly_close_checklist", "draft_dunning_letter"]);
 const ACCESS_ORDER: ToolAccess[] = ["read", "write", "briefing", "web"];
@@ -98,8 +116,7 @@ function accessOf(tool: ToolInfo): ToolAccess {
   return tool.write ? "write" : "read";
 }
 
-function categoryOf(tool: ToolInfo): ToolCategory {
-  const name = tool.name;
+function categoryOf(name: string): ToolCategory {
   if (BRIEFINGS.has(name)) return "briefing";
   if (name.startsWith("web_")) return "web";
   if (name === "set_hourly_rate") return "rates";
@@ -155,6 +172,19 @@ function categoryOf(tool: ToolInfo): ToolCategory {
   return "other";
 }
 
+function dayKey(iso?: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatDay(key: string, locale: string): string {
+  const date = new Date(`${key}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return key;
+  return new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-GB", { dateStyle: "medium" }).format(date);
+}
+
 function Row({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="grid gap-0.5">
@@ -179,6 +209,11 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | ToolAccess>("all");
   const [grouping, setGrouping] = useState<Grouping>("category");
+  const [historySearch, setHistorySearch] = useState("");
+  const [actionFilter, setActionFilter] = useState<"all" | ChangeAction>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | ActionOutcome>("all");
+  const [historySort, setHistorySort] = useState<HistorySort>("newest");
+  const [historyGrouping, setHistoryGrouping] = useState<HistoryGrouping>("category");
   const toolsTriggerRef = useRef<HTMLButtonElement>(null);
   const historyTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -188,34 +223,96 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
     window.setTimeout(() => target.current?.focus(), 0);
   }
 
-  const actions: {
-    key: string;
-    at?: string;
-    action: ChangeAction;
-    name: string;
-    input: unknown;
-    status: "running" | "ok" | "error";
-    summary: string;
-  }[] = history.flatMap((message) => {
+  const actions: HistoryAction[] = history.flatMap((message) => {
     if (message.role !== "assistant") return [];
     return message.steps
       .filter((step) => needsApproval(step.name))
-      .map((step) => ({
-        key: `${message.id}-${step.key}`,
-        at: message.details?.at,
-        action: changeAction(step.name, step.input),
-        name: step.name,
-        input: step.input,
-        status: step.status,
-        summary: step.summary,
-      }));
+      .map((step) => {
+        const outcome: ActionOutcome = step.status === "ok" ? "ok" : step.summary === REJECTED_SUMMARY ? "rejected" : "error";
+        return {
+          key: `${message.id}-${step.key}`,
+          at: message.details?.at,
+          action: changeAction(step.name, step.input),
+          name: step.name,
+          label: toolLabelFor(step.name, t),
+          input: step.input,
+          outcome,
+          summary: step.summary,
+          category: categoryOf(step.name),
+        };
+      });
   });
+
+  const actionCounts: Record<"all" | ChangeAction, number> = { all: actions.length, add: 0, update: 0, delete: 0 };
+  const outcomeCounts: Record<"all" | ActionOutcome, number> = { all: actions.length, ok: 0, rejected: 0, error: 0 };
+  for (const action of actions) {
+    actionCounts[action.action] += 1;
+    outcomeCounts[action.outcome] += 1;
+  }
+
+  const historyQuery = historySearch.trim().toLowerCase();
+  const visibleActions = actions.filter(
+    (action) =>
+      (actionFilter === "all" || action.action === actionFilter) &&
+      (statusFilter === "all" || action.outcome === statusFilter) &&
+      (!historyQuery ||
+        `${action.label} ${action.name} ${action.summary} ${JSON.stringify(action.input)}`.toLowerCase().includes(historyQuery)),
+  );
+  const historyTime = (action: HistoryAction) => (action.at ? Date.parse(action.at) || 0 : 0);
+  const sortedActions = [...visibleActions].sort((left, right) => {
+    if (historySort === "tool") {
+      return left.label.localeCompare(right.label, locale === "de" ? "de" : "en") || left.key.localeCompare(right.key);
+    }
+    const difference = historyTime(left) - historyTime(right);
+    return (historySort === "newest" ? -difference : difference) || left.key.localeCompare(right.key);
+  });
+
+  const historyGroups: { key: string; title: string | null; items: HistoryAction[] }[] = [];
+  if (historyGrouping === "none") {
+    if (sortedActions.length > 0) historyGroups.push({ key: "all", title: null, items: sortedActions });
+  } else if (historyGrouping === "action") {
+    for (const action of ACTION_ORDER) {
+      const items = sortedActions.filter((item) => item.action === action);
+      if (items.length > 0) historyGroups.push({ key: action, title: t(`assistant.approval.${action}`), items });
+    }
+  } else if (historyGrouping === "day") {
+    const buckets = new Map<string, HistoryAction[]>();
+    for (const action of sortedActions) {
+      const key = dayKey(action.at);
+      const bucket = buckets.get(key) ?? [];
+      bucket.push(action);
+      buckets.set(key, bucket);
+    }
+    for (const [key, items] of buckets) {
+      historyGroups.push({ key: key || "none", title: key ? formatDay(key, locale) : t("assistantPage.historyNoDate"), items });
+    }
+  } else {
+    for (const category of CATEGORY_ORDER) {
+      const items = sortedActions.filter((item) => item.category === category);
+      if (items.length > 0) historyGroups.push({ key: category, title: t(CATEGORY_LABELS[category]), items });
+    }
+  }
+
+  const actionFilters: { key: "all" | ChangeAction; label: string; count: number }[] = [
+    { key: "all", label: t("assistantPage.toolsAll"), count: actionCounts.all },
+    { key: "add", label: t("assistant.approval.add"), count: actionCounts.add },
+    { key: "update", label: t("assistant.approval.update"), count: actionCounts.update },
+    { key: "delete", label: t("assistant.approval.delete"), count: actionCounts.delete },
+  ];
+  const shownActionFilters = actionFilters.filter((item) => item.key === "all" || item.count > 0);
+  const statusFilters: { key: "all" | ActionOutcome; label: string; count: number }[] = [
+    { key: "all", label: t("assistantPage.toolsAll"), count: outcomeCounts.all },
+    { key: "ok", label: t("assistantPage.historyDone"), count: outcomeCounts.ok },
+    { key: "rejected", label: t("assistantPage.historyRejected"), count: outcomeCounts.rejected },
+    { key: "error", label: t("assistantPage.historyFailed"), count: outcomeCounts.error },
+  ];
+  const shownStatusFilters = statusFilters.filter((item) => item.key === "all" || item.count > 0);
 
   const rows: ToolRow[] = tools.map((tool) => ({
     ...tool,
     label: toolLabelFor(tool.name, t),
     access: accessOf(tool),
-    category: categoryOf(tool),
+    category: categoryOf(tool.name),
   }));
   const counts: Record<"all" | ToolAccess, number> = { all: rows.length, read: 0, write: 0, briefing: 0, web: 0 };
   for (const row of rows) counts[row.access] += 1;
@@ -344,38 +441,130 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
       {actions.length === 0 ? (
         <p className="text-sm text-muted">{t("assistantPage.historyEmpty")}</p>
       ) : (
-        <ul className="grid gap-2">
-          {actions.map((action) => (
-            <li key={action.key} className="rounded-xl border border-line bg-white px-3 py-2">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <ActionBadge action={action.action} />
-                  <p className="text-sm font-medium">{toolLabelFor(action.name, t)}</p>
-                </div>
-                {action.at ? <span className="text-[11px] text-muted">{formatMessageTime(action.at, locale)}</span> : null}
-              </div>
-              <p
-                className={`mt-1 text-[11px] ${
-                  action.status === "ok" ? "text-moss" : action.status === "running" ? "text-muted" : "text-clay"
+        <>
+          <input
+            type="search"
+            className={inputClass}
+            value={historySearch}
+            onChange={(event) => setHistorySearch(event.target.value)}
+            placeholder={t("assistantPage.historySearch")}
+            aria-label={t("assistantPage.historySearch")}
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[11px] font-medium text-muted">{t("assistantPage.historyFilterAction")}</span>
+            {shownActionFilters.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                aria-pressed={actionFilter === item.key}
+                onClick={() => setActionFilter(item.key)}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+                  actionFilter === item.key
+                    ? "border-pine bg-pine text-paper"
+                    : "border-line bg-white text-muted hover:border-ink hover:text-ink"
                 }`}
               >
-                {action.status === "ok"
-                  ? t("assistantPage.historyDone")
-                  : action.status === "running"
-                    ? t("assistantPage.historyRunning")
-                    : action.summary
-                      ? tx(action.summary)
-                      : t("assistantPage.historyFailed")}
-              </p>
-              <details className="mt-1 text-[10px] text-muted">
-                <summary className="cursor-pointer select-none">{t("assistant.approval.raw")}</summary>
-                <pre className="mt-1 overflow-x-auto rounded bg-ink/5 p-1 font-mono text-[10px] leading-relaxed">
-                  {JSON.stringify(action.input, null, 2)}
-                </pre>
-              </details>
-            </li>
-          ))}
-        </ul>
+                {item.label} · {item.count}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[11px] font-medium text-muted">{t("assistantPage.historyFilterStatus")}</span>
+            {shownStatusFilters.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                aria-pressed={statusFilter === item.key}
+                onClick={() => setStatusFilter(item.key)}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+                  statusFilter === item.key
+                    ? "border-pine bg-pine text-paper"
+                    : "border-line bg-white text-muted hover:border-ink hover:text-ink"
+                }`}
+              >
+                {item.label} · {item.count}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <label className="grid gap-1 text-[11px] text-muted">
+              <span>{t("assistantPage.historySort")}</span>
+              <select
+                value={historySort}
+                onChange={(event) => setHistorySort(event.target.value as HistorySort)}
+                className="min-h-9 rounded-xl border border-line bg-white px-2 text-xs text-ink"
+              >
+                <option value="newest">{t("assistantPage.historySortNewest")}</option>
+                <option value="oldest">{t("assistantPage.historySortOldest")}</option>
+                <option value="tool">{t("assistantPage.historySortTool")}</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-[11px] text-muted">
+              <span>{t("assistantPage.historyGroup")}</span>
+              <select
+                value={historyGrouping}
+                onChange={(event) => setHistoryGrouping(event.target.value as HistoryGrouping)}
+                className="min-h-9 rounded-xl border border-line bg-white px-2 text-xs text-ink"
+              >
+                <option value="category">{t("assistantPage.historyGroupCategory")}</option>
+                <option value="action">{t("assistantPage.historyGroupAction")}</option>
+                <option value="day">{t("assistantPage.historyGroupDay")}</option>
+                <option value="none">{t("assistantPage.historyGroupNone")}</option>
+              </select>
+            </label>
+          </div>
+          <p className="mt-2 text-[11px] text-muted" aria-live="polite">
+            {t("assistantPage.historyShown", { shown: visibleActions.length, total: actions.length })}
+          </p>
+          <div className="mt-3 grid gap-4">
+            {historyGroups.length === 0 ? <p className="text-sm text-muted">{t("assistantPage.historyNoResults")}</p> : null}
+            {historyGroups.map((group) => (
+              <section key={group.key} className="grid gap-2">
+                {group.title ? (
+                  <h3 className="text-[11px] font-semibold tracking-[0.1em] text-muted uppercase">
+                    {group.title} · {group.items.length}
+                  </h3>
+                ) : null}
+                <ul className="grid gap-2">
+                  {group.items.map((action) => (
+                    <li key={action.key} className="rounded-xl border border-line bg-white px-3 py-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                          <ActionBadge action={action.action} />
+                          <p className="text-sm font-medium">{action.label}</p>
+                        </div>
+                        {action.at ? <span className="text-[11px] text-muted">{formatMessageTime(action.at, locale)}</span> : null}
+                      </div>
+                      <p
+                        className={`mt-1 text-[11px] ${
+                          action.outcome === "ok"
+                            ? "text-moss"
+                            : action.outcome === "rejected"
+                              ? "text-amber"
+                              : "text-clay"
+                        }`}
+                      >
+                        {action.outcome === "ok"
+                          ? t("assistantPage.historyDone")
+                          : action.outcome === "rejected"
+                            ? t("assistantPage.historyRejected")
+                            : action.summary
+                              ? tx(action.summary)
+                              : t("assistantPage.historyFailed")}
+                      </p>
+                      <details className="mt-1 text-[10px] text-muted">
+                        <summary className="cursor-pointer select-none">{t("assistant.approval.raw")}</summary>
+                        <pre className="mt-1 overflow-x-auto rounded bg-ink/5 p-1 font-mono text-[10px] leading-relaxed">
+                          {JSON.stringify(action.input, null, 2)}
+                        </pre>
+                      </details>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </>
       )}
       <p className="mt-4 border-t border-line pt-3 text-[11px] leading-relaxed text-muted">{t("assistantPage.historyNote")}</p>
     </SidePanel>
