@@ -1,13 +1,14 @@
 "use client";
 
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useI18n } from "./locale-provider";
 
-export function useView<T>(queryKey: readonly unknown[], path: string, options?: { enabled?: boolean }): UseQueryResult<T, Error> {
+export function useView<T>(queryKey: readonly unknown[], path: string, options?: { enabled?: boolean; keepPreviousData?: boolean }): UseQueryResult<T, Error> {
   return useQuery({
     queryKey,
     enabled: options?.enabled ?? true,
+    placeholderData: options?.keepPreviousData ? keepPreviousData : undefined,
     queryFn: async () => {
       const response = await fetch(path, { cache: "no-store" });
       if (response.status === 404) throw new Error("not-found");

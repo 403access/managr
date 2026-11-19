@@ -16,6 +16,7 @@ export const VIEW_NAMES = [
   "person",
   "org",
   "time",
+  "time-days",
   "obligations",
   "documents",
   "legal",

@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { addDays, addMonths, formatDate, iso, parseIso, toUtcDate } from "@/domain/calendar";
 import { weekStart } from "@/domain/time";
+import { queryKeys, viewPath } from "@/client/query-keys";
 import { useI18n } from "@/components/locale-provider";
+import { useView } from "@/components/use-view";
 
 type Props = {
   from: string;
@@ -30,6 +32,16 @@ export function DateRangeCalendar({ from, to, today, onSelect }: Props) {
     ...Array.from({ length: offset }, () => null),
     ...Array.from({ length: daysInMonth }, (_, index) => iso(y, m, index + 1)),
   ];
+
+  const monthStart = iso(y, m, 1);
+  const monthEnd = iso(y, m, daysInMonth);
+  const busy = useView<{ days: Record<string, number> }>(
+    queryKeys.timeDays(monthStart, monthEnd),
+    viewPath.timeDays(monthStart, monthEnd),
+    { keepPreviousData: true },
+  );
+  const counts = busy.data?.days ?? {};
+  const hasBusy = cells.some((day) => day !== null && (counts[day] ?? 0) > 0);
 
   const weekdays = useMemo(() => {
     const format = new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-GB", { weekday: "short", timeZone: "UTC" });
@@ -113,16 +125,17 @@ export function DateRangeCalendar({ from, to, today, onSelect }: Props) {
           if (day === null) return <span key={`empty-${index}`} aria-hidden="true" />;
           const selected = day >= from && day <= to;
           const endpoint = day === from || day === to;
+          const count = counts[day] ?? 0;
           const ring = day === pending ? "ring-2 ring-amber" : day === today ? "ring-1 ring-ink/30" : "";
           return (
             <button
               key={day}
               type="button"
-              aria-label={formatDate(day)}
+              aria-label={count > 0 ? `${formatDate(day)} · ${t("time.dayEntries", { count })}` : formatDate(day)}
               aria-pressed={selected}
               aria-current={day === today ? "date" : undefined}
               onClick={() => pick(day)}
-              className={`flex h-10 items-center justify-center rounded-lg text-sm tabular-nums transition ${ring} ${
+              className={`relative flex h-10 items-center justify-center rounded-lg text-sm tabular-nums transition ${ring} ${
                 endpoint
                   ? "bg-pine font-medium text-paper"
                   : selected
@@ -131,10 +144,22 @@ export function DateRangeCalendar({ from, to, today, onSelect }: Props) {
               }`}
             >
               {Number(day.slice(8, 10))}
+              {count > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className={`absolute bottom-1 size-1 rounded-full ${endpoint ? "bg-paper" : "bg-pine"}`}
+                />
+              ) : null}
             </button>
           );
         })}
       </div>
+      {hasBusy ? (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+          <span aria-hidden="true" className="size-1 rounded-full bg-pine" />
+          {t("time.calendarBusyLegend")}
+        </p>
+      ) : null}
       <p className="mt-3 text-xs leading-relaxed text-muted" aria-live="polite">
         {pending
           ? t("time.rangePickEnd")

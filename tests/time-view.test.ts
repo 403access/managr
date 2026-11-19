@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { addDays, todayIso } from "@/domain/calendar";
 import { daySpan } from "@/domain/time";
-import { timeRangeView, timeView } from "@/server/views";
+import { timeDaysView, timeRangeView, timeView } from "@/server/views";
 
 const repo = process.cwd();
 let dir = "";
@@ -47,6 +47,16 @@ describe("time view ranges", () => {
     const single = timeRangeView(today, today);
     expect(single.entries.every((entry) => entry.entryDate === today)).toBe(true);
     expect(single.total).toBeLessThanOrEqual(range.total);
+  });
+
+  it("counts entries per day for the calendar", () => {
+    const week = timeView(todayIso());
+    const counts = timeDaysView(week.start, week.end);
+    const expected: Record<string, number> = {};
+    for (const entry of week.entries) {
+      expected[entry.entryDate] = (expected[entry.entryDate] ?? 0) + 1;
+    }
+    expect(counts).toEqual({ from: week.start, to: week.end, days: expected });
   });
 
   it("orders a reversed range and moves the neighbours by its own length", () => {

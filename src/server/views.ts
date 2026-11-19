@@ -968,6 +968,16 @@ export function timeRangeView(from: string, to: string) {
   return timeViewForRange(range.from, range.to, anchor);
 }
 
+/** Just the number of entries per day, for marking busy days in the range calendar. */
+export function timeDaysView(from: string, to: string) {
+  const range = resolveTimeRange(from, to, todayIso());
+  const days: Record<string, number> = {};
+  for (const entry of listTimeInRange(range.from, range.to)) {
+    days[entry.entryDate] = (days[entry.entryDate] ?? 0) + 1;
+  }
+  return { from: range.from, to: range.to, days };
+}
+
 export function obligationsView(year: number) {
   const today = todayIso();
   const company = loadCompany();
@@ -1476,6 +1486,8 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return orgView();
     case "time":
       return query.from && query.to ? timeRangeView(query.from, query.to) : timeView(query.week);
+    case "time-days":
+      return query.from && query.to ? timeDaysView(query.from, query.to) : null;
     case "obligations":
       return obligationsView(query.year);
     case "documents":
