@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { loadInvoice } from "@/server/queries";
+import { readUiSettings, loadInvoice } from "@/server/queries";
+import { resolveInvoiceLineGrouping } from "@/domain/invoice";
 import { invoiceLetterFromInvoice } from "@/domain/invoice-letter";
 import { InvoiceDocument } from "@/components/invoice-document";
 import { PrintButton } from "@/components/print-button";
@@ -11,6 +12,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
   const loaded = loadInvoice(numeric);
   if (!loaded) notFound();
   const { company, invoice, customer, lines } = loaded;
+  const grouping = resolveInvoiceLineGrouping(invoice.lineGrouping, readUiSettings().invoiceLineGrouping);
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-8">
@@ -52,6 +54,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
           buyerReference: invoice.buyerReference,
           amountDisplay: invoice.amountDisplay,
           letter: invoiceLetterFromInvoice(invoice),
+          grouping,
           lines,
           netCents: loaded.netCents,
           vatCents: loaded.vatCents,

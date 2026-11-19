@@ -16,6 +16,7 @@ import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung, type XRechnungInput } from "@/domain/xrechnung";
+import type { InvoiceLineGrouping } from "@/domain/settings";
 import { InvoiceDocument, type InvoiceDocumentData } from "./invoice-document";
 import { useI18n } from "./locale-provider";
 import { useUiSettings } from "./settings-provider";
@@ -94,6 +95,7 @@ type Draft = {
   buyerReference: string;
   amountDisplay: string;
   letter: InvoiceLetter;
+  lineGrouping: "none" | "date" | null;
   lines: Line[];
 };
 
@@ -107,6 +109,7 @@ export function InvoiceForm({
   today,
   termsDays,
   defaultVatBps,
+  defaultLineGrouping,
   draft,
 }: {
   seller: Seller;
@@ -116,6 +119,7 @@ export function InvoiceForm({
   today: string;
   termsDays: number;
   defaultVatBps: number;
+  defaultLineGrouping: InvoiceLineGrouping;
   draft?: Draft;
 }) {
   const { t, tx } = useI18n();
@@ -129,6 +133,8 @@ export function InvoiceForm({
   const [notes, setNotes] = useState(draft?.notes ?? "");
   const [buyerReference, setBuyerReference] = useState(draft ? draft.buyerReference : (customers[0]?.buyerReference ?? ""));
   const [amountDisplay, setAmountDisplay] = useState<"net" | "gross">(draft?.amountDisplay === "gross" ? "gross" : "net");
+  const [lineGrouping, setLineGrouping] = useState<"global" | InvoiceLineGrouping>(draft?.lineGrouping ?? "global");
+  const effectiveLineGrouping: InvoiceLineGrouping = lineGrouping === "global" ? defaultLineGrouping : lineGrouping;
   const [lines, setLines] = useState<Line[]>(() =>
     sortInvoicePositions(
       draft?.lines ?? [{ description: "", quantity: "1", unitNet: "", vatBps: seller.kleinunternehmer ? 0 : defaultVatBps }],
@@ -176,6 +182,7 @@ export function InvoiceForm({
           unitNetCents: unitNetCents ?? 0,
           vatBps,
           netCents: valid ? lineNetCents(quantityMilli!, unitNetCents!) : 0,
+          entryDate: line.entryDate ?? null,
           valid,
         };
       }),
@@ -192,12 +199,13 @@ export function InvoiceForm({
   }, [pricedLines, seller.kleinunternehmer]);
 
   const previewDocument = useMemo<InvoiceDocumentData>(() => {
-    const documentLines = pricedLines.map(({ description, quantityMilli, unitNetCents, vatBps, netCents }) => ({
+    const documentLines = pricedLines.map(({ description, quantityMilli, unitNetCents, vatBps, netCents, entryDate }) => ({
       description,
       quantityMilli,
       unitNetCents,
       vatBps: isSupportedVat(vatBps) ? vatBps : 0,
       netCents,
+      entryDate,
     }));
     const totals = summarizeVat(
       documentLines.map((line) => ({ netCents: line.netCents, vatBps: line.vatBps })),
@@ -237,10 +245,11 @@ export function InvoiceForm({
       buyerReference,
       amountDisplay,
       letter,
+      grouping: effectiveLineGrouping,
       lines: documentLines,
       ...totals,
     };
-  }, [amountDisplay, buyer.name, buyer.postalCode, buyer.street, buyer.city, buyer.vatId, buyerReference, dueDate, issueDate, letter, notes, pricedLines, seller, serviceDate]);
+  }, [amountDisplay, buyer.name, buyer.postalCode, buyer.street, buyer.city, buyer.vatId, buyerReference, dueDate, effectiveLineGrouping, issueDate, letter, notes, pricedLines, seller, serviceDate]);
 
   const review = reviewInvoice({
     legalName: seller.legalName,
@@ -336,6 +345,7 @@ export function InvoiceForm({
     notes,
     buyerReference,
     amountDisplay,
+    lineGrouping: lineGrouping === "global" ? null : lineGrouping,
     letter,
     lines: lines.map((line) => ({ ...line, vatBps: seller.kleinunternehmer ? 0 : line.vatBps })),
   });
@@ -475,6 +485,13 @@ export function InvoiceForm({
           </SelectInput>
         </Field>
       )}
+      <Field label={t("invoices.lineGrouping")} hint={t("invoices.lineGroupingHint")}>
+        <SelectInput value={lineGrouping} onChange={(event) => setLineGrouping(event.target.value === "none" || event.target.value === "date" ? event.target.value : "global")}>
+          <option value="global">{t("invoices.lineGroupingGlobal")}</option>
+          <option value="none">{t("invoices.lineGroupingNone")}</option>
+          <option value="date">{t("invoices.lineGroupingDate")}</option>
+        </SelectInput>
+      </Field>
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>

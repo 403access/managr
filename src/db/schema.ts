@@ -119,6 +119,7 @@ export const invoices = sqliteTable("invoices", {
   letterPayment: text("letter_payment").notNull().default(""),
   letterClosing: text("letter_closing").notNull().default(""),
   letterSignature: text("letter_signature").notNull().default(""),
+  lineGrouping: text("line_grouping"),
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
   deletedAt: text("deleted_at"),
 }, (table) => [uniqueIndex("invoices_company_number_unique").on(table.companyId, table.number)]);
@@ -626,4 +627,5 @@ export const appSettings = sqliteTable("app_settings", {
   detailSidebarMode: text("detail_sidebar_mode").notNull().default("inline"),
   detailSidebarOverrides: text("detail_sidebar_overrides").notNull().default("{}"),
   invoiceLineOrder: text("invoice_line_order").notNull().default("newestFirst"),
+  invoiceLineGrouping: text("invoice_line_grouping").notNull().default("none"),
 });

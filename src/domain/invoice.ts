@@ -1,5 +1,5 @@
 import { isCorporation, legalNameMatchesForm } from "./company";
-import type { InvoiceLineOrder } from "./settings";
+import type { InvoiceLineGrouping, InvoiceLineOrder } from "./settings";
 
 /** Printed in German on a Kleinunternehmer invoice. §14c UStG taxes a shown VAT amount. */
 export const KLEINUNTERNEHMER_NOTE = "Gemäß § 19 UStG wird keine Umsatzsteuer ausgewiesen.";
@@ -40,6 +40,47 @@ export function sortInvoicePositions<T extends { entryDate?: string | null }>(
     if (!right.entryDate) return -1;
     return compareInvoiceDates(left.entryDate, right.entryDate, order);
   });
+}
+
+/** The invoice's own choice wins; an empty value follows the global setting. */
+export function resolveInvoiceLineGrouping(
+  invoiceValue: string | null | undefined,
+  fallback: InvoiceLineGrouping,
+): InvoiceLineGrouping {
+  if (invoiceValue === "none" || invoiceValue === "date") return invoiceValue;
+  return fallback;
+}
+
+export type InvoicePositionGroup<T> = {
+  /** The ISO day, or "none" for positions typed by hand. */
+  key: string;
+  entryDate: string | null;
+  positions: T[];
+};
+
+/**
+ * Groups positions by the day they bill, keeping the order of the sorted input.
+ * Same days merge even when hand-typed lines sit between them; positions without
+ * a day form their own group with the key "none".
+ */
+export function groupInvoicePositions<T extends { entryDate?: string | null }>(
+  positions: readonly T[],
+  grouping: InvoiceLineGrouping,
+): InvoicePositionGroup<T>[] {
+  if (grouping === "none") {
+    return positions.length === 0 ? [] : [{ key: "all", entryDate: null, positions: [...positions] }];
+  }
+  const groups = new Map<string, InvoicePositionGroup<T>>();
+  for (const position of positions) {
+    const key = position.entryDate ?? "none";
+    const existing = groups.get(key);
+    if (existing) {
+      existing.positions.push(position);
+    } else {
+      groups.set(key, { key, entryDate: position.entryDate ?? null, positions: [position] });
+    }
+  }
+  return [...groups.values()];
 }
 
 export type InvoiceReviewInput = {

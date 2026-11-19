@@ -28,6 +28,7 @@ export const invoicePayloadSchema = z.object({
   notes: z.string().max(2000),
   buyerReference: z.string().trim().max(100).default(""),
   amountDisplay: z.enum(["net", "gross"]).default("net"),
+  lineGrouping: z.enum(["none", "date"]).nullable().default(null),
   letter: invoiceLetterSchema.optional(),
   lines: z
     .array(

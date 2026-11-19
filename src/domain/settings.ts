@@ -31,16 +31,25 @@ export type InvoiceLineOrder = (typeof INVOICE_LINE_ORDERS)[number];
 
 export const DEFAULT_INVOICE_LINE_ORDER: InvoiceLineOrder = "newestFirst";
 
+/** Positions can be grouped by the day of the time they bill. */
+export const INVOICE_LINE_GROUPINGS = ["none", "date"] as const;
+
+export type InvoiceLineGrouping = (typeof INVOICE_LINE_GROUPINGS)[number];
+
+export const DEFAULT_INVOICE_LINE_GROUPING: InvoiceLineGrouping = "none";
+
 export type UiSettings = {
   detailSidebarMode: DetailSidebarMode;
   detailSidebarOverrides: DetailSidebarOverrides;
   invoiceLineOrder: InvoiceLineOrder;
+  invoiceLineGrouping: InvoiceLineGrouping;
 };
 
 export const DEFAULT_UI_SETTINGS: UiSettings = {
   detailSidebarMode: DEFAULT_DETAIL_SIDEBAR_MODE,
   detailSidebarOverrides: {},
   invoiceLineOrder: DEFAULT_INVOICE_LINE_ORDER,
+  invoiceLineGrouping: DEFAULT_INVOICE_LINE_GROUPING,
 };
 
 export function isDetailSidebarMode(value: string): value is DetailSidebarMode {
@@ -49,6 +58,10 @@ export function isDetailSidebarMode(value: string): value is DetailSidebarMode {
 
 export function isInvoiceLineOrder(value: string): value is InvoiceLineOrder {
   return INVOICE_LINE_ORDERS.some((order) => order === value);
+}
+
+export function isInvoiceLineGrouping(value: string): value is InvoiceLineGrouping {
+  return INVOICE_LINE_GROUPINGS.some((grouping) => grouping === value);
 }
 
 export function isDetailPageKey(value: string): value is DetailPageKey {

@@ -16,6 +16,7 @@ describe("detail sidebar settings", () => {
 
   it("lists invoice positions newest first by default", () => {
     expect(DEFAULT_UI_SETTINGS.invoiceLineOrder).toBe("newestFirst");
+    expect(DEFAULT_UI_SETTINGS.invoiceLineGrouping).toBe("none");
   });
 
   it("lets a page override the global mode", () => {

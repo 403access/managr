@@ -16,6 +16,7 @@ import {
 } from "@/server/actions";
 import { initialState } from "@/server/form";
 import { listInvoiceTemplates } from "@/server/queries";
+import { invoiceEditView } from "@/server/views";
 
 const repo = process.cwd();
 let dir = "";
@@ -101,6 +102,7 @@ describe("invoice templates", () => {
       notes: "",
       buyerReference: "",
       amountDisplay: "net",
+      lineGrouping: "date",
       letter: {
         subject: template.subject,
         salutation: template.salutation,
@@ -116,6 +118,13 @@ describe("invoice templates", () => {
     const stored = db.select().from(invoices).where(eq(invoices.customerId, customerId)).get();
     expect(stored?.letterSubject).toBe("Softwareentwicklung");
     expect(stored?.letterPayment).toContain("{betrag}");
+    expect(stored?.lineGrouping).toBe("date");
+    const edit = stored ? invoiceEditView(stored.id) : null;
+    expect(edit?.kind).toBe("draft");
+    if (edit?.kind === "draft") {
+      expect(edit.draft.lineGrouping).toBe("date");
+      expect(edit.defaultLineGrouping).toBe("none");
+    }
 
     await deleteInvoiceTemplate(initialState, templateForm({ id: String(template.id) }));
     expect(db.select().from(invoices).where(eq(invoices.customerId, customerId)).get()?.letterSubject).toBe("Softwareentwicklung");

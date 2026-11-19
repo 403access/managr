@@ -45,7 +45,7 @@ import { statutoryObligations } from "@/domain/obligations";
 import { salaryForMonth, type SalaryPeriod } from "@/domain/salary";
 import { loanInterestCents, loanOutstandingCents, reviewShareholderLoan } from "@/domain/shareholder-loan";
 import { estimateContributions, type ContributionEstimate } from "@/domain/social";
-import { DEFAULT_UI_SETTINGS, isDetailSidebarMode, isInvoiceLineOrder, parseDetailSidebarOverrides, type UiSettings } from "@/domain/settings";
+import { DEFAULT_UI_SETTINGS, isDetailSidebarMode, isInvoiceLineGrouping, isInvoiceLineOrder, parseDetailSidebarOverrides, type UiSettings } from "@/domain/settings";
 import { countWorkdays, weekStart } from "@/domain/time";
 import { lineNetCents, summarizeVat } from "@/domain/vat";
 import { invoiceMoney } from "./invoice-math";
@@ -80,6 +80,8 @@ export function readUiSettings(): UiSettings {
     detailSidebarOverrides: parseDetailSidebarOverrides(row?.detailSidebarOverrides ?? "{}"),
     invoiceLineOrder:
       row && isInvoiceLineOrder(row.invoiceLineOrder) ? row.invoiceLineOrder : DEFAULT_UI_SETTINGS.invoiceLineOrder,
+    invoiceLineGrouping:
+      row && isInvoiceLineGrouping(row.invoiceLineGrouping) ? row.invoiceLineGrouping : DEFAULT_UI_SETTINGS.invoiceLineGrouping,
   };
 }
 
@@ -371,11 +373,18 @@ export function loadInvoice(id: number) {
   const customer = db.select().from(customers).where(and(eq(customers.id, invoice.customerId), eq(customers.companyId, invoice.companyId))).get();
   if (!customer) return null;
   const money = invoiceMoney(db, id);
+  const entryDates = timeEntryDates(
+    money.lines.map((line) => line.timeEntryId).filter((entryId): entryId is number => entryId !== null),
+  );
   return {
     invoice,
     company,
     customer,
     ...money,
+    lines: money.lines.map((line) => ({
+      ...line,
+      entryDate: line.timeEntryId === null ? null : entryDates.get(line.timeEntryId) ?? null,
+    })),
     openCents: invoice.status === "void" ? 0 : money.openCents,
     displayStatus: displayStatus(invoice.status, invoice.dueDate, todayIso()),
   };

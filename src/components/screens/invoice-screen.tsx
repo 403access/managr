@@ -1,9 +1,10 @@
 "use client";
 
+import { Fragment } from "react";
 import { deleteDraft, recordPayment, saveBuyerReference, voidInvoice } from "@/server/actions";
 import type { invoiceView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
-import { isKleinunternehmerNote } from "@/domain/invoice";
+import { groupInvoicePositions, isKleinunternehmerNote } from "@/domain/invoice";
 import { xrechnungStatusBlocker } from "@/domain/xrechnung";
 import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
 import { allocateLineVat } from "@/domain/vat";
@@ -24,10 +25,17 @@ export function InvoiceScreen({ id }: { id: number }) {
   return (
     <ViewGate query={query}>
       {(loaded) => {
-        const { invoice, customer, lines, payments, grossCents, openCents, displayStatus: status } = loaded;
+        const { invoice, customer, lines, payments, grossCents, openCents, displayStatus: status, effectiveLineGrouping } = loaded;
         const kleinunternehmer = isKleinunternehmerNote(invoice.exemptionNote);
         const grossDisplay = invoice.amountDisplay === "gross";
         const lineAmounts = allocateLineVat(lines);
+        const groupedLines = lines.map((line, index) => ({
+          ...line,
+          key: line.id,
+          displayCents: grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents,
+        }));
+        const groups = groupInvoicePositions(groupedLines, effectiveLineGrouping);
+        const showGroups = effectiveLineGrouping === "date";
         return (
           <>
             <PageHeader
@@ -42,15 +50,24 @@ export function InvoiceScreen({ id }: { id: number }) {
               }
             />
             <div className="@container grid gap-2">
-              {lines.map((line, index) => (
-                <Card key={line.id} className={`grid gap-1 @[34rem]:items-center ${kleinunternehmer ? "@[34rem]:grid-cols-[minmax(0,1fr)_auto_auto]" : "@[34rem]:grid-cols-[minmax(0,1fr)_auto_auto_auto]"}`}>
-                  <p className="min-w-0 text-sm">{line.description || t("invoices.untitled")}</p>
-                  <p className="text-sm text-muted">
-                    {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
-                  </p>
-                  {kleinunternehmer ? null : <p className="text-sm text-muted">{formatPercentBps(line.vatBps)}</p>}
-                  <Money cents={grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents} />
-                </Card>
+              {groups.map((group) => (
+                <Fragment key={group.key}>
+                  {showGroups ? (
+                    <p className="mt-3 text-xs font-medium tracking-wide text-muted uppercase">
+                      {group.entryDate ? formatDate(group.entryDate) : t("invoices.groupNoDate")}
+                    </p>
+                  ) : null}
+                  {group.positions.map((line) => (
+                    <Card key={line.key} className={`grid gap-1 @[34rem]:items-center ${kleinunternehmer ? "@[34rem]:grid-cols-[minmax(0,1fr)_auto_auto]" : "@[34rem]:grid-cols-[minmax(0,1fr)_auto_auto_auto]"}`}>
+                      <p className="min-w-0 text-sm">{line.description || t("invoices.untitled")}</p>
+                      <p className="text-sm text-muted">
+                        {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
+                      </p>
+                      {kleinunternehmer ? null : <p className="text-sm text-muted">{formatPercentBps(line.vatBps)}</p>}
+                      <Money cents={line.displayCents} />
+                    </Card>
+                  ))}
+                </Fragment>
               ))}
             </div>
             <p className="mt-4 font-mono text-sm tabular-nums">

@@ -19,7 +19,7 @@ export function InvoiceNewScreen() {
       {(data) => (
         <>
           <PageHeader title={t("invoices.newTitle")} lede={t("invoices.newLede")} info={<InfoButton topic="invoice" />} />
-          <InvoiceForm seller={data.seller} customers={data.customers} timeActivities={data.timeActivities} templates={data.templates} today={data.today} termsDays={data.termsDays} defaultVatBps={data.defaultVatBps} />
+          <InvoiceForm seller={data.seller} customers={data.customers} timeActivities={data.timeActivities} templates={data.templates} today={data.today} termsDays={data.termsDays} defaultVatBps={data.defaultVatBps} defaultLineGrouping={data.defaultLineGrouping} />
         </>
       )}
     </ViewGate>
@@ -34,7 +34,7 @@ export function InvoiceEditScreen({ id }: { id: number }) {
       {(data) => (
         <>
           <PageHeader title={t("invoices.editTitle")} lede={t("invoices.editLede")} info={<InfoButton topic="invoice" />} />
-          <InvoiceForm seller={data.seller} customers={data.customers} timeActivities={data.timeActivities} templates={data.templates} today={data.today} termsDays={data.termsDays} defaultVatBps={data.defaultVatBps} draft={data.draft} />
+          <InvoiceForm seller={data.seller} customers={data.customers} timeActivities={data.timeActivities} templates={data.templates} today={data.today} termsDays={data.termsDays} defaultVatBps={data.defaultVatBps} defaultLineGrouping={data.defaultLineGrouping} draft={data.draft} />
         </>
       )}
     </ViewGate>

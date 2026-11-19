@@ -64,9 +64,11 @@ import {
 } from "@/domain/postings";
 import { reserveDutyActive } from "@/domain/reserve";
 import {
+  DEFAULT_INVOICE_LINE_GROUPING,
   DEFAULT_INVOICE_LINE_ORDER,
   DETAIL_PAGE_KEYS,
   isDetailSidebarMode,
+  isInvoiceLineGrouping,
   isInvoiceLineOrder,
   serializeDetailSidebarOverrides,
   type DetailSidebarOverrides,
@@ -253,6 +255,9 @@ export async function saveSettings(_state: ActionState, formData: FormData): Pro
     const lineOrderInput = text(formData, "invoiceLineOrder");
     if (lineOrderInput && !isInvoiceLineOrder(lineOrderInput)) throw new Error("Choose a valid order for invoice lines.");
     const invoiceLineOrder = lineOrderInput ? lineOrderInput : DEFAULT_INVOICE_LINE_ORDER;
+    const groupingInput = text(formData, "invoiceLineGrouping");
+    if (groupingInput && !isInvoiceLineGrouping(groupingInput)) throw new Error("Choose a valid grouping for invoice lines.");
+    const invoiceLineGrouping = groupingInput ? groupingInput : DEFAULT_INVOICE_LINE_GROUPING;
     const overrides: DetailSidebarOverrides = {};
     for (const page of DETAIL_PAGE_KEYS) {
       const value = text(formData, `page.${page}`);
@@ -264,6 +269,7 @@ export async function saveSettings(_state: ActionState, formData: FormData): Pro
       detailSidebarMode: mode,
       detailSidebarOverrides: serializeDetailSidebarOverrides(overrides),
       invoiceLineOrder,
+      invoiceLineGrouping,
     };
     const hourlyRateCents = optionalEuros(formData, "hourlyRate", "The hourly rate");
     const db = getDb();
@@ -933,6 +939,7 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
         exemptionNote,
         buyerReference: payload.buyerReference,
         amountDisplay: payload.amountDisplay,
+        lineGrouping: payload.lineGrouping,
         letterSubject: letter.subject,
         letterSalutation: letter.salutation,
         letterIntro: letter.intro,

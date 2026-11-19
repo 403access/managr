@@ -4,7 +4,7 @@ import { addDays, fiscalYearContaining, formatDate, todayIso } from "@/domain/ca
 import { currentDirectorContract, reviewDirectorContract } from "@/domain/director-contract";
 import { reviewDirectorSalary } from "@/domain/director-salary";
 import { reviewFounderHealth } from "@/domain/founder-health";
-import { reviewInvoice, compareInvoiceDates, sortInvoicePositions } from "@/domain/invoice";
+import { reviewInvoice, compareInvoiceDates, resolveInvoiceLineGrouping, sortInvoicePositions } from "@/domain/invoice";
 import { invoiceLetterFromInvoice } from "@/domain/invoice-letter";
 import { activityQuantityMilli, invoiceLineDescription } from "@/domain/invoice-time";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
@@ -508,7 +508,8 @@ export function invoiceView(id: number) {
   const eInvoiceBlockers = loaded.invoice.status === "draft"
     ? fileBlockers.filter((item) => item !== XRECHNUNG_NUMBER_BLOCKER && !review.blockers.includes(item))
     : fileBlockers;
-  return { ...loaded, blockers: review.blockers, eInvoiceBlockers, today: todayIso() };
+  const effectiveLineGrouping = resolveInvoiceLineGrouping(invoice.lineGrouping, readUiSettings().invoiceLineGrouping);
+  return { ...loaded, blockers: review.blockers, eInvoiceBlockers, effectiveLineGrouping, today: todayIso() };
 }
 
 export type InvoiceTimeActivity = {
@@ -604,6 +605,7 @@ export function invoiceNewView() {
     today: todayIso(),
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,
+    defaultLineGrouping: readUiSettings().invoiceLineGrouping,
     amountDisplay: "net" as const,
     draft: null,
   };
@@ -615,6 +617,8 @@ export function invoiceEditView(id: number) {
   if (loaded.invoice.status !== "draft") return { kind: "issued" as const };
   const company = loaded.company;
   const order = readUiSettings().invoiceLineOrder;
+  const lineGrouping: "none" | "date" | null =
+    loaded.invoice.lineGrouping === "none" || loaded.invoice.lineGrouping === "date" ? loaded.invoice.lineGrouping : null;
   const entryDates = timeEntryDates(
     loaded.lines.map((line) => line.timeEntryId).filter((entryId): entryId is number => entryId !== null),
   );
@@ -627,6 +631,7 @@ export function invoiceEditView(id: number) {
     today: todayIso(),
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,
+    defaultLineGrouping: readUiSettings().invoiceLineGrouping,
     draft: {
       id: loaded.invoice.id,
       customerId: loaded.invoice.customerId,
@@ -636,6 +641,7 @@ export function invoiceEditView(id: number) {
       notes: loaded.invoice.notes,
       buyerReference: loaded.invoice.buyerReference,
       amountDisplay: loaded.invoice.amountDisplay,
+      lineGrouping,
       letter: invoiceLetterFromInvoice(loaded.invoice),
       lines: sortInvoicePositions(
         loaded.lines.map((line) => ({

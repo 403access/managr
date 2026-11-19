@@ -1,8 +1,10 @@
+import { Fragment } from "react";
 import { formatDate } from "@/domain/calendar";
 import { isCorporation, legalFormLabel } from "@/domain/company";
-import { isKleinunternehmerNote } from "@/domain/invoice";
+import { groupInvoicePositions, isKleinunternehmerNote } from "@/domain/invoice";
 import { fillInvoiceLetter, hasInvoiceLetter, invoicePaymentDays, type InvoiceLetter } from "@/domain/invoice-letter";
 import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
+import type { InvoiceLineGrouping } from "@/domain/settings";
 import { allocateLineVat, type VatBreakdown } from "@/domain/vat";
 
 export type InvoiceDocumentSeller = {
@@ -36,6 +38,8 @@ export type InvoiceDocumentLine = {
   unitNetCents: number;
   vatBps: number;
   netCents: number;
+  /** The day of the time behind the line; hand-typed lines have none. */
+  entryDate?: string | null;
 };
 
 export type InvoiceDocumentData = {
@@ -52,6 +56,8 @@ export type InvoiceDocumentData = {
   amountDisplay: string;
   /** The human letter around the positions; empty fields fall back to the plain invoice. */
   letter?: InvoiceLetter | null;
+  /** Positions from time can be listed under the day of their work. */
+  grouping?: InvoiceLineGrouping;
   lines: InvoiceDocumentLine[];
   netCents: number;
   vatCents: number;
@@ -71,6 +77,15 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
   const kleinunternehmer = isKleinunternehmerNote(data.exemptionNote);
   const grossDisplay = data.amountDisplay === "gross" && !kleinunternehmer;
   const lineAmounts = allocateLineVat(data.lines.map((line) => ({ netCents: line.netCents, vatBps: line.vatBps })));
+  const grouping = data.grouping ?? "none";
+  const showGroups = grouping === "date";
+  const documentLines = data.lines.map((line, index) => ({
+    ...line,
+    key: index,
+    displayCents: grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents,
+  }));
+  const groups = groupInvoicePositions(documentLines, grouping);
+  const groupLabel = (entryDate: string | null) => (entryDate ? formatDay(entryDate) : "Ohne Datum");
   const displayStamp = stamp ?? (data.status === "void" ? "STORNIERT" : data.status === "draft" ? "ENTWURF" : "");
   const letter = data.letter && hasInvoiceLetter(data.letter) ? data.letter : null;
   const variables = {
@@ -176,16 +191,23 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
               <ul className="mt-2 grid gap-1.5">
                 {data.lines.length === 0 ? (
                   <li className="text-muted">Noch keine Position.</li>
-                ) : data.lines.map((line, index) => (
-                  <li key={index} className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line/60 pb-1.5">
-                    <span className="min-w-0">{line.description || "—"}</span>
-                    <span className="font-mono text-xs whitespace-nowrap text-muted">
-                      {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
-                      {kleinunternehmer ? "" : ` · ${formatPercentBps(line.vatBps)} USt`}
-                      {" · "}
-                      <span className="text-ink">{formatEuro(grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents)}</span>
-                    </span>
-                  </li>
+                ) : groups.map((group) => (
+                  <Fragment key={group.key}>
+                    {showGroups ? (
+                      <li className="mt-2 text-xs font-medium tracking-wide text-muted uppercase">{groupLabel(group.entryDate)}</li>
+                    ) : null}
+                    {group.positions.map((line) => (
+                      <li key={line.key} className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line/60 pb-1.5">
+                        <span className="min-w-0">{line.description || "—"}</span>
+                        <span className="font-mono text-xs whitespace-nowrap text-muted">
+                          {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
+                          {kleinunternehmer ? "" : ` · ${formatPercentBps(line.vatBps)} USt`}
+                          {" · "}
+                          <span className="text-ink">{formatEuro(line.displayCents)}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </Fragment>
                 ))}
               </ul>
             </div>
@@ -221,14 +243,25 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
                 <tr className="border-b border-line">
                   <td className="py-2 text-muted" colSpan={kleinunternehmer ? 4 : 5}>Noch keine Position.</td>
                 </tr>
-              ) : data.lines.map((line, index) => (
-                <tr key={index} className="border-b border-line">
-                  <td className="py-2">{line.description || "—"}</td>
-                  <td className="py-2">{formatQuantity(line.quantityMilli)}</td>
-                  <td className="py-2 text-right font-mono">{formatEuro(line.unitNetCents)}</td>
-                  {kleinunternehmer ? null : <td className="py-2 text-right">{formatPercentBps(line.vatBps)}</td>}
-                  <td className="py-2 text-right font-mono">{formatEuro(grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents)}</td>
-                </tr>
+              ) : groups.map((group) => (
+                <Fragment key={group.key}>
+                  {showGroups ? (
+                    <tr>
+                      <td colSpan={kleinunternehmer ? 4 : 5} className="pt-4 pb-1 text-xs font-medium tracking-wide text-muted uppercase">
+                        {groupLabel(group.entryDate)}
+                      </td>
+                    </tr>
+                  ) : null}
+                  {group.positions.map((line) => (
+                    <tr key={line.key} className="border-b border-line">
+                      <td className="py-2">{line.description || "—"}</td>
+                      <td className="py-2">{formatQuantity(line.quantityMilli)}</td>
+                      <td className="py-2 text-right font-mono">{formatEuro(line.unitNetCents)}</td>
+                      {kleinunternehmer ? null : <td className="py-2 text-right">{formatPercentBps(line.vatBps)}</td>}
+                      <td className="py-2 text-right font-mono">{formatEuro(line.displayCents)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>

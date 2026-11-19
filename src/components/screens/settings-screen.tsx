@@ -186,6 +186,35 @@ export function SettingsScreen() {
                   </span>
                 </label>
               </fieldset>
+              <fieldset className="mt-4 grid gap-2 sm:grid-cols-2">
+                <legend className="mb-1 text-sm font-medium">{t("settings.linesGrouping")}</legend>
+                <label className="flex items-start gap-3 rounded-xl border border-line bg-white p-3">
+                  <input
+                    type="radio"
+                    name="invoiceLineGrouping"
+                    value="none"
+                    defaultChecked={data.settings.invoiceLineGrouping === "none"}
+                    className="mt-1 size-4 accent-pine"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">{t("settings.linesGroupNone")}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted">{t("settings.linesGroupNoneHint")}</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-xl border border-line bg-white p-3">
+                  <input
+                    type="radio"
+                    name="invoiceLineGrouping"
+                    value="date"
+                    defaultChecked={data.settings.invoiceLineGrouping === "date"}
+                    className="mt-1 size-4 accent-pine"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">{t("settings.linesGroupDate")}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted">{t("settings.linesGroupDateHint")}</span>
+                  </span>
+                </label>
+              </fieldset>
             </Card>
 
             <div>
