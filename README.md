@@ -228,6 +228,6 @@ Open [http://localhost:3001/managr/](http://localhost:3001/managr/). The notes a
 - Structure: `docs/ARCHITECTURE.md`
 - Published site: `website/` (marketing page, docs at `/docs`)
 
-An issued invoice can be downloaded as an XRechnung 3.0.2 file (the e-invoice) and checked against the KoSIT rules on this computer. The desk does not send it.
+An issued invoice can be downloaded as an XRechnung 3.0.2 file (the e-invoice) and checked against the KoSIT rules on this computer. The same read-only check is available to MCP clients and the assistant as `check_xrechnung`; it stores nothing and sends nothing to a customer or authority.
 
 `/tax` prepares VAT advance, VAT annual, corporate-tax, and trade-tax returns from the journal, checks them, freezes the figures, and records a manual filing with its ticket and protocol. The VAT advance return downloads a data file for the Mein ELSTER upload; the annual returns download CSV or JSON. The desk does not transmit through ELSTER yet: ERiC, certificates, and the local sidecar are a later phase. DATEV, ZUGFeRD, bank CSV imports, and a Lohnsteuer calculation are also still on the roadmap.

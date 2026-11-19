@@ -35,10 +35,14 @@ describe("tool registry", () => {
     expect(tools.some((tool) => tool.name === "read_org")).toBe(true);
     expect(tools.some((tool) => tool.name === "read_guides")).toBe(true);
     expect(tools.some((tool) => tool.name === "read_sources")).toBe(true);
+    expect(tools.some((tool) => tool.name === "check_xrechnung")).toBe(true);
     const schema = toolJsonSchema(tools.find((tool) => tool.name === "record_invoice_payment")!);
     expect(schema.type).toBe("object");
     expect(Object.keys(schema.properties as Record<string, unknown>)).toEqual(["invoiceId", "amount", "paidOn"]);
     expect(schema).not.toHaveProperty("$schema");
+    const xrechnung = toolJsonSchema(tools.find((tool) => tool.name === "check_xrechnung")!);
+    expect(xrechnung.type).toBe("object");
+    expect(Object.keys(xrechnung.properties as Record<string, unknown>)).toEqual(["invoiceId"]);
     const guides = toolJsonSchema(tools.find((tool) => tool.name === "read_guides")!);
     expect(guides.type).toBe("object");
     expect(Object.keys(guides.properties as Record<string, unknown>)).toEqual(["topic", "locale"]);

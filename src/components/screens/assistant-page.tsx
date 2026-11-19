@@ -124,6 +124,7 @@ function categoryOf(name: string): ToolCategory {
   if (name.startsWith("web_")) return "web";
   if (name === "update_plan") return "planning";
   if (name === "set_hourly_rate") return "rates";
+  if (name === "check_xrechnung") return "invoices";
   if (name.startsWith("read_")) {
     if (name === "read_desk" || name === "read_companies") return "desk";
     if (name === "read_company" || name === "read_shareholder_loans") return "company";

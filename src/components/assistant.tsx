@@ -168,6 +168,7 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   read_contacts: "assistant.tool.read_contacts",
   read_invoices: "assistant.tool.read_invoices",
   read_invoice: "assistant.tool.read_invoice",
+  check_xrechnung: "assistant.tool.check_xrechnung",
   read_ledger: "assistant.tool.read_ledger",
   read_people: "assistant.tool.read_people",
   read_person: "assistant.tool.read_person",

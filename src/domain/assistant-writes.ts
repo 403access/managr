@@ -8,6 +8,7 @@ const NO_WRITE_TOOLS = new Set([
   "web_search",
   "web_fetch",
   "update_plan",
+  "check_xrechnung",
 ]);
 
 export function needsApproval(name: string): boolean {

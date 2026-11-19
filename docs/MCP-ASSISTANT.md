@@ -84,7 +84,7 @@ Write tools follow the server actions:
 
 - **Company:** `switch_company`, `create_company`, `update_company_identity`, `update_tax_profile`, `update_bank`
 - **Shareholders, reserve, cover:** `add_shareholder`, `delete_shareholder`, `add_shareholder_loan`, `record_shareholder_loan_movement`, `record_reserve_allocation`, `offset_reserve`, `add_policy`, `delete_policy`, `pay_profit_distribution`
-- **Invoices:** `save_customer`, `save_contact`, `delete_contact`, `create_invoice`, `issue_invoice`, `update_buyer_reference`, `record_invoice_payment`, `void_invoice`, `delete_invoice_draft`
+- **Invoices:** `save_customer`, `save_contact`, `delete_contact`, `create_invoice`, `issue_invoice`, `update_buyer_reference`, `record_invoice_payment`, `void_invoice`, `delete_invoice_draft`, `check_xrechnung`
 - **Books:** `post_expense`, `post_vat_prepayment`, `post_journal_entry`
 - **People:** `create_person`, `update_person`, `add_salary_change`, `delete_salary_change`, `save_director_contract`, `delete_director_contract`, `save_founder_health`, `delete_founder_health`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
 - **Time, tasks, deadlines:** `add_time`, `update_time`, `delete_time`, `save_project`, `delete_project`, `set_hourly_rate`, `add_task`, `set_task_status`, `delete_task`, `set_obligation`, `add_deadline`, `complete_deadline`, `delete_deadline`

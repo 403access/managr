@@ -108,7 +108,7 @@ This roadmap turns the founder's questions into work items: paying yourself from
 These need an external system or a different product decision. They are not stubbed as if they worked.
 
 - Sign-in and roles.
-- ZUGFeRD, and transmission of an e-invoice (Peppol, a portal, or e-mail). The KoSIT validator only runs on this computer when the check button is used; no tool submits a file.
+- ZUGFeRD, and transmission of an e-invoice (Peppol, a portal, or e-mail). The KoSIT validator runs only when the check button or the read-only `check_xrechnung` tool asks for it; no tool submits a file to a customer or authority.
 - DATEV EXTF export and a locked DATEV account map.
 - Bank CSV import.
 - ELSTER/ERiC transmission, certificates, and the local sidecar. The desk prepares, checks, and records a manual filing, but does not send it.

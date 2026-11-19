@@ -65,7 +65,9 @@ import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { buyerReferenceProblem } from "@/domain/xrechnung";
 import { socialInput } from "./people";
 import { entryLines, payrollSourceId, postJournal } from "./posting";
+import { checkXRechnungXml } from "./validator";
 import { webEnabled, webFetch, webSearch } from "./web";
+import { xrechnungFile } from "./xrechnung";
 import {
   accountBalances,
   listContacts,
@@ -462,6 +464,19 @@ export const tools: DeskTool[] = [
     description: "One invoice with its customer, lines, totals, payments, open amount, and the §14 UStG review.",
     input: { invoiceId: z.number().int().positive() },
     run: (input) => invoiceView(input.invoiceId) ?? { error: "Invoice not found." },
+  }),
+  tool({
+    name: "check_xrechnung",
+    description:
+      "Render an invoice as an XRechnung 3.0.2 UBL file and check it with the local KoSIT validator. Read-only: it returns the blockers or the validator verdict and rule messages, stores nothing, and sends nothing to a customer or authority. The validator service must be running.",
+    input: { invoiceId: z.number().int().positive() },
+    run: async (input) => {
+      const loaded = requireInvoice(input.invoiceId);
+      const file = xrechnungFile(loaded.company, loaded);
+      if ("blockers" in file) return { invoiceId: loaded.invoice.id, state: "blocked" as const, blockers: file.blockers };
+      const result = await checkXRechnungXml(file.xml, file.filename);
+      return { invoiceId: loaded.invoice.id, ...result };
+    },
   }),
   tool({
     name: "read_ledger",
