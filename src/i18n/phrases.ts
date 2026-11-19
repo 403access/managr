@@ -160,6 +160,7 @@ const exact: Record<string, string> = {
   "The service contract fixes no salary. That is allowed at the start; record a prospective change before pay begins.": "Der Anstellungsvertrag legt kein Gehalt fest. Das ist am Anfang erlaubt; vor der ersten Zahlung eine zukünftige Änderung festhalten.",
   "No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.": "Kein Modell eingestellt. MANAGR_AI_MODEL setzen und bei Bedarf MANAGR_AI_BASE_URL.",
   "The message could not be read.": "Die Nachricht konnte nicht gelesen werden.",
+  "The user rejected this change.": "Die Änderung wurde abgelehnt.",
   "The assistant stopped after too many tool steps. Try a smaller request.": "Der Assistent hat nach zu vielen Werkzeugschritten abgebrochen. Eine kleinere Anfrage stellen.",
   "The model returned no message.": "Das Modell hat keine Nachricht geliefert.",
   "The selected model is not available in opencode.": "Das gewählte Modell ist in opencode nicht verfügbar.",

@@ -9,7 +9,9 @@ import {
   type ResolvedOpencodeModel,
 } from "./opencode";
 import { loadCompany } from "./queries";
-import { openAiTools, runTool } from "./tools";
+import { changeAction, type ApprovalGate, type ProposedChange } from "./approvals";
+import { changeLabels } from "./change-labels";
+import { needsApproval, openAiTools, runTool, findTool } from "./tools";
 import { webEnabled } from "./web";
 
 export type { AssistantCatalog, AssistantSelection } from "./opencode";
@@ -40,6 +42,7 @@ export type AssistantEvent =
   | { type: "reset" }
   | { type: "tool"; name: string; input: unknown }
   | { type: "tool_result"; name: string; input: unknown; ok: boolean; summary: string; data?: unknown }
+  | { type: "proposal"; id: string; changes: ProposedChange[] }
   | { type: "reply"; text: string };
 
 const MAX_STEPS = 8;
@@ -153,7 +156,8 @@ function systemPrompt(): string {
     "",
     "Rules:",
     "- Use the tools for every figure, date, and status. Never invent an amount, a deadline, a tax rate, a wage-tax figure, or a social-insurance status.",
-    "- Read before you write: list or get the record, then act. Ask before deleting, voiding, switching company, or recording a profit distribution.",
+    "- Read before you write: list or get the record, then act. Do not ask for permission in chat; the panel confirms every write. Ask only when the record or the intent is ambiguous.",
+    "- Call write tools as usual: the panel pauses each write and asks the user to confirm it, then the tool result reports whether it was approved or rejected. Never claim a change happened before that result arrives, and never retry a rejected change.",
     "- Money inputs are euro strings such as \"1.234,56\". Dates are YYYY-MM-DD. VAT rates are basis points: 1900, 700, 0.",
     "- The books are append-only. A correction is a reversing entry, never an edit.",
     "- Nothing is sent or filed. Never claim an e-invoice, an e-mail, or a tax return was transmitted.",
@@ -300,6 +304,7 @@ export async function* streamAssistant(
   turns: AssistantTurn[],
   signal?: AbortSignal,
   resolved?: ResolvedAssistantSettings,
+  gate?: ApprovalGate,
 ): AsyncGenerator<AssistantEvent> {
   const settings = resolved ?? (await resolveAssistantSettings());
   if (!settings.model) {
@@ -349,14 +354,60 @@ export async function* streamAssistant(
         function: { name: call.name, arguments: call.arguments || "{}" },
       }));
       chat.push({ role: "assistant", content: "", tool_calls: calls });
-      for (let index = 0; index < named.length; index += 1) {
-        const call = named[index];
+      const items = named.map((call, index) => {
         const input = parseArguments(call.arguments);
-        yield { type: "tool", name: call.name, input };
-        const result = await runTool(call.name, input);
+        const found = findTool(call.name);
+        return {
+          id: calls[index].id,
+          name: call.name,
+          input,
+          // Invalid input cannot change anything, so it goes straight to the
+          // tool and returns its validation error instead of asking first.
+          write: found !== undefined && needsApproval(call.name) && found.schema.safeParse(input).success,
+        };
+      });
+      // Reads answer the question; only writes wait for the panel's confirmation.
+      const reads = items.filter((item) => !item.write);
+      const writes = items.filter((item) => item.write);
+
+      for (const item of reads) {
+        yield { type: "tool", name: item.name, input: item.input };
+        const result = await runTool(item.name, item.input);
         const summary = result.ok ? "ok" : result.error;
-        yield { type: "tool_result", name: call.name, input, ok: result.ok, summary, data: uiData(result) };
-        chat.push({ role: "tool", tool_call_id: calls[index].id, content: toolContent(result) });
+        yield { type: "tool_result", name: item.name, input: item.input, ok: result.ok, summary, data: uiData(result) };
+        chat.push({ role: "tool", tool_call_id: item.id, content: toolContent(result) });
+      }
+
+      if (writes.length > 0) {
+        let approved: Set<string>;
+        if (gate) {
+          const changes: ProposedChange[] = writes.map((item) => ({
+            callId: item.id,
+            name: item.name,
+            action: changeAction(item.name, item.input),
+            input: item.input,
+            labels: changeLabels(item.name, item.input),
+          }));
+          const approval = gate.open(changes);
+          yield { type: "proposal", id: approval.id, changes };
+          approved = await approval.decision;
+        } else {
+          approved = new Set(writes.map((item) => item.id));
+        }
+
+        for (const item of writes) {
+          yield { type: "tool", name: item.name, input: item.input };
+          if (!approved.has(item.id)) {
+            const summary = "The user rejected this change.";
+            yield { type: "tool_result", name: item.name, input: item.input, ok: false, summary };
+            chat.push({ role: "tool", tool_call_id: item.id, content: JSON.stringify({ rejected: true, error: summary }) });
+            continue;
+          }
+          const result = await runTool(item.name, item.input);
+          const summary = result.ok ? "ok" : result.error;
+          yield { type: "tool_result", name: item.name, input: item.input, ok: result.ok, summary, data: uiData(result) };
+          chat.push({ role: "tool", tool_call_id: item.id, content: toolContent(result) });
+        }
       }
       continue;
     }

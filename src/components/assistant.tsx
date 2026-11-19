@@ -47,8 +47,19 @@ type StreamEvent =
   | { type: "reset" }
   | { type: "tool"; name: string; input: unknown }
   | { type: "tool_result"; name: string; input: unknown; ok: boolean; summary: string; data?: unknown }
+  | { type: "proposal"; id: string; changes: ProposalChange[] }
   | { type: "reply"; text: string }
   | { type: "error"; message: string };
+
+type ProposalChange = {
+  callId: string;
+  name: string;
+  action: "add" | "update" | "delete";
+  input: unknown;
+  labels?: Record<string, string>;
+};
+
+type Proposal = { id: string; changes: ProposalChange[] };
 
 const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   read_companies: "assistant.tool.read_companies",
@@ -220,7 +231,7 @@ export function Assistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [restored, setRestored] = useState(false);
   const [draft, setDraft] = useState("");
-  const [streaming, setStreaming] = useState<{ content: string; steps: Step[] } | null>(null);
+  const [streaming, setStreaming] = useState<{ content: string; steps: Step[]; proposal?: Proposal } | null>(null);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -306,6 +317,8 @@ export function Assistant() {
     inputRef.current?.focus();
   }, [open]);
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages, streaming, error]);
@@ -344,8 +357,14 @@ export function Assistant() {
     let stepSeq = 0;
     let errorText = "";
     let modelInfo: { name: string; providerID?: string; modelID?: string; baseUrl: string; local: boolean } | null = null;
+    let proposal: Proposal | null = null;
     setStreaming({ content: "", steps: [] });
-    const sync = () => setStreaming({ content: answer, steps });
+    const sync = () => setStreaming({ content: answer, steps, ...(proposal ? { proposal } : {}) });
+    const clearProposal = () => {
+      if (!proposal) return;
+      proposal = null;
+      sync();
+    };
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -400,6 +419,9 @@ export function Assistant() {
             } catch {
               continue;
             }
+            if (proposal && event.type !== "model" && event.type !== "proposal") {
+              clearProposal();
+            }
             if (event.type === "model") {
               modelInfo = {
                 name: event.model,
@@ -429,6 +451,9 @@ export function Assistant() {
             } else if (event.type === "reply") {
               answer = event.text;
               sawReply = true;
+              sync();
+            } else if (event.type === "proposal") {
+              proposal = { id: event.id, changes: event.changes };
               sync();
             } else if (event.type === "error") {
               errorText = event.message;
@@ -535,7 +560,7 @@ export function Assistant() {
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 {messages.length > 0 ? (
-                  <button type="button" className="rounded-full px-2 py-1 text-xs text-muted hover:text-ink" onClick={() => { setMessages([]); setError(""); }}>
+                  <button type="button" className="rounded-full px-2 py-1 text-xs text-muted hover:text-ink disabled:opacity-50" onClick={() => { setMessages([]); setError(""); }} disabled={pending}>
                     {t("assistant.newChat")}
                   </button>
                 ) : null}
@@ -624,9 +649,11 @@ MANAGR_AI_API_KEY=…`}</pre>
                 {streaming ? (
                   <li>
                     <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
-                      {streaming.steps.length > 0 ? <Steps steps={streaming.steps} /> : (
+                      {streaming.steps.length > 0 ? <Steps steps={streaming.steps} /> : null}
+                      {streaming.proposal ? <ProposalCard key={streaming.proposal.id} proposal={streaming.proposal} /> : null}
+                      {streaming.steps.length === 0 && !streaming.proposal && !streaming.content ? (
                         <p className="text-muted">{t("assistant.thinking")}</p>
-                      )}
+                      ) : null}
                       {streaming.content ? <Markdown text={streaming.content} className="mt-2" /> : null}
                     </div>
                   </li>
@@ -763,6 +790,235 @@ function MessageDetails({ details, role }: { details: ChatMessageDetails; role: 
         ))}
       </dl>
     </details>
+  );
+}
+
+const ACTION_STYLE: Record<ProposalChange["action"], string> = {
+  add: "bg-moss/15 text-moss",
+  update: "bg-amber/15 text-amber",
+  delete: "bg-clay/15 text-clay",
+};
+
+const FIELD_LABELS: Record<string, { de: string; en: string }> = {
+  id: { de: "Datensatz", en: "Record" },
+  companyId: { de: "Unternehmen", en: "Company" },
+  customerId: { de: "Kunde", en: "Customer" },
+  invoiceId: { de: "Rechnung", en: "Invoice" },
+  personId: { de: "Person", en: "Person" },
+  projectId: { de: "Projekt", en: "Project" },
+  taskId: { de: "Aufgabe", en: "Task" },
+  shareholderId: { de: "Gesellschafter", en: "Shareholder" },
+  shareholderLoanId: { de: "Darlehen", en: "Loan" },
+  entryDate: { de: "Datum", en: "Date" },
+  startedAt: { de: "Von", en: "From" },
+  endedAt: { de: "Bis", en: "To" },
+  breakMinutes: { de: "Pause", en: "Break" },
+  memo: { de: "Vermerk", en: "Note" },
+  taskType: { de: "Tätigkeit", en: "Task type" },
+  billable: { de: "Abrechenbar", en: "Billable" },
+  issueDate: { de: "Rechnungsdatum", en: "Issue date" },
+  serviceDate: { de: "Leistungsdatum", en: "Service date" },
+  dueDate: { de: "Fällig", en: "Due" },
+  paymentDate: { de: "Zahlungsdatum", en: "Payment date" },
+  buyerReference: { de: "Käuferreferenz", en: "Buyer reference" },
+  lines: { de: "Positionen", en: "Lines" },
+  description: { de: "Bezeichnung", en: "Description" },
+  quantity: { de: "Menge", en: "Quantity" },
+  unitNet: { de: "Einzelpreis netto", en: "Unit price net" },
+  vatBps: { de: "Umsatzsteuer", en: "VAT" },
+  amount: { de: "Betrag", en: "Amount" },
+  date: { de: "Datum", en: "Date" },
+  name: { de: "Name", en: "Name" },
+  email: { de: "E-Mail", en: "Email" },
+  vatId: { de: "USt-IdNr.", en: "VAT id" },
+  street: { de: "Straße", en: "Street" },
+  postalCode: { de: "PLZ", en: "Postal code" },
+  city: { de: "Ort", en: "City" },
+  country: { de: "Land", en: "Country" },
+  kind: { de: "Art", en: "Kind" },
+  status: { de: "Status", en: "Status" },
+  title: { de: "Titel", en: "Title" },
+  notes: { de: "Notizen", en: "Notes" },
+  note: { de: "Notiz", en: "Note" },
+  category: { de: "Kategorie", en: "Category" },
+  recurrence: { de: "Wiederholung", en: "Recurrence" },
+  label: { de: "Bezeichnung", en: "Label" },
+  provider: { de: "Anbieter", en: "Provider" },
+  policyNumber: { de: "Police", en: "Policy" },
+  monthlyPremium: { de: "Monatsbeitrag", en: "Monthly premium" },
+  renewalDate: { de: "Verlängerung", en: "Renewal" },
+  shareBps: { de: "Anteil", en: "Share" },
+  nominal: { de: "Nominal", en: "Nominal" },
+  grossMonthly: { de: "Gehalt monatlich", en: "Monthly gross" },
+  validFrom: { de: "Gültig ab", en: "Valid from" },
+  startDate: { de: "Von", en: "From" },
+  endDate: { de: "Bis", en: "To" },
+  year: { de: "Jahr", en: "Year" },
+  month: { de: "Monat", en: "Month" },
+  progressBps: { de: "Fortschritt", en: "Progress" },
+  targetDate: { de: "Ziel", en: "Target date" },
+  reason: { de: "Grund", en: "Reason" },
+};
+
+const MONEY_FIELDS = new Set(["amount", "nominal", "grossMonthly", "unitNet", "monthlyPremium"]);
+
+type Translate = (key: MessageKey, vars?: Record<string, string | number>) => string;
+
+function fieldLabel(key: string, locale: string): string {
+  const entry = FIELD_LABELS[key];
+  if (entry) return locale === "de" ? entry.de : entry.en;
+  return key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/^./, (character) => character.toUpperCase());
+}
+
+function fieldValue(key: string, value: unknown, locale: string, t: Translate): string {
+  if (typeof value === "boolean") return value ? t("assistant.approval.yes") : t("assistant.approval.no");
+  if (typeof value === "number") {
+    if (key === "vatBps" || key === "shareBps" || key === "progressBps") {
+      return `${new Intl.NumberFormat(locale === "de" ? "de-DE" : "en-GB", { maximumFractionDigits: 2 }).format(value / 100)} %`;
+    }
+    if (key.endsWith("Id")) return `#${value}`;
+    if (key === "breakMinutes") return `${value} min`;
+    if (MONEY_FIELDS.has(key)) return `${value} €`;
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return key === "lines"
+      ? t("assistant.approval.lines", { count: value.length })
+      : t("assistant.approval.entries", { count: value.length });
+  }
+  if (typeof value === "object" && value !== null) return JSON.stringify(value);
+  if (typeof value === "string" && MONEY_FIELDS.has(key)) return `${value} €`;
+  return String(value);
+}
+
+function changeFields(input: unknown): { key: string; value: unknown }[] {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return input === undefined || input === null ? [] : [{ key: "value", value: input }];
+  }
+  return Object.entries(input as Record<string, unknown>)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(([key, value]) => ({ key, value }));
+}
+
+/** Confirmation card for the write tools an assistant turn wants to run. */
+function ProposalCard({ proposal }: { proposal: Proposal }) {
+  const { t, locale } = useI18n();
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(proposal.changes.map((change) => change.callId)));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function toggle(callId: string) {
+    if (busy) return;
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(callId)) next.delete(callId);
+      else next.add(callId);
+      return next;
+    });
+  }
+
+  async function submit(approved: string[]) {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/assistant/approve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: proposal.id, approved }),
+      });
+      if (!response.ok) {
+        setError(response.status === 404 ? t("assistant.approval.expired") : t("assistant.approval.failed"));
+        setBusy(false);
+      }
+    } catch {
+      setError(t("assistant.approval.failed"));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 rounded-xl border border-amber/40 bg-amber/5 p-3">
+      <p className="text-[10px] font-semibold tracking-[0.12em] text-amber uppercase">
+        {proposal.changes.length === 1
+          ? t("assistant.approval.titleOne")
+          : t("assistant.approval.title", { count: proposal.changes.length })}
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted">{t("assistant.approval.intro")}</p>
+      <ul className="mt-2 grid gap-2">
+        {proposal.changes.map((change) => {
+          const fields = changeFields(change.input);
+          return (
+            <li key={change.callId} className="rounded-lg border border-line bg-white p-2">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-4 shrink-0 accent-pine"
+                  checked={selected.has(change.callId)}
+                  onChange={() => toggle(change.callId)}
+                  disabled={busy}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ACTION_STYLE[change.action]}`}>
+                      {t(`assistant.approval.${change.action}`)}
+                    </span>
+                    <span className="text-xs font-medium">{toolLabelFor(change.name, t)}</span>
+                  </span>
+                  {fields.length > 0 ? (
+                    <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[11px]">
+                      {fields.map(({ key, value }) => {
+                        const text = change.labels?.[key] ?? fieldValue(key, value, locale, t);
+                        return (
+                          <Fragment key={key}>
+                            <dt className="text-muted">{fieldLabel(key, locale)}</dt>
+                            <dd className="truncate" title={text}>
+                              {text}
+                            </dd>
+                          </Fragment>
+                        );
+                      })}
+                    </dl>
+                  ) : null}
+                </span>
+              </label>
+              <details className="mt-1 text-[10px] text-muted">
+                <summary className="cursor-pointer select-none">{t("assistant.approval.raw")}</summary>
+                <pre className="mt-1 overflow-x-auto rounded bg-ink/5 p-1 font-mono text-[10px] leading-relaxed">
+                  {JSON.stringify(change.input, null, 2)}
+                </pre>
+              </details>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={buttonClass()}
+          disabled={busy}
+          onClick={() => void submit(proposal.changes.map((change) => change.callId))}
+        >
+          {t("assistant.approval.approveAll")}
+        </button>
+        <button type="button" className={buttonClass("danger")} disabled={busy} onClick={() => void submit([])}>
+          {t("assistant.approval.rejectAll")}
+        </button>
+        <button
+          type="button"
+          className={buttonClass("quiet")}
+          disabled={busy || selected.size === 0}
+          onClick={() => void submit([...selected])}
+        >
+          {t("assistant.approval.approveSelected", { count: selected.size })}
+        </button>
+      </div>
+      <p className="mt-1 text-[11px] text-muted">
+        {t("assistant.approval.selected", { count: selected.size, total: proposal.changes.length })}
+      </p>
+      {busy ? <p className="mt-1 text-[11px] text-muted">{t("assistant.approval.applying")}</p> : null}
+      {error ? <p className="mt-1 text-[11px] text-clay">{error}</p> : null}
+    </div>
   );
 }
 

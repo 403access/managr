@@ -9,6 +9,7 @@ import {
   type ResolvedAssistantSettings,
 } from "@/server/assistant";
 import { webEnabled } from "@/server/web";
+import { createApprovalGate } from "@/server/approvals";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -90,7 +91,12 @@ export async function POST(request: Request) {
         modelID: settings.modelID,
       });
       try {
-        for await (const event of streamAssistant(parsed.data.messages, request.signal, settings)) {
+        for await (const event of streamAssistant(
+          parsed.data.messages,
+          request.signal,
+          settings,
+          createApprovalGate(request.signal),
+        )) {
           send(event);
         }
       } catch (error) {

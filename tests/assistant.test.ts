@@ -3,6 +3,8 @@ import os from "os";
 import path from "path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
+import { timeEntries } from "@/db/schema";
+import type { ApprovalGate, ProposedChange } from "@/server/approvals";
 import {
   AssistantModelNotFound,
   AssistantNotConfigured,
@@ -230,5 +232,83 @@ describe("assistant loop", () => {
     expect(data?.invoiceId).toBeGreaterThan(0);
     expect(data?.grossCents).toBe(11_900);
     expect(events.some((event) => event.type === "reply" && event.text.includes("Entwurf"))).toBe(true);
+  });
+
+  it("waits for approval before a write and runs it when approved", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const { projects } = await import("@/db/schema");
+    const project = getDb().select().from(projects).get();
+    expect(project).toBeTruthy();
+    const args = JSON.stringify({
+      entryDate: "2026-10-23",
+      startedAt: "09:30",
+      endedAt: "10:00",
+      memo: "approved-approval-test",
+      projectId: project!.id,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        completion({ role: "assistant", content: "", tool_calls: [{ id: "call-a", type: "function", function: { name: "add_time", arguments: args } }] }),
+      )
+      .mockResolvedValueOnce(completion({ role: "assistant", content: "Die Zeit ist gebucht." }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const opened: ProposedChange[][] = [];
+    const gate: ApprovalGate = {
+      open: (changes) => {
+        opened.push(changes);
+        return { id: "proposal-1", decision: Promise.resolve(new Set(changes.map((change) => change.callId))) };
+      },
+    };
+    const events: AssistantEvent[] = [];
+    for await (const event of streamAssistant([{ role: "user", content: "Trage 09:30 bis 10:00 ein." }], undefined, undefined, gate)) {
+      events.push(event);
+    }
+
+    expect(opened).toHaveLength(1);
+    expect(opened[0][0]).toMatchObject({ callId: "call-a", name: "add_time", action: "add" });
+    expect(opened[0][0].labels?.projectId).toBe(project!.name);
+    expect(events.map((event) => event.type)).toEqual(["proposal", "tool", "tool_result", "delta", "reply"]);
+    expect(events.find((event) => event.type === "tool_result")).toMatchObject({ name: "add_time", ok: true });
+    const row = getDb().select().from(timeEntries).all().find((entry) => entry.memo === "approved-approval-test");
+    expect(row).toBeTruthy();
+    expect(row?.startedAt).toBe("09:30");
+  });
+
+  it("does not run a rejected write and tells the model what was rejected", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const args = JSON.stringify({
+      entryDate: "2026-10-23",
+      startedAt: "10:00",
+      endedAt: "10:30",
+      memo: "rejected-approval-test",
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        completion({ role: "assistant", content: "", tool_calls: [{ id: "call-b", type: "function", function: { name: "add_time", arguments: args } }] }),
+      )
+      .mockResolvedValueOnce(completion({ role: "assistant", content: "Die Änderung wurde nicht ausgeführt." }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const gate: ApprovalGate = {
+      open: () => ({ id: "proposal-2", decision: Promise.resolve(new Set()) }),
+    };
+    const events: AssistantEvent[] = [];
+    for await (const event of streamAssistant([{ role: "user", content: "Trage 10:00 bis 10:30 ein." }], undefined, undefined, gate)) {
+      events.push(event);
+    }
+
+    expect(events.find((event) => event.type === "tool_result")).toMatchObject({
+      name: "add_time",
+      ok: false,
+      summary: "The user rejected this change.",
+    });
+    const row = getDb().select().from(timeEntries).all().find((entry) => entry.memo === "rejected-approval-test");
+    expect(row).toBeUndefined();
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const toolMessage = secondBody.messages.find((message: { role: string }) => message.role === "tool");
+    expect(toolMessage.content).toContain("rejected");
   });
 });

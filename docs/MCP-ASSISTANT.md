@@ -106,13 +106,17 @@ A floating button in the app shell opens a panel. The browser sends the conversa
 - `reset`: the streamed text was only a preamble to a tool call and is withdrawn.
 - `tool`: a tool call started, with its input.
 - `tool_result`: the call finished, with `ok`, a summary, and a capped copy of the data.
+- `proposal`: one or more write calls are waiting for confirmation, with a `proposal` id and each change's call id, tool, action (`add`, `update`, `delete`), and input.
 - `reply`: the final answer text.
 - `error`: the run failed, with a message.
+
+The panel answers a `proposal` with `POST /api/assistant/approve` and `{ id, approved: [callId, ...] }`. The call ids that are not listed are rejected. The original stream then continues with the tool results, so the model sees which changes ran and which did not. A proposal expires after ten minutes; closing the panel or pressing Stop rejects the remaining calls.
 
 The panel renders each event as it arrives, so the steps appear while the model is still working:
 
 - The provider and model come from the local opencode installation; `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL`, and `MANAGR_AI_API_KEY` remain the fallback. Without either source the panel explains the setup instead of pretending to answer.
 - Each tool call shows a spinner, then a check or a cross with the error. A read shows no card; a write shows what it created. A web search shows the query and hit count, and a fetched page shows its URL.
+- Before a write tool runs, the panel shows a confirmation card with every proposed change: its action (add, update, or delete), the tool, and its inputs. **Alle übernehmen** accepts the batch, **Alle ablehnen** rejects it, and the checkboxes plus **Auswahl übernehmen** accept or reject individual changes. Only approved calls execute; a rejected call returns a rejection result to the model. Read tools and the four briefings never ask. This applies to the in-app assistant; an external MCP client still calls a tool directly.
 - The answer renders as light Markdown: bold, italics, inline code, links, bullet and numbered lists, quotes, headings, and code blocks. A marker without its pair stays visible while the text streams. Raw HTML stays text, and a link points only at an `http(s)` URL or a path inside the desk.
 - The conversation is kept in the browser's local storage, so a reload restores the last 40 messages with their steps. **Neu** clears the panel and the stored history. The model still receives only the visible conversation text; the store never leaves the browser unless the conversation is sent to the configured model.
 - Every prompt and answer shows a collapsible **Details** line: local time, model and provider, endpoint with local/remote, the MCP server (`managr-mcp`), the tool-call count on an answer, and the run status (OK, error, stopped). The values are stored with the chat, so they survive a reload.
