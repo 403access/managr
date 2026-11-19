@@ -329,7 +329,7 @@ function TimeEntryPanel({
               {person.firstName} {person.lastName}
             </Link>
           ) : (
-            t("time.nobody")
+            "-"
           )}
         </DetailRow>
         <DetailRow label={t("time.project")}>
@@ -562,7 +562,7 @@ function EntryTable({
                       formatDuration(entry.minutes)
                     )}
                   </td>
-                  <td className="px-3 py-2 align-top">{personName(entry.employeeId) || t("time.nobody")}</td>
+                  <td className="px-3 py-2 align-top">{personName(entry.employeeId) || "-"}</td>
                   <td className="px-3 py-2 align-top">{entry.customerName || "—"}</td>
                   <td className="px-3 py-2 align-top">{entry.projectId ? entry.projectName : t("time.projectNone")}</td>
                   <td className="px-3 py-2 align-top">{label(entry.taskType)}</td>
