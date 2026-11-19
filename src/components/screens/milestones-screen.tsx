@@ -15,6 +15,7 @@ import {
 } from "@/domain/milestones";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { AddSheet } from "@/components/add-sheet";
 import { StatusBar } from "@/components/charts";
 import { useI18n } from "@/components/locale-provider";
 import { Tabs, Tab } from "@/components/tabs";
@@ -257,13 +258,6 @@ function GoalsPanel({ data }: { data: Milestones }) {
           </div>
         </section>
       ))}
-      <Card>
-        <h2 className="mb-3 text-2xl">{t("milestones.new")}</h2>
-        <ActionForm action={saveMilestone} resetOnSuccess>
-          <MilestoneFields companies={data.companies} defaultTargetDate={`${data.year}-12-31`} />
-          <SubmitButton>{t("milestones.add")}</SubmitButton>
-        </ActionForm>
-      </Card>
     </div>
   );
 }
@@ -365,7 +359,8 @@ function MilestonesBody({ data }: { data: Milestones }) {
         title={t("milestones.title")}
         lede={t("milestones.lede")}
         action={
-          <div className="flex flex-wrap gap-2" role="group" aria-label={t("milestones.year")}>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t("milestones.year")}>
             {data.years.map((year) => (
               <Link
                 key={year}
@@ -376,6 +371,13 @@ function MilestonesBody({ data }: { data: Milestones }) {
                 {year}
               </Link>
             ))}
+            </div>
+            <AddSheet label={t("milestones.add")} title={t("milestones.new")}>
+              <ActionForm action={saveMilestone} resetOnSuccess>
+                <MilestoneFields companies={data.companies} defaultTargetDate={`${data.year}-12-31`} />
+                <SubmitButton>{t("milestones.add")}</SubmitButton>
+              </ActionForm>
+            </AddSheet>
           </div>
         }
       />

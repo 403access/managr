@@ -6,6 +6,7 @@ import type { obligationsView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { AddSheet } from "@/components/add-sheet";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
@@ -27,13 +28,32 @@ export function ObligationsScreen({ year }: { year: number }) {
             lede={t("dates.lede")}
             info={<InfoButton topic="obligations" />}
             action={
-              <span className="flex gap-2">
+              <span className="flex items-center gap-2">
                 <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={`/obligations?year=${data.year - 1}`}>
                   {data.year - 1}
                 </Link>
                 <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={`/obligations?year=${data.year + 1}`}>
                   {data.year + 1}
                 </Link>
+                <AddSheet label={t("dates.add")} title={t("dates.add")}>
+                  <ActionForm action={saveDeadline} resetOnSuccess>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label={t("common.title")}><TextInput name="title" /></Field>
+                      <Field label={t("common.due")}><TextInput name="dueDate" type="date" defaultValue={data.today} /></Field>
+                      <Field label={t("common.category")}><TextInput name="category" defaultValue="general" /></Field>
+                      <Field label={t("common.repeat")}>
+                        <SelectInput name="recurrence" defaultValue="none">
+                          <option value="none">{label("none")}</option>
+                          <option value="monthly">{label("monthly")}</option>
+                          <option value="quarterly">{label("quarterly")}</option>
+                          <option value="yearly">{label("yearly")}</option>
+                        </SelectInput>
+                      </Field>
+                    </div>
+                    <Field label={t("common.notes")}><TextInput name="notes" /></Field>
+                    <SubmitButton>{t("dates.add")}</SubmitButton>
+                  </ActionForm>
+                </AddSheet>
               </span>
             }
           />
@@ -85,25 +105,6 @@ export function ObligationsScreen({ year }: { year: number }) {
                 </Card>
               ))}
             </div>
-            <Card className="mt-3">
-              <ActionForm action={saveDeadline} resetOnSuccess>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label={t("common.title")}><TextInput name="title" /></Field>
-                  <Field label={t("common.due")}><TextInput name="dueDate" type="date" defaultValue={data.today} /></Field>
-                  <Field label={t("common.category")}><TextInput name="category" defaultValue="general" /></Field>
-                  <Field label={t("common.repeat")}>
-                    <SelectInput name="recurrence" defaultValue="none">
-                      <option value="none">{label("none")}</option>
-                      <option value="monthly">{label("monthly")}</option>
-                      <option value="quarterly">{label("quarterly")}</option>
-                      <option value="yearly">{label("yearly")}</option>
-                    </SelectInput>
-                  </Field>
-                </div>
-                <Field label={t("common.notes")}><TextInput name="notes" /></Field>
-                <SubmitButton>{t("dates.add")}</SubmitButton>
-              </ActionForm>
-            </Card>
           </Tab>
           </Tabs>
           <div className="mt-8">

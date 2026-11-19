@@ -9,6 +9,7 @@ import { filterProjects, groupProjects, sortProjects, DEFAULT_PROJECT_GROUPING, 
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { AddSheet } from "@/components/add-sheet";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
@@ -165,7 +166,17 @@ function ProjectsBody({ data }: { data: Projects }) {
         title={t("projects.title")}
         lede={t("projects.lede")}
         info={<InfoButton topic="projects" />}
-        action={<Link href="/analytics" className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm">{t("projects.analytics")}</Link>}
+        action={
+          <span className="flex items-center gap-2">
+            <Link href="/analytics" className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm">{t("projects.analytics")}</Link>
+            <AddSheet label={t("projects.add")} title={t("projects.new")}>
+              <ActionForm action={saveProject} resetOnSuccess>
+                <ProjectFields customers={data.customers} today={data.today} />
+                <SubmitButton>{t("projects.add")}</SubmitButton>
+              </ActionForm>
+            </AddSheet>
+          </span>
+        }
       />
       {data.projects.length === 0 ? <Empty>{t("projects.empty")}</Empty> : null}
       {data.projects.length > 0 ? (
@@ -244,13 +255,6 @@ function ProjectsBody({ data }: { data: Projects }) {
           ))}
         </div>
       ) : null}
-      <Card className="mt-3">
-        <h2 className="mb-3 text-2xl">{t("projects.new")}</h2>
-        <ActionForm action={saveProject} resetOnSuccess>
-          <ProjectFields customers={data.customers} today={data.today} />
-          <SubmitButton>{t("projects.add")}</SubmitButton>
-        </ActionForm>
-      </Card>
     </>
   );
 }

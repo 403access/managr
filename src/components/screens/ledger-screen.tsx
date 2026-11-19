@@ -6,6 +6,7 @@ import { formatDate } from "@/domain/calendar";
 import { formatEuro } from "@/domain/money";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { AddSheet } from "@/components/add-sheet";
 import { InfoButton } from "@/components/info-sheet";
 import { JournalForm } from "@/components/journal-form";
 import { useI18n } from "@/components/locale-provider";
@@ -26,6 +27,53 @@ export function LedgerScreen({ all }: { all: boolean }) {
             title={t("ledger.title")}
             lede={t("ledger.lede", { label: data.fy.label, start: formatDate(data.fy.start), end: formatDate(data.fy.end) })}
             info={<InfoButton topic="ledger" />}
+            action={
+              <AddSheet label={t("common.add")} title={t("common.add")}>
+                <Tabs label={t("tabs.sections")} inline>
+                  <Tab id="expense" label={t("ledger.expense")}>
+                    {data.kleinunternehmer ? <p className="mb-3 text-sm text-muted">{t("ledger.kleinVat")}</p> : null}
+                    <ActionForm action={saveExpense} resetOnSuccess>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label={t("common.date")}><TextInput name="date" type="date" defaultValue={data.today} /></Field>
+                        <Field label={t("invoices.description")}><TextInput name="memo" /></Field>
+                        <Field label={t("common.account")}>
+                          <SelectInput name="account" defaultValue="4900">
+                            {data.expenses.map((account) => (
+                              <option key={account.code} value={account.code}>
+                                {account.code} {account.name}
+                              </option>
+                            ))}
+                          </SelectInput>
+                        </Field>
+                        <Field label={t("ledger.net")}><TextInput name="net" inputMode="decimal" /></Field>
+                        <Field label={t("common.vat")}>
+                          <SelectInput name="vatBps" defaultValue={data.kleinunternehmer ? "0" : "1900"}>
+                            <option value="0">0%</option>
+                            <option value="700">7%</option>
+                            <option value="1900">19%</option>
+                          </SelectInput>
+                        </Field>
+                      </div>
+                      <Check name="paidNow" label={t("ledger.paidNow")} defaultChecked />
+                      <SubmitButton>{t("ledger.postExpense")}</SubmitButton>
+                    </ActionForm>
+                  </Tab>
+                  <Tab id="prepayment" label={t("ledger.prepayment")}>
+                    <ActionForm action={saveVatPayment} resetOnSuccess>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <Field label={t("common.date")}><TextInput name="date" type="date" defaultValue={data.today} /></Field>
+                        <Field label={t("common.amount")}><TextInput name="amount" inputMode="decimal" /></Field>
+                        <Field label={t("common.memo")}><TextInput name="memo" placeholder={t("ledger.prepaymentMemo")} /></Field>
+                      </div>
+                      <SubmitButton>{t("ledger.postPrepayment")}</SubmitButton>
+                    </ActionForm>
+                  </Tab>
+                  <Tab id="manual" label={t("ledger.manual")}>
+                    <JournalForm today={data.today} accounts={data.accounts} />
+                  </Tab>
+                </Tabs>
+              </AddSheet>
+            }
           />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label={t("ledger.revenue")} value={formatEuro(data.profit.revenueCents)} />
@@ -80,53 +128,6 @@ export function LedgerScreen({ all }: { all: boolean }) {
               </tbody>
             </table>
           </div>
-          </Tab>
-          <Tab id="expense" label={t("ledger.expense")}>
-            <Card>
-              {data.kleinunternehmer ? <p className="mb-3 text-sm text-muted">{t("ledger.kleinVat")}</p> : null}
-              <ActionForm action={saveExpense} resetOnSuccess>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label={t("common.date")}><TextInput name="date" type="date" defaultValue={data.today} /></Field>
-                  <Field label={t("invoices.description")}><TextInput name="memo" /></Field>
-                  <Field label={t("common.account")}>
-                    <SelectInput name="account" defaultValue="4900">
-                      {data.expenses.map((account) => (
-                        <option key={account.code} value={account.code}>
-                          {account.code} {account.name}
-                        </option>
-                      ))}
-                    </SelectInput>
-                  </Field>
-                  <Field label={t("ledger.net")}><TextInput name="net" inputMode="decimal" /></Field>
-                  <Field label={t("common.vat")}>
-                    <SelectInput name="vatBps" defaultValue={data.kleinunternehmer ? "0" : "1900"}>
-                      <option value="0">0%</option>
-                      <option value="700">7%</option>
-                      <option value="1900">19%</option>
-                    </SelectInput>
-                  </Field>
-                </div>
-                <Check name="paidNow" label={t("ledger.paidNow")} defaultChecked />
-                <SubmitButton>{t("ledger.postExpense")}</SubmitButton>
-              </ActionForm>
-            </Card>
-          </Tab>
-          <Tab id="prepayment" label={t("ledger.prepayment")}>
-            <Card>
-              <ActionForm action={saveVatPayment} resetOnSuccess>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label={t("common.date")}><TextInput name="date" type="date" defaultValue={data.today} /></Field>
-                  <Field label={t("common.amount")}><TextInput name="amount" inputMode="decimal" /></Field>
-                  <Field label={t("common.memo")}><TextInput name="memo" placeholder={t("ledger.prepaymentMemo")} /></Field>
-                </div>
-                <SubmitButton>{t("ledger.postPrepayment")}</SubmitButton>
-              </ActionForm>
-            </Card>
-          </Tab>
-          <Tab id="manual" label={t("ledger.manual")}>
-            <Card>
-              <JournalForm today={data.today} accounts={data.accounts} />
-            </Card>
           </Tab>
           <Tab id="journal" label={t("ledger.recent")}>
             <div className="grid gap-2">

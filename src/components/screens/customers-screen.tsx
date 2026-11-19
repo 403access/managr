@@ -4,6 +4,7 @@ import { saveCustomer } from "@/server/actions";
 import type { customersView } from "@/server/views";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { AddSheet } from "@/components/add-sheet";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
@@ -37,7 +38,19 @@ export function CustomersScreen() {
     <ViewGate query={query}>
       {(data) => (
         <>
-          <PageHeader title={t("customers.title")} lede={t("customers.lede")} info={<InfoButton topic="customers" />} />
+          <PageHeader
+            title={t("customers.title")}
+            lede={t("customers.lede")}
+            info={<InfoButton topic="customers" />}
+            action={
+              <AddSheet label={t("customers.add")} title={t("customers.add")}>
+                <ActionForm action={saveCustomer} resetOnSuccess>
+                  <CustomerFields />
+                  <SubmitButton>{t("customers.add")}</SubmitButton>
+                </ActionForm>
+              </AddSheet>
+            }
+          />
           {data.customers.length === 0 ? <Empty>{t("customers.empty")}</Empty> : null}
           <div className="grid gap-3 xl:grid-cols-2">
             {data.customers.map((customer) => (
@@ -54,12 +67,6 @@ export function CustomersScreen() {
               </Card>
             ))}
           </div>
-          <Card className="mt-3">
-            <ActionForm action={saveCustomer} resetOnSuccess>
-              <CustomerFields />
-              <SubmitButton>{t("customers.add")}</SubmitButton>
-            </ActionForm>
-          </Card>
         </>
       )}
     </ViewGate>

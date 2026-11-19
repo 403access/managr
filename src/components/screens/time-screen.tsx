@@ -8,6 +8,7 @@ import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { AddSheet } from "@/components/add-sheet";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
@@ -46,6 +47,101 @@ export function TimeScreen({ week }: { week: string }) {
                 <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={`/time?week=${data.next}`}>
                   {t("common.next")}
                 </Link>
+                <AddSheet label={t("common.add")} title={t("common.add")}>
+                  <Tabs label={t("tabs.sections")} inline>
+                    <Tab id="entry" label={t("time.add")}>
+                      <ActionForm action={saveTime} resetOnSuccess>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label={t("time.day")}><TextInput name="entryDate" type="date" defaultValue={data.anchor} /></Field>
+                          <Field label={t("time.person")}>
+                            <SelectInput name="employeeId" defaultValue="">
+                              <option value="">{t("time.nobody")}</option>
+                              {data.people.map((person) => (
+                                <option key={person.id} value={person.id}>
+                                  {person.firstName} {person.lastName}
+                                </option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                          <Field label={t("common.start")}><TextInput name="startedAt" type="time" defaultValue="09:00" /></Field>
+                          <Field label={t("common.end")}><TextInput name="endedAt" type="time" defaultValue="17:00" /></Field>
+                          <Field label={t("time.break")}><TextInput name="breakMinutes" inputMode="numeric" defaultValue="30" /></Field>
+                          <Field label={t("time.project")}>
+                            <SelectInput name="projectId" defaultValue="">
+                              <option value="">{t("time.projectNone")}</option>
+                              {data.projects.map((project) => (
+                                <option key={project.id} value={project.id}>
+                                  {project.name}
+                                </option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                          <Field label={t("time.task")}>
+                            <SelectInput name="taskId" defaultValue="">
+                              <option value="">{t("time.none")}</option>
+                              {data.tasks.map((task) => (
+                                <option key={task.id} value={task.id}>
+                                  {task.title}
+                                </option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                          <Field label={t("time.taskType")} hint={t("time.taskTypeHint")}>
+                            <SelectInput name="taskType" defaultValue="">
+                              <option value="">{t("time.taskTypeFromTask")}</option>
+                              {TASK_TYPES.map((type) => (
+                                <option key={type} value={type}>{label(type)}</option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                        </div>
+                        <Field label={t("common.memo")}><TextInput name="memo" /></Field>
+                        <Check name="billable" label={t("time.billableCheck")} />
+                        <SubmitButton>{t("time.save")}</SubmitButton>
+                      </ActionForm>
+                    </Tab>
+                    <Tab id="task" label={t("time.addTask")}>
+                      <ActionForm action={saveTask} resetOnSuccess>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label={t("common.title")}><TextInput name="title" /></Field>
+                          <Field label={t("common.due")}><TextInput name="dueDate" type="date" /></Field>
+                          <Field label={t("time.area")}>
+                            <SelectInput name="area" defaultValue="general">
+                              {areas.map((area) => (
+                                <option key={area} value={area}>{areaName(area)}</option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                          <Field label={t("time.project")}>
+                            <SelectInput name="projectId" defaultValue="">
+                              <option value="">{t("time.projectNone")}</option>
+                              {data.projects.map((project) => (
+                                <option key={project.id} value={project.id}>{project.name}</option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                          <Field label={t("time.taskType")}>
+                            <SelectInput name="taskType" defaultValue="other">
+                              {TASK_TYPES.map((type) => (
+                                <option key={type} value={type}>{label(type)}</option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                          <Field label={t("common.status")}>
+                            <SelectInput name="status" defaultValue="open">
+                              <option value="open">{label("open")}</option>
+                              <option value="doing">{label("doing")}</option>
+                              <option value="done">{label("done")}</option>
+                            </SelectInput>
+                          </Field>
+                        </div>
+                        <Check name="deliverable" label={t("time.deliverable")} hint={t("time.deliverableHint")} />
+                        <Field label={t("common.notes")}><TextInput name="notes" /></Field>
+                        <SubmitButton>{t("time.addTask")}</SubmitButton>
+                      </ActionForm>
+                    </Tab>
+                  </Tabs>
+                </AddSheet>
               </span>
             }
           />
@@ -87,59 +183,6 @@ export function TimeScreen({ week }: { week: string }) {
           )}
           <p className="mt-3 text-sm">{t("time.total", { duration: formatDuration(data.total) })}</p>
           </Tab>
-          <Tab id="entry" label={t("time.add")}>
-            <Card>
-              <ActionForm action={saveTime} resetOnSuccess>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label={t("time.day")}><TextInput name="entryDate" type="date" defaultValue={data.anchor} /></Field>
-                  <Field label={t("time.person")}>
-                    <SelectInput name="employeeId" defaultValue="">
-                      <option value="">{t("time.nobody")}</option>
-                      {data.people.map((person) => (
-                        <option key={person.id} value={person.id}>
-                          {person.firstName} {person.lastName}
-                        </option>
-                      ))}
-                    </SelectInput>
-                  </Field>
-                  <Field label={t("common.start")}><TextInput name="startedAt" type="time" defaultValue="09:00" /></Field>
-                  <Field label={t("common.end")}><TextInput name="endedAt" type="time" defaultValue="17:00" /></Field>
-                  <Field label={t("time.break")}><TextInput name="breakMinutes" inputMode="numeric" defaultValue="30" /></Field>
-                  <Field label={t("time.project")}>
-                    <SelectInput name="projectId" defaultValue="">
-                      <option value="">{t("time.projectNone")}</option>
-                      {data.projects.map((project) => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </SelectInput>
-                  </Field>
-                  <Field label={t("time.task")}>
-                    <SelectInput name="taskId" defaultValue="">
-                      <option value="">{t("time.none")}</option>
-                      {data.tasks.map((task) => (
-                        <option key={task.id} value={task.id}>
-                          {task.title}
-                        </option>
-                      ))}
-                    </SelectInput>
-                  </Field>
-                  <Field label={t("time.taskType")} hint={t("time.taskTypeHint")}>
-                    <SelectInput name="taskType" defaultValue="">
-                      <option value="">{t("time.taskTypeFromTask")}</option>
-                      {TASK_TYPES.map((type) => (
-                        <option key={type} value={type}>{label(type)}</option>
-                      ))}
-                    </SelectInput>
-                  </Field>
-                </div>
-                <Field label={t("common.memo")}><TextInput name="memo" /></Field>
-                <Check name="billable" label={t("time.billableCheck")} />
-                <SubmitButton>{t("time.save")}</SubmitButton>
-              </ActionForm>
-            </Card>
-          </Tab>
           <Tab id="tasks" label={t("time.tasks")}>
             <div className="grid gap-2">
               {data.tasks.map((task) => (
@@ -167,46 +210,6 @@ export function TimeScreen({ week }: { week: string }) {
                 </Card>
               ))}
             </div>
-            <Card className="mt-3">
-              <ActionForm action={saveTask} resetOnSuccess>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label={t("common.title")}><TextInput name="title" /></Field>
-                  <Field label={t("common.due")}><TextInput name="dueDate" type="date" /></Field>
-                  <Field label={t("time.area")}>
-                    <SelectInput name="area" defaultValue="general">
-                      {areas.map((area) => (
-                        <option key={area} value={area}>{areaName(area)}</option>
-                      ))}
-                    </SelectInput>
-                  </Field>
-                  <Field label={t("time.project")}>
-                    <SelectInput name="projectId" defaultValue="">
-                      <option value="">{t("time.projectNone")}</option>
-                      {data.projects.map((project) => (
-                        <option key={project.id} value={project.id}>{project.name}</option>
-                      ))}
-                    </SelectInput>
-                  </Field>
-                  <Field label={t("time.taskType")}>
-                    <SelectInput name="taskType" defaultValue="other">
-                      {TASK_TYPES.map((type) => (
-                        <option key={type} value={type}>{label(type)}</option>
-                      ))}
-                    </SelectInput>
-                  </Field>
-                  <Field label={t("common.status")}>
-                    <SelectInput name="status" defaultValue="open">
-                      <option value="open">{label("open")}</option>
-                      <option value="doing">{label("doing")}</option>
-                      <option value="done">{label("done")}</option>
-                    </SelectInput>
-                  </Field>
-                </div>
-                <Check name="deliverable" label={t("time.deliverable")} hint={t("time.deliverableHint")} />
-                <Field label={t("common.notes")}><TextInput name="notes" /></Field>
-                <SubmitButton>{t("time.addTask")}</SubmitButton>
-              </ActionForm>
-            </Card>
           </Tab>
           </Tabs>
         </>

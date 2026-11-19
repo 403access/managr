@@ -6,6 +6,7 @@ import { formatEuro } from "@/domain/money";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
+import { AddLink } from "@/components/add-sheet";
 import { LinkButton, PageHeader, Pill } from "@/components/ui";
 
 type People = ReturnType<typeof peopleView>;
@@ -21,9 +22,9 @@ export function PeopleScreen() {
             title={t("people.title")}
             lede={t("people.lede")}
             action={
-              <span className="flex flex-wrap gap-2">
+              <span className="flex flex-wrap items-center gap-2">
                 <LinkButton href="/people/org" tone="quiet">{t("people.org")}</LinkButton>
-                <LinkButton href="/people/new">{t("people.add")}</LinkButton>
+                <AddLink href="/people/new" label={t("people.add")} />
               </span>
             }
           />

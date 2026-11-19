@@ -5,10 +5,10 @@ import type { documentsView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { AddSheet } from "@/components/add-sheet";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Tab, Tabs } from "@/components/tabs";
 import { Card, Empty, Field, PageHeader, SelectInput, TextInput, textLinkClass } from "@/components/ui";
 
 type Documents = ReturnType<typeof documentsView>;
@@ -22,9 +22,32 @@ export function DocumentsScreen() {
     <ViewGate query={query}>
       {(data) => (
         <>
-          <PageHeader title={t("docs.title")} lede={t("docs.lede")} info={<InfoButton topic="documents" />} />
-          <Tabs label={t("tabs.sections")}>
-          <Tab id="files" label={t("docs.title")}>
+          <PageHeader
+            title={t("docs.title")}
+            lede={t("docs.lede")}
+            info={<InfoButton topic="documents" />}
+            action={
+              <AddSheet label={t("docs.upload")} title={t("docs.upload")}>
+                <ActionForm action={saveDocument} resetOnSuccess>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label={t("common.title")}><TextInput name="title" /></Field>
+                    <Field label={t("common.category")}>
+                      <SelectInput name="category" defaultValue="corporate">
+                        {categories.map((category) => (
+                          <option key={category} value={category}>{label(category)}</option>
+                        ))}
+                      </SelectInput>
+                    </Field>
+                  </div>
+                  <Field label={t("common.file")} hint={t("docs.fileHint")}>
+                    <input name="file" type="file" className="min-h-11 w-full text-sm" />
+                  </Field>
+                  <Field label={t("common.notes")}><TextInput name="notes" /></Field>
+                  <SubmitButton>{t("docs.store")}</SubmitButton>
+                </ActionForm>
+              </AddSheet>
+            }
+          />
           {data.documents.length === 0 ? (
             <Empty>{t("docs.empty")}</Empty>
           ) : (
@@ -48,29 +71,6 @@ export function DocumentsScreen() {
               ))}
             </div>
           )}
-          </Tab>
-          <Tab id="upload" label={t("docs.upload")}>
-            <Card>
-              <ActionForm action={saveDocument} resetOnSuccess>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label={t("common.title")}><TextInput name="title" /></Field>
-                  <Field label={t("common.category")}>
-                    <SelectInput name="category" defaultValue="corporate">
-                      {categories.map((category) => (
-                        <option key={category} value={category}>{label(category)}</option>
-                      ))}
-                    </SelectInput>
-                  </Field>
-                </div>
-                <Field label={t("common.file")} hint={t("docs.fileHint")}>
-                  <input name="file" type="file" className="min-h-11 w-full text-sm" />
-                </Field>
-                <Field label={t("common.notes")}><TextInput name="notes" /></Field>
-                <SubmitButton>{t("docs.store")}</SubmitButton>
-              </ActionForm>
-            </Card>
-          </Tab>
-          </Tabs>
         </>
       )}
     </ViewGate>

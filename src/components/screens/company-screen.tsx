@@ -11,6 +11,7 @@ import { FEDERAL_STATES } from "@/domain/states";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { euroInput, percentInput } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { AddSheet } from "@/components/add-sheet";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { ReserveHint } from "@/components/reserve-hint";
@@ -41,7 +42,126 @@ export function CompanyScreen() {
         const { company } = data;
         return (
           <>
-            <PageHeader title={t("company.title")} lede={t("company.lede")} info={<InfoButton topic="company" />} />
+            <PageHeader
+              title={t("company.title")}
+              lede={t("company.lede")}
+              info={<InfoButton topic="company" />}
+              action={
+                <AddSheet label={t("common.add")} title={t("common.add")}>
+                  <Tabs label={t("tabs.sections")} inline>
+                    <Tab id="company" label={t("company.newCompany")}>
+                      <p className="mb-3 text-sm leading-relaxed text-muted">{t("company.newCompanyHint")}</p>
+                      <ActionForm action={createCompany} reloadOnSuccess>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label={t("company.legalName")}><TextInput name="legalName" /></Field>
+                          <Field label={t("company.legalForm")}><LegalFormSelect defaultValue="ug" /></Field>
+                          <Field label={t("company.director")}><TextInput name="managingDirector" /></Field>
+                          <Field label={t("common.street")}><TextInput name="street" /></Field>
+                          <Field label={t("common.postal")}><TextInput name="postalCode" /></Field>
+                          <Field label={t("common.city")}><TextInput name="city" /></Field>
+                          <Field label={t("company.state")}>
+                            <SelectInput name="stateCode" defaultValue="BE">
+                              {FEDERAL_STATES.map((state) => (
+                                <option key={state.code} value={state.code}>
+                                  {state.name}
+                                </option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                          <Field label={t("company.founded")}><TextInput name="foundingDate" type="date" defaultValue={data.today} /></Field>
+                          <Field label={t("company.taxNumber")}><TextInput name="taxNumber" /></Field>
+                          <Field label={t("company.vatId")}><TextInput name="vatId" /></Field>
+                          <Field label={t("company.capital")}><TextInput name="shareCapital" inputMode="decimal" /></Field>
+                        </div>
+                        <SubmitButton>{t("company.addCompany")}</SubmitButton>
+                      </ActionForm>
+                    </Tab>
+                    <Tab id="holder" label={t("company.addHolder")}>
+                      <ActionForm action={addShareholder} resetOnSuccess>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label={t("common.name")}><TextInput name="name" /></Field>
+                          <Field label={t("company.sharePercent")}><TextInput name="share" inputMode="decimal" placeholder="100,00" /></Field>
+                          <Field label={t("company.nominalAmount")}><TextInput name="nominal" inputMode="decimal" placeholder="2.500,00" /></Field>
+                          <Field label={t("common.street")}><TextInput name="street" /></Field>
+                          <Field label={t("common.postal")}><TextInput name="postalCode" /></Field>
+                          <Field label={t("common.city")}><TextInput name="city" /></Field>
+                        </div>
+                        <SubmitButton>{t("company.addHolder")}</SubmitButton>
+                      </ActionForm>
+                    </Tab>
+                    <Tab id="loan" label={t("company.loanAdd")}>
+                      <ActionForm action={addShareholderLoan} resetOnSuccess>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label={t("company.loanShareholder")}>
+                            <SelectInput name="shareholderId">
+                              {data.holders.map((holder) => (
+                                <option key={holder.id} value={holder.id}>{holder.name}</option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                          <Field label={t("company.loanLabel")}><TextInput name="label" defaultValue="Gesellschafterdarlehen" /></Field>
+                          <Field label={t("common.amount")}><TextInput name="amount" inputMode="decimal" /></Field>
+                          <Field label={t("company.loanOpened")}><TextInput name="openedOn" type="date" defaultValue={data.today} /></Field>
+                          <Field label={t("company.loanInterest")} hint={t("company.loanInterestHint")}><TextInput name="interest" inputMode="decimal" placeholder="0,00" /></Field>
+                        </div>
+                        <Field label={t("common.notes")}><TextInput name="notes" /></Field>
+                        <SubmitButton>{t("company.loanAddButton")}</SubmitButton>
+                      </ActionForm>
+                      {data.loans.length > 0 ? (
+                        <>
+                          <h3 className="mt-5 text-lg">{t("company.loanMovement")}</h3>
+                          <ActionForm action={addShareholderLoanMovement} resetOnSuccess>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <Field label={t("company.loanWhich")}>
+                                <SelectInput name="loanId">
+                                  {data.loans.map((loan) => (
+                                    <option key={loan.id} value={loan.id}>{loan.label} · {loan.shareholderName}</option>
+                                  ))}
+                                </SelectInput>
+                              </Field>
+                              <Field label={t("common.kind")}>
+                                <SelectInput name="kind" defaultValue="repayment">
+                                  <option value="repayment">{label("repayment")}</option>
+                                  <option value="drawdown">{label("drawdown")}</option>
+                                  <option value="interest">{label("interest")}</option>
+                                </SelectInput>
+                              </Field>
+                              <Field label={t("common.amount")} hint={t("company.loanAmountHint")}><TextInput name="amount" inputMode="decimal" /></Field>
+                              <Field label={t("common.date")}><TextInput name="movedOn" type="date" defaultValue={data.today} /></Field>
+                            </div>
+                            <Check name="paidNow" label={t("company.loanInterestPaid")} hint={t("company.loanInterestPaidHint")} />
+                            <Field label={t("common.notes")}><TextInput name="note" /></Field>
+                            <SubmitButton>{t("company.loanPost")}</SubmitButton>
+                          </ActionForm>
+                        </>
+                      ) : null}
+                    </Tab>
+                    <Tab id="policy" label={t("company.addPolicy")}>
+                      <ActionForm action={addPolicy} resetOnSuccess>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label={t("common.name")}><TextInput name="label" /></Field>
+                          <Field label={t("common.kind")}>
+                            <SelectInput name="kind" defaultValue="health">
+                              <option value="health">{label("health")}</option>
+                              <option value="liability">{label("liability")}</option>
+                              <option value="contents">{label("contents")}</option>
+                              <option value="legal">{label("legal")}</option>
+                              <option value="other">{label("other")}</option>
+                            </SelectInput>
+                          </Field>
+                          <Field label={t("common.provider")}><TextInput name="provider" /></Field>
+                          <Field label={t("company.policyNumber")}><TextInput name="policyNumber" /></Field>
+                          <Field label={t("company.premium")}><TextInput name="premium" inputMode="decimal" /></Field>
+                          <Field label={t("company.renewal")}><TextInput name="renewalDate" type="date" /></Field>
+                        </div>
+                        <Field label={t("common.notes")}><TextArea name="notes" /></Field>
+                        <SubmitButton>{t("company.addPolicy")}</SubmitButton>
+                      </ActionForm>
+                    </Tab>
+                  </Tabs>
+                </AddSheet>
+              }
+            />
             <Tabs label={t("tabs.sections")}>
             <Tab id="companies" label={t("company.companies")}>
               <div className="grid gap-2">
@@ -63,34 +183,6 @@ export function CompanyScreen() {
                   </Card>
                 ))}
               </div>
-              <Card className="mt-3">
-                <h2 className="text-xl">{t("company.newCompany")}</h2>
-                <p className="mt-1 text-sm leading-relaxed text-muted">{t("company.newCompanyHint")}</p>
-                <ActionForm action={createCompany} reloadOnSuccess>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <Field label={t("company.legalName")}><TextInput name="legalName" /></Field>
-                    <Field label={t("company.legalForm")}><LegalFormSelect defaultValue="ug" /></Field>
-                    <Field label={t("company.director")}><TextInput name="managingDirector" /></Field>
-                    <Field label={t("common.street")}><TextInput name="street" /></Field>
-                    <Field label={t("common.postal")}><TextInput name="postalCode" /></Field>
-                    <Field label={t("common.city")}><TextInput name="city" /></Field>
-                    <Field label={t("company.state")}>
-                      <SelectInput name="stateCode" defaultValue="BE">
-                        {FEDERAL_STATES.map((state) => (
-                          <option key={state.code} value={state.code}>
-                            {state.name}
-                          </option>
-                        ))}
-                      </SelectInput>
-                    </Field>
-                    <Field label={t("company.founded")}><TextInput name="foundingDate" type="date" defaultValue={data.today} /></Field>
-                    <Field label={t("company.taxNumber")}><TextInput name="taxNumber" /></Field>
-                    <Field label={t("company.vatId")}><TextInput name="vatId" /></Field>
-                    <Field label={t("company.capital")}><TextInput name="shareCapital" inputMode="decimal" /></Field>
-                  </div>
-                  <SubmitButton>{t("company.addCompany")}</SubmitButton>
-                </ActionForm>
-              </Card>
             </Tab>
             <Tab id="identity" label={t("company.identity")}>
               <Card>
@@ -250,52 +342,6 @@ export function CompanyScreen() {
                     ))}
                   </div>
                 ))}
-                <h3 className="mt-4 text-lg">{t("company.loanAdd")}</h3>
-                <ActionForm action={addShareholderLoan} resetOnSuccess>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label={t("company.loanShareholder")}>
-                      <SelectInput name="shareholderId">
-                        {data.holders.map((holder) => (
-                          <option key={holder.id} value={holder.id}>{holder.name}</option>
-                        ))}
-                      </SelectInput>
-                    </Field>
-                    <Field label={t("company.loanLabel")}><TextInput name="label" defaultValue="Gesellschafterdarlehen" /></Field>
-                    <Field label={t("common.amount")}><TextInput name="amount" inputMode="decimal" /></Field>
-                    <Field label={t("company.loanOpened")}><TextInput name="openedOn" type="date" defaultValue={data.today} /></Field>
-                    <Field label={t("company.loanInterest")} hint={t("company.loanInterestHint")}><TextInput name="interest" inputMode="decimal" placeholder="0,00" /></Field>
-                  </div>
-                  <Field label={t("common.notes")}><TextInput name="notes" /></Field>
-                  <SubmitButton>{t("company.loanAddButton")}</SubmitButton>
-                </ActionForm>
-                {data.loans.length > 0 ? (
-                  <>
-                    <h3 className="mt-4 text-lg">{t("company.loanMovement")}</h3>
-                    <ActionForm action={addShareholderLoanMovement} resetOnSuccess>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label={t("company.loanWhich")}>
-                          <SelectInput name="loanId">
-                            {data.loans.map((loan) => (
-                              <option key={loan.id} value={loan.id}>{loan.label} · {loan.shareholderName}</option>
-                            ))}
-                          </SelectInput>
-                        </Field>
-                        <Field label={t("common.kind")}>
-                          <SelectInput name="kind" defaultValue="repayment">
-                            <option value="repayment">{label("repayment")}</option>
-                            <option value="drawdown">{label("drawdown")}</option>
-                            <option value="interest">{label("interest")}</option>
-                          </SelectInput>
-                        </Field>
-                        <Field label={t("common.amount")} hint={t("company.loanAmountHint")}><TextInput name="amount" inputMode="decimal" /></Field>
-                        <Field label={t("common.date")}><TextInput name="movedOn" type="date" defaultValue={data.today} /></Field>
-                      </div>
-                      <Check name="paidNow" label={t("company.loanInterestPaid")} hint={t("company.loanInterestPaidHint")} />
-                      <Field label={t("common.notes")}><TextInput name="note" /></Field>
-                      <SubmitButton>{t("company.loanPost")}</SubmitButton>
-                    </ActionForm>
-                  </>
-                ) : null}
               </Card>
               <Card className="mt-3">
                 <h2 className="text-xl">{t("company.distribution")}</h2>
@@ -308,19 +354,6 @@ export function CompanyScreen() {
                   <Field label={t("common.memo")}><TextInput name="memo" /></Field>
                   <Check name="resolved" label={t("company.distributionResolved")} hint={t("company.distributionResolvedHint")} />
                   <SubmitButton>{t("company.distributionPost")}</SubmitButton>
-                </ActionForm>
-              </Card>
-              <Card className="mt-3">
-                <ActionForm action={addShareholder} resetOnSuccess>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label={t("common.name")}><TextInput name="name" /></Field>
-                    <Field label={t("company.sharePercent")}><TextInput name="share" inputMode="decimal" placeholder="100,00" /></Field>
-                    <Field label={t("company.nominalAmount")}><TextInput name="nominal" inputMode="decimal" placeholder="2.500,00" /></Field>
-                    <Field label={t("common.street")}><TextInput name="street" /></Field>
-                    <Field label={t("common.postal")}><TextInput name="postalCode" /></Field>
-                    <Field label={t("common.city")}><TextInput name="city" /></Field>
-                  </div>
-                  <SubmitButton>{t("company.addHolder")}</SubmitButton>
                 </ActionForm>
               </Card>
             </Tab>
@@ -382,28 +415,6 @@ export function CompanyScreen() {
                   </Card>
                 ))}
               </div>
-              <Card className="mt-3">
-                <ActionForm action={addPolicy} resetOnSuccess>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label={t("common.name")}><TextInput name="label" /></Field>
-                    <Field label={t("common.kind")}>
-                      <SelectInput name="kind" defaultValue="health">
-                        <option value="health">{label("health")}</option>
-                        <option value="liability">{label("liability")}</option>
-                        <option value="contents">{label("contents")}</option>
-                        <option value="legal">{label("legal")}</option>
-                        <option value="other">{label("other")}</option>
-                      </SelectInput>
-                    </Field>
-                    <Field label={t("common.provider")}><TextInput name="provider" /></Field>
-                    <Field label={t("company.policyNumber")}><TextInput name="policyNumber" /></Field>
-                    <Field label={t("company.premium")}><TextInput name="premium" inputMode="decimal" /></Field>
-                    <Field label={t("company.renewal")}><TextInput name="renewalDate" type="date" /></Field>
-                  </div>
-                  <Field label={t("common.notes")}><TextArea name="notes" /></Field>
-                  <SubmitButton>{t("company.addPolicy")}</SubmitButton>
-                </ActionForm>
-              </Card>
             </Tab>
             </Tabs>
             <div className="mt-8">

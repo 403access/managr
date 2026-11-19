@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useActionState, useEffect, useRef, type FormEvent, type MouseEventHandler, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { initialState, type ActionState } from "@/server/form";
+import { useAddSheet } from "./add-sheet";
 import { useI18n } from "./locale-provider";
 import { buttonClass, type ButtonTone } from "./ui";
 
@@ -28,6 +29,7 @@ export function ActionForm({
   onSubmit?: (event: FormEvent<HTMLFormElement>) => boolean | void;
 }) {
   const { tx } = useI18n();
+  const addSheet = useAddSheet();
   const [state, formAction] = useActionState(action, initialState);
   const queryClient = useQueryClient();
   const seen = useRef(state);
@@ -37,12 +39,13 @@ export function ActionForm({
     seen.current = state;
     if (!state.message) return;
     if (resetOnSuccess) formRef.current?.reset();
+    addSheet?.close();
     if (reloadOnSuccess) {
       window.location.reload();
       return;
     }
     void queryClient.invalidateQueries({ queryKey: ["view"] });
-  }, [queryClient, reloadOnSuccess, resetOnSuccess, state]);
+  }, [addSheet, queryClient, reloadOnSuccess, resetOnSuccess, state]);
   return (
     <form
       ref={formRef}

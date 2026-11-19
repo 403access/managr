@@ -8,7 +8,8 @@ import { formatDate } from "@/domain/calendar";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
-import { Empty, LinkButton, Money, PageHeader, Pill, textLinkClass } from "@/components/ui";
+import { AddLink } from "@/components/add-sheet";
+import { Empty, Money, PageHeader, Pill, textLinkClass } from "@/components/ui";
 
 type Invoices = ReturnType<typeof invoicesView>;
 
@@ -24,7 +25,7 @@ export function InvoicesScreen({ children }: { children?: ReactNode }) {
         <div className="lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[24rem_minmax(0,1fr)] 2xl:grid-cols-[26rem_minmax(0,1fr)]">
           <section className={`min-w-0 ${index ? "" : "hidden lg:block"}`}>
             <div className="lg:sticky lg:top-0 lg:max-h-dvh lg:overflow-y-auto lg:pb-8 lg:overscroll-contain">
-              <PageHeader title={t("invoices.title")} lede={t("invoices.lede")} action={<LinkButton href="/invoices/new">{t("invoices.new")}</LinkButton>} />
+              <PageHeader title={t("invoices.title")} lede={t("invoices.lede")} action={<AddLink href="/invoices/new" label={t("invoices.new")} />} />
               <div className="pt-2">
                 {data.invoices.length === 0 ? (
                   <Empty>{t("invoices.empty")}</Empty>
