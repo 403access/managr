@@ -471,3 +471,10 @@ export const reserveMovements = sqliteTable("reserve_movements", {
   note: text("note").notNull().default(""),
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
 });
+
+/** A single, desk-wide row for display preferences. */
+export const appSettings = sqliteTable("app_settings", {
+  id: integer("id").primaryKey(),
+  detailSidebarMode: text("detail_sidebar_mode").notNull().default("inline"),
+  detailSidebarOverrides: text("detail_sidebar_overrides").notNull().default("{}"),
+});

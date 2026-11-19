@@ -4,6 +4,7 @@ export const queryKeys = {
   company: ["view", "company"] as const,
   invoices: ["view", "invoices"] as const,
   customers: ["view", "customers"] as const,
+  customer: (id: number) => ["view", "customer", id] as const,
   invoice: (id: number) => ["view", "invoice", id] as const,
   invoiceNew: ["view", "invoice-new"] as const,
   invoiceEdit: (id: number) => ["view", "invoice-edit", id] as const,
@@ -20,6 +21,7 @@ export const queryKeys = {
   projects: ["view", "projects"] as const,
   analytics: (year: number, customer: number | null = null) => ["view", "analytics", year, customer ?? "all"] as const,
   milestones: (year: number) => ["view", "milestones", year] as const,
+  settings: ["view", "settings"] as const,
 };
 
 export const viewPath = {
@@ -28,6 +30,7 @@ export const viewPath = {
   company: "/api/views/company",
   invoices: "/api/views/invoices",
   customers: "/api/views/customers",
+  customer: (id: number) => `/api/views/customer?id=${id}`,
   invoice: (id: number) => `/api/views/invoice?id=${id}`,
   invoiceNew: "/api/views/invoice-new",
   invoiceEdit: (id: number) => `/api/views/invoice-edit?id=${id}`,
@@ -45,4 +48,5 @@ export const viewPath = {
   analytics: (year: number, customer: number | null = null) =>
     `/api/views/analytics?year=${year}${customer === null ? "" : `&customer=${customer}`}`,
   milestones: (year: number) => `/api/views/milestones?year=${year}`,
+  settings: "/api/views/settings",
 };

@@ -6,6 +6,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { getDb } from "@/db/client";
 import {
   absences,
+  appSettings,
   bankConnections,
   companies,
   complianceItems,
@@ -58,6 +59,12 @@ import {
   reverseLines,
 } from "@/domain/postings";
 import { reserveDutyActive } from "@/domain/reserve";
+import {
+  DETAIL_PAGE_KEYS,
+  isDetailSidebarMode,
+  serializeDetailSidebarOverrides,
+  type DetailSidebarOverrides,
+} from "@/domain/settings";
 import { salaryForMonth } from "@/domain/salary";
 import { loanInterestCents, loanOutstandingCents } from "@/domain/shareholder-loan";
 import { estimateContributions, payrollAmounts } from "@/domain/social";
@@ -167,6 +174,33 @@ export async function switchCompany(_state: ActionState, formData: FormData): Pr
       db.update(companies).set({ isActive: true }).where(eq(companies.id, id)).run();
     });
     return saved("Company switched.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function saveSettings(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const mode = text(formData, "detailSidebarMode");
+    if (!isDetailSidebarMode(mode)) throw new Error("Choose a valid sidebar layout.");
+    const overrides: DetailSidebarOverrides = {};
+    for (const page of DETAIL_PAGE_KEYS) {
+      const value = text(formData, `page.${page}`);
+      if (!value) continue;
+      if (!isDetailSidebarMode(value)) throw new Error("Choose a valid sidebar layout for the page.");
+      overrides[page] = value;
+    }
+    const values = {
+      detailSidebarMode: mode,
+      detailSidebarOverrides: serializeDetailSidebarOverrides(overrides),
+    };
+    const db = getDb();
+    if (db.select().from(appSettings).get()) {
+      db.update(appSettings).set(values).where(eq(appSettings.id, 1)).run();
+    } else {
+      db.insert(appSettings).values({ id: 1, ...values }).run();
+    }
+    return saved("Display settings saved.");
   } catch (error) {
     return failed(error);
   }

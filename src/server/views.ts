@@ -50,6 +50,7 @@ import {
   loadInvoice,
   loadPerson,
   loadShareholders,
+  readUiSettings,
   signedAccount,
   vatPayableCents,
 } from "./queries";
@@ -120,7 +121,12 @@ export function shellView() {
     isSample: company.isSample,
     activeCompanyId: company.id,
     companies: listCompanies().map((item) => ({ id: item.id, legalName: item.legalName, legalForm: item.legalForm })),
+    settings: readUiSettings(),
   };
+}
+
+export function settingsView() {
+  return { settings: readUiSettings() };
 }
 
 export function deskView() {
@@ -226,8 +232,165 @@ export function invoicesView() {
   return { invoices: listInvoices() };
 }
 
+type CustomerTotals = {
+  projectCount: number;
+  minutes: number;
+  billableMinutes: number;
+  invoiceCount: number;
+  revenueCents: number;
+  openCents: number;
+  lastActivity: string | null;
+};
+
+function emptyCustomerTotals(): CustomerTotals {
+  return { projectCount: 0, minutes: 0, billableMinutes: 0, invoiceCount: 0, revenueCents: 0, openCents: 0, lastActivity: null };
+}
+
+function latestDate(current: string | null, candidate: string | null): string | null {
+  if (!candidate) return current;
+  return !current || candidate > current ? candidate : current;
+}
+
+/** Projects, booked time, and invoiced totals keyed by customer. */
+function customerTotals(): Map<number, CustomerTotals> {
+  const projects = listProjects();
+  const projectById = new Map(projects.map((project) => [project.id, project]));
+  const taskProject = new Map(listTasks().map((task) => [task.id, task.projectId]));
+  const totals = new Map<number, CustomerTotals>();
+  const bucket = (customerId: number | null): CustomerTotals | null => {
+    if (customerId === null) return null;
+    const existing = totals.get(customerId);
+    if (existing) return existing;
+    const created = emptyCustomerTotals();
+    totals.set(customerId, created);
+    return created;
+  };
+
+  for (const project of projects) {
+    const row = bucket(project.customerId);
+    if (!row) continue;
+    row.projectCount += 1;
+    row.lastActivity = latestDate(row.lastActivity, project.endedOn ?? project.startedOn);
+  }
+
+  for (const entry of listTimeInRange("0001-01-01", "9999-12-31")) {
+    const projectId = entry.projectId ?? (entry.taskId === null ? null : taskProject.get(entry.taskId) ?? null);
+    const project = projectId === null ? null : projectById.get(projectId) ?? null;
+    const row = bucket(project?.customerId ?? null);
+    if (!row) continue;
+    const minutes = timeEntryMinutes(entry);
+    if (minutes > 0) {
+      row.minutes += minutes;
+      if (entry.billable) row.billableMinutes += minutes;
+    }
+    row.lastActivity = latestDate(row.lastActivity, entry.entryDate);
+  }
+
+  for (const invoice of listInvoices()) {
+    if (invoice.status === "void" || invoice.status === "draft") continue;
+    const row = bucket(invoice.customerId);
+    if (!row) continue;
+    row.invoiceCount += 1;
+    row.revenueCents += invoice.grossCents;
+    row.openCents += invoice.openCents;
+    row.lastActivity = latestDate(row.lastActivity, invoice.issueDate);
+  }
+
+  return totals;
+}
+
 export function customersView() {
-  return { customers: listCustomers() };
+  const company = loadCompany();
+  const totals = customerTotals();
+  return {
+    customers: listCustomers(company.id).map((customer) => ({
+      ...customer,
+      ...(totals.get(customer.id) ?? emptyCustomerTotals()),
+    })),
+  };
+}
+
+export function customerView(id: number) {
+  const company = loadCompany();
+  const customer = listCustomers(company.id).find((item) => item.id === id);
+  if (!customer) return null;
+
+  const projects = listProjects(company.id).filter((project) => project.customerId === id);
+  const projectIds = new Set(projects.map((project) => project.id));
+  const tasks = listTasks();
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const people = listOrgMembers();
+  const personById = new Map(people.map((person) => [person.id, `${person.firstName} ${person.lastName}`.trim()]));
+
+  const entries = listTimeInRange("0001-01-01", "9999-12-31")
+    .flatMap((entry) => {
+      const projectId = entry.projectId ?? (entry.taskId === null ? null : taskById.get(entry.taskId)?.projectId ?? null);
+      if (projectId === null || !projectIds.has(projectId)) return [];
+      const project = projects.find((item) => item.id === projectId);
+      return [{
+        id: entry.id,
+        entryDate: entry.entryDate,
+        startedAt: entry.startedAt,
+        endedAt: entry.endedAt,
+        memo: entry.memo,
+        billable: entry.billable,
+        taskType: entry.taskType,
+        projectId,
+        projectName: project?.name ?? "",
+        employeeName: entry.employeeId === null ? "" : personById.get(entry.employeeId) ?? "",
+        minutes: timeEntryMinutes(entry),
+      }];
+    })
+    .sort((left, right) => right.entryDate.localeCompare(left.entryDate) || right.startedAt.localeCompare(left.startedAt));
+
+  const projectRows = projects.map((project) => {
+    const projectEntries = entries.filter((entry) => entry.projectId === project.id);
+    const projectTasks = tasks.filter((task) => task.projectId === project.id);
+    return {
+      ...project,
+      minutes: projectEntries.reduce((sum, entry) => sum + entry.minutes, 0),
+      billableMinutes: projectEntries.reduce((sum, entry) => sum + (entry.billable ? entry.minutes : 0), 0),
+      taskCount: projectTasks.length,
+      openTasks: projectTasks.filter((task) => task.status !== "done").length,
+      openDeliverables: projectTasks.filter((task) => task.deliverable && task.status !== "done").length,
+    };
+  });
+
+  const invoices = listInvoices().filter((invoice) => invoice.customerId === id);
+  const bookedInvoices = invoices.filter((invoice) => invoice.status !== "void" && invoice.status !== "draft");
+  const totals: CustomerTotals = {
+    projectCount: projects.length,
+    minutes: entries.reduce((sum, entry) => sum + entry.minutes, 0),
+    billableMinutes: entries.reduce((sum, entry) => sum + (entry.billable ? entry.minutes : 0), 0),
+    invoiceCount: bookedInvoices.length,
+    revenueCents: bookedInvoices.reduce((sum, invoice) => sum + invoice.grossCents, 0),
+    openCents: bookedInvoices.reduce((sum, invoice) => sum + invoice.openCents, 0),
+    lastActivity: latestDate(
+      latestDate(
+        projects.reduce<string | null>((latest, project) => latestDate(latest, project.endedOn ?? project.startedOn), null),
+        entries.reduce<string | null>((latest, entry) => latestDate(latest, entry.entryDate), null),
+      ),
+      bookedInvoices.reduce<string | null>((latest, invoice) => latestDate(latest, invoice.issueDate), null),
+    ),
+  };
+
+  return {
+    customer,
+    totals,
+    projects: projectRows,
+    entries,
+    invoices: invoices.map((invoice) => ({
+      id: invoice.id,
+      number: invoice.number,
+      status: invoice.status,
+      displayStatus: invoice.displayStatus,
+      issueDate: invoice.issueDate,
+      dueDate: invoice.dueDate,
+      grossCents: invoice.grossCents,
+      openCents: invoice.openCents,
+    })),
+    today: todayIso(),
+  };
 }
 
 export function invoiceView(id: number) {
@@ -957,6 +1120,8 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return invoicesView();
     case "customers":
       return customersView();
+    case "customer":
+      return customerView(query.id!);
     case "invoice":
       return invoiceView(query.id!);
     case "invoice-new":
@@ -991,5 +1156,7 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return analyticsView(query.year, query.customer);
     case "milestones":
       return milestonesView(query.year);
+    case "settings":
+      return settingsView();
   }
 }

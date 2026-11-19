@@ -7,6 +7,7 @@ describe("view requests", () => {
     expect(parseViewName("invoice-edit")).toBe("invoice-edit");
     expect(parseViewName("analytics")).toBe("analytics");
     expect(parseViewName("bank")).toBe("bank");
+    expect(parseViewName("settings")).toBe("settings");
     expect(parseViewName("payroll")).toBeNull();
   });
 
@@ -21,6 +22,8 @@ describe("view requests", () => {
     expect(viewIsReady("invoice", { id: null })).toBe(false);
     expect(viewIsReady("invoice", { id: 3 })).toBe(true);
     expect(viewIsReady("person", { id: null })).toBe(false);
+    expect(viewIsReady("customer", { id: null })).toBe(false);
+    expect(viewIsReady("customer", { id: 2 })).toBe(true);
     expect(viewIsReady("desk", { id: null })).toBe(true);
   });
 });

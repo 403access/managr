@@ -4,6 +4,7 @@ export const VIEW_NAMES = [
   "company",
   "invoices",
   "customers",
+  "customer",
   "invoice",
   "invoice-new",
   "invoice-edit",
@@ -20,6 +21,7 @@ export const VIEW_NAMES = [
   "projects",
   "analytics",
   "milestones",
+  "settings",
 ] as const;
 
 export type ViewName = (typeof VIEW_NAMES)[number];
@@ -50,6 +52,6 @@ export function parseViewQuery(params: URLSearchParams, today: string): ViewQuer
 }
 
 export function viewIsReady(name: ViewName, query: Pick<ViewQuery, "id">): boolean {
-  if (name === "invoice" || name === "invoice-edit" || name === "person") return query.id !== null;
+  if (name === "invoice" || name === "invoice-edit" || name === "person" || name === "customer") return query.id !== null;
   return true;
 }

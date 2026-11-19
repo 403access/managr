@@ -4,6 +4,7 @@ import { getDb } from "@/db/client";
 import {
   absences,
   accounts,
+  appSettings,
   bankAccounts,
   bankConnections,
   bankTransactions,
@@ -41,6 +42,7 @@ import { statutoryObligations } from "@/domain/obligations";
 import { salaryForMonth, type SalaryPeriod } from "@/domain/salary";
 import { loanInterestCents, loanOutstandingCents, reviewShareholderLoan } from "@/domain/shareholder-loan";
 import { estimateContributions, type ContributionEstimate } from "@/domain/social";
+import { DEFAULT_UI_SETTINGS, isDetailSidebarMode, parseDetailSidebarOverrides, type UiSettings } from "@/domain/settings";
 import { countWorkdays, weekStart } from "@/domain/time";
 import { lineNetCents, summarizeVat } from "@/domain/vat";
 import { invoiceMoney } from "./invoice-math";
@@ -65,6 +67,15 @@ export function loadCompany() {
 
 export function listCompanies() {
   return getDb().select().from(companies).orderBy(asc(companies.legalName)).all();
+}
+
+export function readUiSettings(): UiSettings {
+  const row = getDb().select().from(appSettings).get();
+  return {
+    detailSidebarMode:
+      row && isDetailSidebarMode(row.detailSidebarMode) ? row.detailSidebarMode : DEFAULT_UI_SETTINGS.detailSidebarMode,
+    detailSidebarOverrides: parseDetailSidebarOverrides(row?.detailSidebarOverrides ?? "{}"),
+  };
 }
 
 export function loadShareholders() {

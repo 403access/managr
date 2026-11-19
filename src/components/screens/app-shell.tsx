@@ -10,6 +10,7 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { CompanySwitcher } from "@/components/company-switcher";
 import { InfoPanel, InfoProvider } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
+import { SettingsProvider } from "@/components/settings-provider";
 import { useView } from "@/components/use-view";
 
 type Shell = ReturnType<typeof shellView>;
@@ -48,7 +49,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <InfoProvider>
-      <div className="min-h-dvh">
+      <SettingsProvider settings={company?.settings}>
+        <div className="min-h-dvh">
         <div className="flex w-full">
           <aside
             id="app-sidebar"
@@ -103,6 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <AppNav variant="bottom" />
         <Assistant />
       </div>
+      </SettingsProvider>
     </InfoProvider>
   );
 }
