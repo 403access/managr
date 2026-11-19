@@ -14,8 +14,16 @@ describe("detail sidebar settings", () => {
     expect(resolveDetailSidebarMode(DEFAULT_UI_SETTINGS, "customers")).toBe("inline");
   });
 
+  it("lists invoice positions newest first by default", () => {
+    expect(DEFAULT_UI_SETTINGS.invoiceLineOrder).toBe("newestFirst");
+  });
+
   it("lets a page override the global mode", () => {
-    const settings = { detailSidebarMode: "overlay" as const, detailSidebarOverrides: { customers: "inline" as const } };
+    const settings = {
+      ...DEFAULT_UI_SETTINGS,
+      detailSidebarMode: "overlay" as const,
+      detailSidebarOverrides: { customers: "inline" as const },
+    };
     expect(resolveDetailSidebarMode(settings, "customers")).toBe("inline");
     expect(resolveDetailSidebarMode({ ...settings, detailSidebarOverrides: {} }, "customers")).toBe("overlay");
   });

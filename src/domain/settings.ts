@@ -24,18 +24,31 @@ export const DETAIL_PAGE_KEYS: readonly DetailPageKey[] = DETAIL_PAGES.map((page
 
 export type DetailSidebarOverrides = Partial<Record<DetailPageKey, DetailSidebarMode>>;
 
+/** Positions from time keep their day; newest first is the default. */
+export const INVOICE_LINE_ORDERS = ["newestFirst", "oldestFirst"] as const;
+
+export type InvoiceLineOrder = (typeof INVOICE_LINE_ORDERS)[number];
+
+export const DEFAULT_INVOICE_LINE_ORDER: InvoiceLineOrder = "newestFirst";
+
 export type UiSettings = {
   detailSidebarMode: DetailSidebarMode;
   detailSidebarOverrides: DetailSidebarOverrides;
+  invoiceLineOrder: InvoiceLineOrder;
 };
 
 export const DEFAULT_UI_SETTINGS: UiSettings = {
   detailSidebarMode: DEFAULT_DETAIL_SIDEBAR_MODE,
   detailSidebarOverrides: {},
+  invoiceLineOrder: DEFAULT_INVOICE_LINE_ORDER,
 };
 
 export function isDetailSidebarMode(value: string): value is DetailSidebarMode {
   return DETAIL_SIDEBAR_MODES.some((mode) => mode === value);
+}
+
+export function isInvoiceLineOrder(value: string): value is InvoiceLineOrder {
+  return INVOICE_LINE_ORDERS.some((order) => order === value);
 }
 
 export function isDetailPageKey(value: string): value is DetailPageKey {

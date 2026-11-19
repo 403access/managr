@@ -607,4 +607,5 @@ export const appSettings = sqliteTable("app_settings", {
   id: integer("id").primaryKey(),
   detailSidebarMode: text("detail_sidebar_mode").notNull().default("inline"),
   detailSidebarOverrides: text("detail_sidebar_overrides").notNull().default("{}"),
+  invoiceLineOrder: text("invoice_line_order").notNull().default("newestFirst"),
 });

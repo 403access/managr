@@ -44,7 +44,7 @@ import { statutoryObligations } from "@/domain/obligations";
 import { salaryForMonth, type SalaryPeriod } from "@/domain/salary";
 import { loanInterestCents, loanOutstandingCents, reviewShareholderLoan } from "@/domain/shareholder-loan";
 import { estimateContributions, type ContributionEstimate } from "@/domain/social";
-import { DEFAULT_UI_SETTINGS, isDetailSidebarMode, parseDetailSidebarOverrides, type UiSettings } from "@/domain/settings";
+import { DEFAULT_UI_SETTINGS, isDetailSidebarMode, isInvoiceLineOrder, parseDetailSidebarOverrides, type UiSettings } from "@/domain/settings";
 import { countWorkdays, weekStart } from "@/domain/time";
 import { lineNetCents, summarizeVat } from "@/domain/vat";
 import { invoiceMoney } from "./invoice-math";
@@ -77,6 +77,8 @@ export function readUiSettings(): UiSettings {
     detailSidebarMode:
       row && isDetailSidebarMode(row.detailSidebarMode) ? row.detailSidebarMode : DEFAULT_UI_SETTINGS.detailSidebarMode,
     detailSidebarOverrides: parseDetailSidebarOverrides(row?.detailSidebarOverrides ?? "{}"),
+    invoiceLineOrder:
+      row && isInvoiceLineOrder(row.invoiceLineOrder) ? row.invoiceLineOrder : DEFAULT_UI_SETTINGS.invoiceLineOrder,
   };
 }
 
@@ -184,6 +186,17 @@ export function listTimeActivities(entryIds: readonly number[]) {
     .where(inArray(timeEntryActivities.timeEntryId, [...entryIds]))
     .orderBy(asc(timeEntryActivities.timeEntryId), asc(timeEntryActivities.position))
     .all();
+}
+
+/** The day of each time entry, keyed by entry id. Invoice positions use it for their order. */
+export function timeEntryDates(entryIds: readonly number[]): Map<number, string> {
+  if (entryIds.length === 0) return new Map();
+  const rows = getDb()
+    .select({ id: timeEntries.id, entryDate: timeEntries.entryDate })
+    .from(timeEntries)
+    .where(inArray(timeEntries.id, [...entryIds]))
+    .all();
+  return new Map(rows.map((row) => [row.id, row.entryDate]));
 }
 
 export function listTimeInRange(from: string, to: string) {

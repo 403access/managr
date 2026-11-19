@@ -1,4 +1,5 @@
 import { isCorporation, legalNameMatchesForm } from "./company";
+import type { InvoiceLineOrder } from "./settings";
 
 /** Printed in German on a Kleinunternehmer invoice. §14c UStG taxes a shown VAT amount. */
 export const KLEINUNTERNEHMER_NOTE = "Gemäß § 19 UStG wird keine Umsatzsteuer ausgewiesen.";
@@ -17,6 +18,28 @@ export type AmountDisplay = (typeof AMOUNT_DISPLAYS)[number];
 
 export function isAmountDisplay(value: string): value is AmountDisplay {
   return (AMOUNT_DISPLAYS as readonly string[]).includes(value);
+}
+
+/** Compares two ISO days in the chosen invoice order. */
+export function compareInvoiceDates(left: string, right: string, order: InvoiceLineOrder): number {
+  const ascending = left.localeCompare(right);
+  return order === "newestFirst" ? -ascending : ascending;
+}
+
+/**
+ * Invoice positions sort by the day of the time they bill. Positions without a
+ * day, such as a line typed by hand, keep their order and follow the dated ones.
+ */
+export function sortInvoicePositions<T extends { entryDate?: string | null }>(
+  positions: readonly T[],
+  order: InvoiceLineOrder,
+): T[] {
+  return [...positions].sort((left, right) => {
+    if (!left.entryDate && !right.entryDate) return 0;
+    if (!left.entryDate) return 1;
+    if (!right.entryDate) return -1;
+    return compareInvoiceDates(left.entryDate, right.entryDate, order);
+  });
 }
 
 export type InvoiceReviewInput = {

@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { saveInvoice } from "@/server/actions";
 import { addDays, formatDate } from "@/domain/calendar";
-import { KLEINUNTERNEHMER_NOTE, reviewInvoice } from "@/domain/invoice";
+import { KLEINUNTERNEHMER_NOTE, reviewInvoice, sortInvoicePositions } from "@/domain/invoice";
 import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung, type XRechnungInput } from "@/domain/xrechnung";
 import { InvoiceDocument, type InvoiceDocumentData } from "./invoice-document";
 import { useI18n } from "./locale-provider";
+import { useUiSettings } from "./settings-provider";
 import { ActionForm, SubmitButton } from "./action-form";
 import { buttonClass, Card, Field, inputClass, SelectInput } from "./ui";
 
@@ -67,6 +68,8 @@ type Line = {
   vatBps: number;
   timeEntryId?: number | null;
   timeActivityId?: number | null;
+  /** The day of the time behind this line; hand-typed lines have none. */
+  entryDate?: string | null;
 };
 
 type Draft = {
@@ -101,6 +104,7 @@ export function InvoiceForm({
   draft?: Draft;
 }) {
   const { t, tx } = useI18n();
+  const { invoiceLineOrder } = useUiSettings();
   const [mode, setMode] = useState<"existing" | "new">(draft || customers.length > 0 ? "existing" : "new");
   const [customerId, setCustomerId] = useState<number | null>(draft?.customerId ?? customers[0]?.id ?? null);
   const [customer, setCustomer] = useState(emptyCustomer);
@@ -110,7 +114,12 @@ export function InvoiceForm({
   const [notes, setNotes] = useState(draft?.notes ?? "");
   const [buyerReference, setBuyerReference] = useState(draft ? draft.buyerReference : (customers[0]?.buyerReference ?? ""));
   const [amountDisplay, setAmountDisplay] = useState<"net" | "gross">(draft?.amountDisplay === "gross" ? "gross" : "net");
-  const [lines, setLines] = useState<Line[]>(draft?.lines ?? [{ description: "", quantity: "1", unitNet: "", vatBps: seller.kleinunternehmer ? 0 : defaultVatBps }]);
+  const [lines, setLines] = useState<Line[]>(() =>
+    sortInvoicePositions(
+      draft?.lines ?? [{ description: "", quantity: "1", unitNet: "", vatBps: seller.kleinunternehmer ? 0 : defaultVatBps }],
+      invoiceLineOrder,
+    ),
+  );
   const [pendingIntent, setPendingIntent] = useState<"draft" | "issue" | null>(null);
   const confirmedSubmit = useRef(false);
   const previewDialog = useRef<HTMLDialogElement>(null);
@@ -317,17 +326,21 @@ export function InvoiceForm({
       if (current.some((line) => line.timeActivityId === activity.id)) return current;
       const onlyBlank = current.length === 1 && !current[0].description.trim() && !current[0].unitNet.trim();
       const base = onlyBlank ? [] : current;
-      return [
-        ...base,
-        {
-          description: activity.lineDescription,
-          quantity: activity.quantity,
-          unitNet: activity.unitNet,
-          vatBps: activity.vatBps,
-          timeEntryId: activity.timeEntryId,
-          timeActivityId: activity.id,
-        },
-      ];
+      return sortInvoicePositions(
+        [
+          ...base,
+          {
+            description: activity.lineDescription,
+            quantity: activity.quantity,
+            unitNet: activity.unitNet,
+            vatBps: activity.vatBps,
+            timeEntryId: activity.timeEntryId,
+            timeActivityId: activity.id,
+            entryDate: activity.entryDate,
+          },
+        ],
+        invoiceLineOrder,
+      );
     });
   }
 

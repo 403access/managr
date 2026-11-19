@@ -122,6 +122,40 @@ export function SettingsScreen() {
               </div>
             </Card>
 
+            <Card>
+              <h2 className="text-xl">{t("settings.linesTitle")}</h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{t("settings.linesLede")}</p>
+              <fieldset className="mt-4 grid gap-2 sm:grid-cols-2">
+                <legend className="mb-1 text-sm font-medium">{t("settings.linesOrder")}</legend>
+                <label className="flex items-start gap-3 rounded-xl border border-line bg-white p-3">
+                  <input
+                    type="radio"
+                    name="invoiceLineOrder"
+                    value="newestFirst"
+                    defaultChecked={data.settings.invoiceLineOrder === "newestFirst"}
+                    className="mt-1 size-4 accent-pine"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">{t("settings.linesNewest")}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted">{t("settings.linesNewestHint")}</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-xl border border-line bg-white p-3">
+                  <input
+                    type="radio"
+                    name="invoiceLineOrder"
+                    value="oldestFirst"
+                    defaultChecked={data.settings.invoiceLineOrder === "oldestFirst"}
+                    className="mt-1 size-4 accent-pine"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">{t("settings.linesOldest")}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted">{t("settings.linesOldestHint")}</span>
+                  </span>
+                </label>
+              </fieldset>
+            </Card>
+
             <div>
               <SubmitButton>{t("settings.save")}</SubmitButton>
             </div>

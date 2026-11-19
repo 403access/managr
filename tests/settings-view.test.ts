@@ -30,7 +30,7 @@ afterAll(() => {
 
 describe("display settings", () => {
   it("starts with the inline default and no page overrides", () => {
-    expect(readUiSettings()).toEqual({ detailSidebarMode: "inline", detailSidebarOverrides: {} });
+    expect(readUiSettings()).toEqual({ detailSidebarMode: "inline", detailSidebarOverrides: {}, invoiceLineOrder: "newestFirst" });
     expect(settingsView().settings.detailSidebarMode).toBe("inline");
     expect(shellView().settings.detailSidebarMode).toBe("inline");
   });
@@ -47,6 +47,7 @@ describe("display settings", () => {
     expect(readUiSettings()).toEqual({
       detailSidebarMode: "overlay",
       detailSidebarOverrides: { customers: "inline" },
+      invoiceLineOrder: "newestFirst",
     });
     expect(settingsView().settings.detailSidebarOverrides.customers).toBe("inline");
   });
@@ -57,7 +58,7 @@ describe("display settings", () => {
     form.set("page.customers", "");
 
     expect(await saveSettings(initialState, form)).toEqual({ error: "", message: "Settings saved." });
-    expect(readUiSettings()).toEqual({ detailSidebarMode: "inline", detailSidebarOverrides: {} });
+    expect(readUiSettings()).toEqual({ detailSidebarMode: "inline", detailSidebarOverrides: {}, invoiceLineOrder: "newestFirst" });
   });
 
   it("rejects an unknown mode", async () => {
@@ -66,5 +67,19 @@ describe("display settings", () => {
     const result = await saveSettings(initialState, form);
     expect(result.error).toBe("Choose a valid sidebar layout.");
     expect(readUiSettings().detailSidebarMode).toBe("inline");
+  });
+
+  it("switches the order of invoice lines and rejects an unknown value", async () => {
+    const form = new FormData();
+    form.set("detailSidebarMode", "inline");
+    form.set("invoiceLineOrder", "oldestFirst");
+    expect(await saveSettings(initialState, form)).toEqual({ error: "", message: "Settings saved." });
+    expect(readUiSettings().invoiceLineOrder).toBe("oldestFirst");
+
+    const invalid = new FormData();
+    invalid.set("detailSidebarMode", "inline");
+    invalid.set("invoiceLineOrder", "sideways");
+    expect((await saveSettings(initialState, invalid)).error).toBe("Choose a valid order for invoice lines.");
+    expect(readUiSettings().invoiceLineOrder).toBe("oldestFirst");
   });
 });

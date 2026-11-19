@@ -4,7 +4,7 @@ import { addDays, fiscalYearContaining, formatDate, todayIso } from "@/domain/ca
 import { currentDirectorContract, reviewDirectorContract } from "@/domain/director-contract";
 import { reviewDirectorSalary } from "@/domain/director-salary";
 import { reviewFounderHealth } from "@/domain/founder-health";
-import { reviewInvoice } from "@/domain/invoice";
+import { reviewInvoice, compareInvoiceDates, sortInvoicePositions } from "@/domain/invoice";
 import { activityQuantityMilli, invoiceLineDescription } from "@/domain/invoice-time";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
 import { policyReminders } from "@/domain/obligations";
@@ -65,6 +65,7 @@ import {
   listTimeInRange,
   listCompanies,
   listContacts,
+  timeEntryDates,
   loadBankConnection,
   loadCompany,
   loadInvoice,
@@ -543,6 +544,7 @@ function invoiceTimeActivities(invoiceId: number | null): InvoiceTimeActivity[] 
   const projectById = new Map(listProjects(company.id).map((project) => [project.id, project]));
   const taskProjectId = new Map(listTasks().map((task) => [task.id, task.projectId]));
   const customerById = new Map(listCustomers(company.id).map((customer) => [customer.id, customer]));
+  const order = readUiSettings().invoiceLineOrder;
 
   return entries
     .flatMap((entry) => {
@@ -583,7 +585,7 @@ function invoiceTimeActivities(invoiceId: number | null): InvoiceTimeActivity[] 
     .filter((activity) => !billed.has(activity.id))
     .sort(
       (left, right) =>
-        right.entryDate.localeCompare(left.entryDate) ||
+        compareInvoiceDates(left.entryDate, right.entryDate, order) ||
         left.projectName.localeCompare(right.projectName, "de") ||
         left.description.localeCompare(right.description, "de"),
     );
@@ -608,6 +610,10 @@ export function invoiceEditView(id: number) {
   if (!loaded) return { kind: "missing" as const };
   if (loaded.invoice.status !== "draft") return { kind: "issued" as const };
   const company = loaded.company;
+  const order = readUiSettings().invoiceLineOrder;
+  const entryDates = timeEntryDates(
+    loaded.lines.map((line) => line.timeEntryId).filter((entryId): entryId is number => entryId !== null),
+  );
   return {
     kind: "draft" as const,
     seller: sellerFrom(company),
@@ -625,14 +631,18 @@ export function invoiceEditView(id: number) {
       notes: loaded.invoice.notes,
       buyerReference: loaded.invoice.buyerReference,
       amountDisplay: loaded.invoice.amountDisplay,
-      lines: loaded.lines.map((line) => ({
-        description: line.description,
-        quantity: quantityInput(line.quantityMilli),
-        unitNet: euroInput(line.unitNetCents),
-        vatBps: line.vatBps,
-        timeEntryId: line.timeEntryId,
-        timeActivityId: line.timeActivityId,
-      })),
+      lines: sortInvoicePositions(
+        loaded.lines.map((line) => ({
+          description: line.description,
+          quantity: quantityInput(line.quantityMilli),
+          unitNet: euroInput(line.unitNetCents),
+          vatBps: line.vatBps,
+          timeEntryId: line.timeEntryId,
+          timeActivityId: line.timeActivityId,
+          entryDate: line.timeEntryId === null ? null : entryDates.get(line.timeEntryId) ?? null,
+        })),
+        order,
+      ),
     },
   };
 }

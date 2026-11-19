@@ -62,8 +62,10 @@ import {
 } from "@/domain/postings";
 import { reserveDutyActive } from "@/domain/reserve";
 import {
+  DEFAULT_INVOICE_LINE_ORDER,
   DETAIL_PAGE_KEYS,
   isDetailSidebarMode,
+  isInvoiceLineOrder,
   serializeDetailSidebarOverrides,
   type DetailSidebarOverrides,
 } from "@/domain/settings";
@@ -246,6 +248,9 @@ export async function saveSettings(_state: ActionState, formData: FormData): Pro
   try {
     const mode = text(formData, "detailSidebarMode");
     if (!isDetailSidebarMode(mode)) throw new Error("Choose a valid sidebar layout.");
+    const lineOrderInput = text(formData, "invoiceLineOrder");
+    if (lineOrderInput && !isInvoiceLineOrder(lineOrderInput)) throw new Error("Choose a valid order for invoice lines.");
+    const invoiceLineOrder = lineOrderInput ? lineOrderInput : DEFAULT_INVOICE_LINE_ORDER;
     const overrides: DetailSidebarOverrides = {};
     for (const page of DETAIL_PAGE_KEYS) {
       const value = text(formData, `page.${page}`);
@@ -256,6 +261,7 @@ export async function saveSettings(_state: ActionState, formData: FormData): Pro
     const values = {
       detailSidebarMode: mode,
       detailSidebarOverrides: serializeDetailSidebarOverrides(overrides),
+      invoiceLineOrder,
     };
     const hourlyRateCents = optionalEuros(formData, "hourlyRate", "The hourly rate");
     const db = getDb();
