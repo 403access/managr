@@ -5,6 +5,7 @@ import {
   absences,
   customers,
   customDeadlines,
+  contacts,
   directorContracts,
   documents,
   employees,
@@ -251,6 +252,27 @@ function listKind(kind: TrashKind): TrashEntry[] {
           detail: [row.coverKind, row.provider].filter(Boolean).join(" · "),
           deletedAt: row.deletedAt!,
         }));
+    case "contact":
+      return db
+        .select({
+          id: contacts.id,
+          firstName: contacts.firstName,
+          lastName: contacts.lastName,
+          role: contacts.role,
+          deletedAt: contacts.deletedAt,
+          customerName: customers.name,
+        })
+        .from(contacts)
+        .leftJoin(customers, eq(customers.id, contacts.customerId))
+        .where(and(eq(contacts.companyId, companyId), isNotNull(contacts.deletedAt)))
+        .all()
+        .map((row) => ({
+          kind,
+          id: row.id,
+          label: `${row.firstName} ${row.lastName}`.trim(),
+          detail: [row.role, row.customerName].filter(Boolean).join(" · "),
+          deletedAt: row.deletedAt!,
+        }));
   }
 }
 
@@ -339,6 +361,9 @@ export function restoreDeleted(kind: TrashKind, id: number): RestoreResult {
         db.update(founderHealth).set({ deletedAt: null }).where(eq(founderHealth.id, id)).run();
         break;
       }
+      case "contact":
+        db.update(contacts).set({ deletedAt: null }).where(and(eq(contacts.id, id), eq(contacts.companyId, companyId))).run();
+        break;
     }
     return { ok: true };
   } catch (error) {

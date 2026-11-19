@@ -59,7 +59,7 @@ The same chat opens as a full page at `/assistant`: chat, the stored history, th
 
 ## Deleting and restoring
 
-A delete hides a record but keeps it: shareholders, policies, invoice drafts, salary changes, absences, projects, milestones, tasks, time entries, deadlines, documents, director contracts, and founder health cover all carry a `deleted_at` timestamp. After a deletion on a screen, a short **Rückgängig** strip offers the same restore; `/trash` lists every deleted record with a **Wiederherstellen** button. Restoring a project or task brings its time entries back into the saved view, and a deleted document keeps its uploaded file.
+A delete hides a record but keeps it: shareholders, policies, invoice drafts, salary changes, absences, projects, milestones, tasks, time entries, deadlines, documents, director contracts, founder health cover, and customer contact people all carry a `deleted_at` timestamp. After a deletion on a screen, a short **Rückgängig** strip offers the same restore; `/trash` lists every deleted record with a **Wiederherstellen** button. Restoring a project or task brings its time entries back into the saved view, and a deleted document keeps its uploaded file.
 
 Two technical deletes stay hard: disconnecting Qonto removes the stored credential and its cache, and saving an edited draft replaces its line rows. The draft itself is soft-deleted and can be restored.
 
@@ -76,6 +76,8 @@ The page at [http://localhost:3000/time/playback](http://localhost:3000/time/pla
 ## People and the org chart
 
 **Personen** holds employment records, contribution estimates, salary history, absences, and payroll. Each person can name a manager on the **Beschäftigung** tab. The **Organigramm** section on the same page draws the reporting lines from those entries; a person without a manager starts a branch, and people with an end date in the past move to a former section. A manager change that would make a person report to themselves or form a loop is refused. Nothing in the org chart is posted to the journal.
+
+People at a customer who are not employed by the company are **Kontaktpersonen**, not people. Add them in the customer's detail panel. A time entry can name an employee or a contact, never both; a contact creates no payroll, no social insurance, and no org-chart entry. The analysis shows the contact with the customer, and old entries keep the name after a contact is removed.
 
 ## Projects and analysis
 

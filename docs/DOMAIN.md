@@ -21,6 +21,10 @@ Share capital may sit below the GmbH minimum (`GMBH_MINIMUM_CAPITAL_CENTS`). The
 
 Implementation: `src/domain/reserve.ts`.
 
+## Bank details
+
+**Bank und Rechnungen** keeps the company's IBAN, BIC, and bank name. A complete German IBAN fills the BIC and the bank name from the local Bundesbank Bankleitzahlendatei (`src/domain/bank-codes.ts`); the table holds active payment-service providers only and is refreshed with `bun run data:bank-codes`. The lookup is local and sends nothing. A foreign IBAN or a checksum error fills nothing, and a BIC or bank name the user typed stays as entered. Implementation: `src/domain/iban.ts` and `src/domain/bank-codes.ts`.
+
 ## VAT and the small-business exemption
 
 Standard and reduced rates: `STANDARD_VAT_BPS`, `REDUCED_VAT_BPS`. VAT is computed once per rate on the sum of net amounts, then rounded half up to the cent. Implementation: `src/domain/vat.ts`.
@@ -157,6 +161,8 @@ A profit distribution is separate: `buildProfitDistribution` debits retained pro
 ## Time
 
 Working-time warnings follow §3 and §4 ArbZG (8 hours, 10-hour cap, 30- and 45-minute breaks). Vacation minimum scales 24 weekdays by the working week (BUrlG). The weekday pattern is "the first N days of the week", which is an assumption the person screen states.
+
+A time entry names at most one person. The normal case is an employee in `employees`, which carries payroll and social-insurance consequences. A customer's staff member is a row in `contacts` instead: a light record with a name, optional customer, role, and contact details. `time_entries.contact_id` points at it, and `employee_id` stays null. The two columns are mutually exclusive in the form and the tool, but a contact never enters payroll, the org chart, or a contribution estimate. Removing a contact is a soft delete so a recorded entry keeps its name.
 
 An hourly rate is not a statutory figure. It is stored at four levels — company default, customer, project, and time entry — and the most specific stored value wins (`src/domain/rates.ts`). A rate values booked minutes for display; it is not an invoice line and never posts to the journal.
 

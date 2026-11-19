@@ -10,6 +10,7 @@ import {
   bankConnections,
   companies,
   complianceItems,
+  contacts,
   customers,
   customDeadlines,
   directorContracts,
@@ -70,7 +71,7 @@ import { salaryForMonth } from "@/domain/salary";
 import { loanInterestCents, loanOutstandingCents } from "@/domain/shareholder-loan";
 import { estimateContributions, payrollAmounts } from "@/domain/social";
 import { isStateCode } from "@/domain/states";
-import { durationMinutes, timeActivitiesProblem, timeWarnings } from "@/domain/time";
+import { durationMinutes, parseTimePersonRef, timeActivitiesProblem, timeWarnings } from "@/domain/time";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { removeUpload, saveUpload } from "./files";
 import { connectBank, syncBankConnection } from "./bank";
@@ -700,6 +701,56 @@ export async function saveCustomer(_state: ActionState, formData: FormData): Pro
     }
     db.insert(customers).values({ ...values, companyId: company.id }).run();
     return saved("Customer added.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function saveContact(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const firstName = text(formData, "firstName");
+    const lastName = text(formData, "lastName");
+    if (!firstName && !lastName) throw new Error("The contact needs a name.");
+    const db = getDb();
+    const company = requireCompany();
+    const customerId = optionalId(formData, "customerId");
+    if (customerId && !db.select().from(customers).where(and(eq(customers.id, customerId), eq(customers.companyId, company.id))).get()) {
+      throw new Error("Customer not found.");
+    }
+    const values = {
+      customerId,
+      firstName,
+      lastName,
+      role: text(formData, "role"),
+      email: text(formData, "email"),
+      phone: text(formData, "phone"),
+      notes: text(formData, "notes"),
+    };
+    const id = optionalId(formData);
+    if (id) {
+      const existing = db.select().from(contacts).where(and(eq(contacts.id, id), eq(contacts.companyId, company.id))).get();
+      if (!existing) throw new Error("Contact not found.");
+      db.update(contacts).set(values).where(eq(contacts.id, id)).run();
+      return saved("Contact saved.");
+    }
+    db.insert(contacts).values({ ...values, companyId: company.id }).run();
+    return saved("Contact added.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+export async function deleteContact(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const id = requiredId(formData);
+    const db = getDb();
+    const company = requireCompany();
+    db.update(contacts)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(eq(contacts.id, id), eq(contacts.companyId, company.id), isNull(contacts.deletedAt)))
+      .run();
+    await rememberDeletion("contact", id);
+    return saved("Contact removed. Time entries keep their name.");
   } catch (error) {
     return failed(error);
   }
@@ -1573,6 +1624,38 @@ function timeActivitiesFrom(formData: FormData): string[] {
   return activities;
 }
 
+/**
+ * One time entry names either an employee or an external contact. The screen
+ * sends `personRef`; the older `employeeId` field still works for callers that
+ * only know employees.
+ */
+function timePersonIds(formData: FormData, companyId: number): { employeeId: number | null; contactId: number | null } {
+  const db = getDb();
+  const reference = text(formData, "personRef");
+  if (reference) {
+    const person = parseTimePersonRef(reference);
+    if (!person) throw new Error("Person not found.");
+    if (person.kind === "employee") {
+      const employee = db.select().from(employees).where(and(eq(employees.id, person.id), eq(employees.companyId, companyId))).get();
+      if (!employee) throw new Error("Person not found.");
+      return { employeeId: person.id, contactId: null };
+    }
+    const contact = db.select().from(contacts).where(and(eq(contacts.id, person.id), eq(contacts.companyId, companyId), isNull(contacts.deletedAt))).get();
+    if (!contact) throw new Error("Contact not found.");
+    return { employeeId: null, contactId: person.id };
+  }
+  const employeeId = optionalId(formData, "employeeId");
+  const contactId = optionalId(formData, "contactId");
+  if (employeeId && contactId) throw new Error("Choose either a person or a contact, not both.");
+  if (employeeId && !db.select().from(employees).where(and(eq(employees.id, employeeId), eq(employees.companyId, companyId))).get()) {
+    throw new Error("Person not found.");
+  }
+  if (contactId && !db.select().from(contacts).where(and(eq(contacts.id, contactId), eq(contacts.companyId, companyId), isNull(contacts.deletedAt))).get()) {
+    throw new Error("Contact not found.");
+  }
+  return { employeeId, contactId };
+}
+
 export async function saveTime(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const entryDate = requireDate(text(formData, "entryDate"), "The day");
@@ -1585,8 +1668,7 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
     if (stop) throw new Error(stop.message);
     const db = getDb();
     const company = requireCompany();
-    const employeeId = optionalId(formData, "employeeId");
-    if (employeeId && !db.select().from(employees).where(and(eq(employees.id, employeeId), eq(employees.companyId, company.id))).get()) throw new Error("Person not found.");
+    const person = timePersonIds(formData, company.id);
     const taskId = optionalId(formData, "taskId");
     const task = taskId ? db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.companyId, company.id), isNull(tasks.deletedAt))).get() : null;
     if (taskId && !task) throw new Error("Task not found.");
@@ -1604,7 +1686,8 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
         memo: text(formData, "memo"),
         taskId,
         projectId,
-        employeeId,
+        employeeId: person.employeeId,
+        contactId: person.contactId,
         billable: checked(formData, "billable"),
         taskType,
         hourlyRateCents: optionalEuros(formData, "hourlyRate", "The entry hourly rate"),
@@ -1635,6 +1718,29 @@ export async function saveTimeDetails(_state: ActionState, formData: FormData): 
       writeTimeActivities(tx, id, activities);
     });
     return saved("Time entry saved.");
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+/** Replaces the person on an existing entry, with nobody as the empty choice. */
+export async function saveTimePerson(_state: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const id = requiredId(formData);
+    const db = getDb();
+    const company = requireCompany();
+    const entry = db
+      .select()
+      .from(timeEntries)
+      .where(and(eq(timeEntries.id, id), eq(timeEntries.companyId, company.id), isNull(timeEntries.deletedAt)))
+      .get();
+    if (!entry) throw new Error("Time entry not found.");
+    const person = timePersonIds(formData, company.id);
+    db.update(timeEntries)
+      .set({ employeeId: person.employeeId, contactId: person.contactId })
+      .where(eq(timeEntries.id, id))
+      .run();
+    return saved(!person.employeeId && !person.contactId ? "Person removed." : "Person saved.");
   } catch (error) {
     return failed(error);
   }

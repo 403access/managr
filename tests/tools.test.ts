@@ -44,6 +44,37 @@ describe("tool registry", () => {
     expect(Object.keys(guides.properties as Record<string, unknown>)).toEqual(["topic", "locale"]);
   });
 
+  it("records time for an external contact without creating an employee", async () => {
+    const customers = data<{ customers: { id: number; name: string }[] }>(await runTool("read_customers", {}));
+    const customer = customers.customers[0];
+    const saved = data<{ id: number; saved: boolean }>(
+      await runTool("save_contact", { firstName: "Alen", lastName: "Zukic", customerId: customer.id }),
+    );
+    expect(saved.saved).toBe(true);
+    const added = data<{ id: number }>(
+      await runTool("add_time", {
+        entryDate: "2026-11-03",
+        startedAt: "09:00",
+        endedAt: "10:00",
+        activities: ["Sync mit IT Works"],
+        contactId: saved.id,
+      }),
+    );
+    const row = getDb().select().from(timeEntries).where(eq(timeEntries.id, added.id)).get();
+    expect(row?.contactId).toBe(saved.id);
+    expect(row?.employeeId).toBeNull();
+    const week = data<{ entries: { id: number; personName: string }[] }>(await runTool("read_time", { anyDayInWeek: "2026-11-03" }));
+    expect(week.entries.find((entry) => entry.id === added.id)?.personName).toBe("Alen Zukic");
+
+    await expect(runTool("add_time", {
+      entryDate: "2026-11-04",
+      startedAt: "09:00",
+      endedAt: "10:00",
+      personId: 1,
+      contactId: saved.id,
+    })).resolves.toMatchObject({ ok: false });
+  });
+
   it("updates a time entry in place instead of deleting and recreating it", async () => {
     const added = data<{ id: number }>(
       await runTool("add_time", {

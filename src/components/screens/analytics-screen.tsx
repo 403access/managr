@@ -147,11 +147,16 @@ export function AnalyticsScreen({ year }: { year: number }) {
                       </thead>
                       <tbody>
                         {data.peopleRows.map((person) => (
-                          <tr key={String(person.employeeId ?? "none")} className="border-b border-line last:border-0">
+                          <tr key={person.kind === "employee" ? `employee-${person.employeeId}` : person.kind === "contact" ? `contact-${person.contactId}` : "none"} className="border-b border-line last:border-0">
                             <td className="py-2">
-                              {person.employeeId === null ? t("analytics.noPerson") : (
+                              {person.kind === "employee" && person.employeeId !== null ? (
                                 <Link href={`/people/${person.employeeId}`} className="text-pine">{person.firstName} {person.lastName}</Link>
-                              )}
+                              ) : person.kind === "contact" ? (
+                                <>
+                                  {person.firstName} {person.lastName}
+                                  {person.customerName ? <span className="block text-xs text-muted">{person.customerName}</span> : null}
+                                </>
+                              ) : t("analytics.noPerson")}
                             </td>
                             <td className="py-2 text-right font-mono tabular-nums">{formatDuration(person.minutes)}</td>
                             <td className="py-2 text-right font-mono tabular-nums">{person.productiveShare} %</td>

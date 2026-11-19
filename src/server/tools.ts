@@ -6,6 +6,7 @@ import {
   absences,
   companies,
   complianceItems,
+  contacts,
   customers,
   customDeadlines,
   directorContracts,
@@ -67,6 +68,7 @@ import { entryLines, payrollSourceId, postJournal } from "./posting";
 import { webEnabled, webFetch, webSearch } from "./web";
 import {
   accountBalances,
+  listContacts,
   listDeadlines,
   listInvoices,
   listObligations,
@@ -195,6 +197,16 @@ function requireEmployee(id: number) {
   const employee = getDb().select().from(employees).where(and(eq(employees.id, id), eq(employees.companyId, requireCompany().id))).get();
   if (!employee) throw new Error("Person not found.");
   return employee;
+}
+
+function requireContact(id: number) {
+  const contact = getDb()
+    .select()
+    .from(contacts)
+    .where(and(eq(contacts.id, id), eq(contacts.companyId, requireCompany().id), isNull(contacts.deletedAt)))
+    .get();
+  if (!contact) throw new Error("Contact not found.");
+  return contact;
 }
 
 function requireTask(id: number) {
@@ -384,6 +396,19 @@ export const tools: DeskTool[] = [
     description: "All customers of the active company with addresses, contact details, websites, buyer references, and the customer hourly rate.",
     input: {},
     run: () => customersView(),
+  }),
+  tool({
+    name: "read_contacts",
+    description:
+      "External contact people of the active company, for example a customer's staff. They are not employees: no payroll or social insurance. A time entry can name one through contactId.",
+    input: {
+      customerId: z.number().int().positive().optional().describe("Only contacts at this customer."),
+      includeDeleted: z.boolean().optional().describe("Include removed contacts that old time entries may still name."),
+    },
+    run: (input) => {
+      const rows = listContacts(requireCompany().id, Boolean(input.includeDeleted));
+      return input.customerId ? rows.filter((row) => row.customerId === input.customerId) : rows;
+    },
   }),
   tool({
     name: "read_invoices",
@@ -1088,6 +1113,57 @@ export const tools: DeskTool[] = [
     },
   }),
   tool({
+    name: "save_contact",
+    description:
+      "Add or update an external contact person, such as a customer's employee. A contact never creates payroll, social insurance, or an employee record; it only names who was involved, for example on a time entry.",
+    input: {
+      contactId: z.number().int().positive().optional().describe("Omit to create; pass an id from read_contacts to update."),
+      customerId: z.number().int().positive().nullable().optional().describe("The customer the person belongs to. Null removes the link."),
+      firstName: z.string().trim().min(1).max(80),
+      lastName: z.string().trim().max(80).optional(),
+      role: z.string().trim().max(120).optional(),
+      email: z.string().trim().max(160).optional(),
+      phone: z.string().trim().max(60).optional(),
+      notes: z.string().trim().max(2000).optional(),
+    },
+    run: (input) => {
+      const db = getDb();
+      const company = requireCompany();
+      if (input.customerId) {
+        const customer = db.select().from(customers).where(and(eq(customers.id, input.customerId), eq(customers.companyId, company.id))).get();
+        if (!customer) throw new Error("Customer not found.");
+      }
+      const values = {
+        firstName: input.firstName,
+        lastName: input.lastName ?? "",
+        role: input.role ?? "",
+        email: input.email ?? "",
+        phone: input.phone ?? "",
+        notes: input.notes ?? "",
+      };
+      if (input.contactId) {
+        const existing = requireContact(input.contactId);
+        db.update(contacts)
+          .set({ ...values, customerId: input.customerId === undefined ? existing.customerId : input.customerId })
+          .where(eq(contacts.id, existing.id))
+          .run();
+        return { id: existing.id, saved: true };
+      }
+      const created = db.insert(contacts).values({ ...values, companyId: company.id, customerId: input.customerId ?? null }).run();
+      return { id: Number(created.lastInsertRowid), saved: true };
+    },
+  }),
+  tool({
+    name: "delete_contact",
+    description: "Remove an external contact. Time entries that named the contact keep the name for history.",
+    input: idInput,
+    run: (input) => {
+      const contact = requireContact(input.id);
+      getDb().update(contacts).set({ deletedAt: new Date().toISOString() }).where(eq(contacts.id, contact.id)).run();
+      return { id: contact.id, removed: true };
+    },
+  }),
+  tool({
     name: "create_invoice",
     description: "Create an invoice draft. Nothing is numbered or posted until issue_invoice is called. Prices are net; the §14 UStG review is returned with the draft.",
     input: {
@@ -1783,7 +1859,8 @@ export const tools: DeskTool[] = [
       breakMinutes: z.number().int().min(0).max(600).optional(),
       activities: z.array(z.string().trim().min(1).max(400)).max(50).optional().describe("The individual lines of work. One activity per invoice line item later."),
       memo: z.string().trim().max(2000).optional().describe("Internal note, visible only on this desk. Never shown to a customer."),
-      personId: z.number().int().positive().optional(),
+      personId: z.number().int().positive().optional().describe("An employee of the company. Use contactId for a person at a customer."),
+      contactId: z.number().int().positive().optional().describe("An external contact from read_contacts. Use instead of personId; it creates no payroll."),
       taskId: z.number().int().positive().optional(),
       projectId: z.number().int().positive().optional(),
       taskType: z.string().trim().optional().describe("development, design, planning, research, documentation, meeting, communication, admin, or other. Inherited from the task when omitted."),
@@ -1797,7 +1874,9 @@ export const tools: DeskTool[] = [
       const stop = timeWarnings(minutes, breakMinutes).find((warning) => warning.level === "stop");
       if (stop) throw new Error(stop.message);
       const db = getDb();
+      if (input.personId && input.contactId) throw new Error("Choose either a person or a contact, not both.");
       if (input.personId) requireEmployee(input.personId);
+      if (input.contactId) requireContact(input.contactId);
       const task = input.taskId ? requireTask(input.taskId) : null;
       const projectId = task?.projectId ?? input.projectId ?? null;
       if (projectId) requireProject(projectId);
@@ -1815,6 +1894,7 @@ export const tools: DeskTool[] = [
           taskId: input.taskId ?? null,
           projectId,
           employeeId: input.personId ?? null,
+          contactId: input.contactId ?? null,
           billable: input.billable ?? false,
           taskType,
           hourlyRateCents: rateCents(input.hourlyRate) ?? null,
@@ -1837,7 +1917,8 @@ export const tools: DeskTool[] = [
       breakMinutes: z.number().int().min(0).max(600).optional(),
       activities: z.array(z.string().trim().min(1).max(400)).max(50).optional().describe("Replace the activity lines. Pass an empty array to clear them."),
       memo: z.string().trim().max(2000).optional().describe("Replace the internal note. Never shown to a customer."),
-      personId: z.number().int().positive().nullable().optional(),
+      personId: z.number().int().positive().nullable().optional().describe("An employee. Null clears the employee; a contactId is cleared when an employee is set."),
+      contactId: z.number().int().positive().nullable().optional().describe("An external contact. Null clears the contact; an employee is cleared when a contact is set."),
       taskId: z.number().int().positive().nullable().optional(),
       projectId: z.number().int().positive().nullable().optional(),
       taskType: z.string().trim().optional().describe("development, design, planning, research, documentation, meeting, communication, admin, or other."),
@@ -1863,6 +1944,18 @@ export const tools: DeskTool[] = [
       if (stop) throw new Error(stop.message);
 
       if (input.personId !== undefined && input.personId !== null) requireEmployee(input.personId);
+      if (input.contactId !== undefined && input.contactId !== null) requireContact(input.contactId);
+      if (input.personId && input.contactId) throw new Error("Choose either a person or a contact, not both.");
+      let employeeId = entry.employeeId;
+      let contactId = entry.contactId;
+      if (input.personId !== undefined) {
+        employeeId = input.personId;
+        if (input.personId !== null) contactId = null;
+      }
+      if (input.contactId !== undefined) {
+        contactId = input.contactId;
+        if (input.contactId !== null) employeeId = null;
+      }
       const task = input.taskId !== undefined && input.taskId !== null ? requireTask(input.taskId) : null;
       const taskId = input.taskId === undefined ? entry.taskId : input.taskId;
       let projectId: number | null;
@@ -1885,7 +1978,8 @@ export const tools: DeskTool[] = [
           memo: input.memo ?? entry.memo,
           taskId,
           projectId,
-          employeeId: input.personId === undefined ? entry.employeeId : input.personId,
+          employeeId,
+          contactId,
           billable: input.billable ?? entry.billable,
           taskType,
           hourlyRateCents: input.hourlyRate === undefined ? entry.hourlyRateCents : (rateCents(input.hourlyRate) ?? null),

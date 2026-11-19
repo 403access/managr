@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment, type ReactNode } from "react";
-import { deleteTask, deleteTime, saveTask, saveTime, saveTimeDetails, saveTimeRate, toggleTask } from "@/server/actions";
+import { deleteTask, deleteTime, saveTask, saveTime, saveTimeDetails, saveTimePerson, saveTimeRate, toggleTask } from "@/server/actions";
 import type { timeView } from "@/server/views";
 import { TASK_TYPES, type TaskType } from "@/domain/analytics";
 import { addDays, formatDate } from "@/domain/calendar";
@@ -16,12 +16,14 @@ import {
   daySpan,
   filterTasks,
   filterTimeEntries,
+  formatTimePersonRef,
   groupTimeEntriesByDay,
   sortTasks,
   sortTimeEntries,
   type TaskSort,
   type TimeEntryDayGroup,
   type TimeEntrySort,
+  type TimePersonFilter,
 } from "@/domain/time";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration, euroInput } from "@/components/amounts";
@@ -86,15 +88,8 @@ function TimeBody({ data }: { data: Week }) {
                   <ActionForm action={saveTime} resetOnSuccess>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field label={t("time.day")}><TextInput name="entryDate" type="date" defaultValue={data.anchor} /></Field>
-                      <Field label={t("time.person")}>
-                        <SelectInput name="employeeId" defaultValue="">
-                          <option value="">{t("time.nobody")}</option>
-                          {data.people.map((person) => (
-                            <option key={person.id} value={person.id}>
-                              {person.firstName} {person.lastName}
-                            </option>
-                          ))}
-                        </SelectInput>
+                      <Field label={t("time.person")} hint={t("time.personHint")}>
+                        <PersonSelect data={data} />
                       </Field>
                       <Field label={t("common.start")}><TextInput name="startedAt" type="time" defaultValue="09:00" /></Field>
                       <Field label={t("common.end")}><TextInput name="endedAt" type="time" defaultValue="17:00" /></Field>
@@ -221,6 +216,36 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
   );
 }
 
+/** Employees and external contacts in one picker, so a time entry never mixes them up. */
+function PersonSelect({ data, defaultValue = "", orphan }: { data: Week; defaultValue?: string; orphan?: string }) {
+  const { t } = useI18n();
+  return (
+    <SelectInput name="personRef" defaultValue={defaultValue}>
+      <option value="">{t("time.nobody")}</option>
+      {orphan ? <option value={defaultValue}>{orphan}</option> : null}
+      {data.people.length > 0 ? (
+        <optgroup label={t("time.personTeam")}>
+          {data.people.map((person) => (
+            <option key={`employee-${person.id}`} value={formatTimePersonRef("employee", person.id)}>
+              {person.firstName} {person.lastName}
+            </option>
+          ))}
+        </optgroup>
+      ) : null}
+      {data.contacts.length > 0 ? (
+        <optgroup label={t("time.personContacts")}>
+          {data.contacts.map((contact) => (
+            <option key={`contact-${contact.id}`} value={formatTimePersonRef("contact", contact.id)}>
+              {contact.firstName} {contact.lastName}
+              {contact.customerName ? ` · ${contact.customerName}` : ""}
+            </option>
+          ))}
+        </optgroup>
+      ) : null}
+    </SelectInput>
+  );
+}
+
 /** One controlled input per activity, so every activity is its own line. */
 function ActivityFields({ defaultValue = [] }: { defaultValue?: string[] }) {
   const { t } = useI18n();
@@ -303,6 +328,14 @@ function TimeEntryPanel({
 }) {
   const { t, tx, label } = useI18n();
   const person = data.people.find((item) => item.id === entry.employeeId) ?? null;
+  const contact = entry.contactId === null ? null : data.contacts.find((item) => item.id === entry.contactId) ?? null;
+  const contactName = contact ? `${contact.firstName} ${contact.lastName}`.trim() : entry.contactName;
+  const personDefault =
+    entry.employeeId !== null
+      ? formatTimePersonRef("employee", entry.employeeId)
+      : entry.contactId !== null
+        ? formatTimePersonRef("contact", entry.contactId)
+        : "";
   const task = entry.taskId === null ? null : data.tasks.find((item) => item.id === entry.taskId) ?? null;
   const checks = Boolean(entry.error) || entry.warnings.length > 0;
   return (
@@ -328,6 +361,21 @@ function TimeEntryPanel({
             <Link href={`/people/${person.id}`} className="text-pine underline-offset-4 hover:underline">
               {person.firstName} {person.lastName}
             </Link>
+          ) : contactName ? (
+            <span>
+              {entry.contactCustomerId !== null ? (
+                <Link href={`/customers#customer-${entry.contactCustomerId}`} className="text-pine underline-offset-4 hover:underline">
+                  {contactName}
+                </Link>
+              ) : (
+                contactName
+              )}
+              {entry.contactCustomerName ? (
+                <span className="block text-xs text-muted">
+                  {t("time.contactAt", { customer: entry.contactCustomerName })}
+                </span>
+              ) : null}
+            </span>
           ) : (
             "-"
           )}
@@ -381,6 +429,15 @@ function TimeEntryPanel({
         ) : null}
       </dl>
       <div className="mt-6 border-t border-line pt-4">
+        <ActionForm action={saveTimePerson} className="grid gap-3">
+          <input type="hidden" name="id" value={entry.id} />
+          <Field label={t("time.person")} hint={t("time.personHint")}>
+            <PersonSelect data={data} defaultValue={personDefault} orphan={entry.contactId !== null && contact === null && contactName ? `${contactName} · ${t("contacts.removed")}` : undefined} />
+          </Field>
+          <SubmitButton tone="quiet">{t("time.savePerson")}</SubmitButton>
+        </ActionForm>
+      </div>
+      <div className="mt-4 border-t border-line pt-4">
         <ActionForm action={saveTimeDetails} className="grid gap-3">
           <input type="hidden" name="id" value={entry.id} />
           <ActivityField key={entry.activities.join("\u0000")} defaultValue={entry.activities} />
@@ -447,7 +504,7 @@ function EntryCards({ entries, selectedId, onOpen }: { entries: TimeEntries; sel
                 )}
               </span>
               <span className="block text-sm text-muted">
-                {[entry.firstName, entry.projectId ? entry.projectName : "", entry.taskType !== "other" ? label(entry.taskType) : "", entry.billable ? t("time.billable") : ""]
+                {[entry.personName, entry.projectId ? entry.projectName : "", entry.taskType !== "other" ? label(entry.taskType) : "", entry.billable ? t("time.billable") : ""]
                   .filter(Boolean)
                   .join(" · ")}
               </span>
@@ -485,12 +542,10 @@ function EntryTable({
   groups,
   selectedId,
   onOpen,
-  personName,
 }: {
   groups: TimeEntryDayGroup<TimeEntries[number]>[];
   selectedId: number | null;
   onOpen: (id: number) => void;
-  personName: (employeeId: number | null) => string;
 }) {
   const { t, tx, label } = useI18n();
   return (
@@ -562,7 +617,7 @@ function EntryTable({
                       formatDuration(entry.minutes)
                     )}
                   </td>
-                  <td className="px-3 py-2 align-top">{personName(entry.employeeId) || "-"}</td>
+                  <td className="px-3 py-2 align-top">{entry.personName || "-"}</td>
                   <td className="px-3 py-2 align-top">{entry.customerName || "—"}</td>
                   <td className="px-3 py-2 align-top">{entry.projectId ? entry.projectName : t("time.projectNone")}</td>
                   <td className="px-3 py-2 align-top">{label(entry.taskType)}</td>
@@ -609,7 +664,8 @@ function WeekPanel({ data }: { data: Week }) {
   const [billable, setBillable] = useState<"" | "yes" | "no">("");
   const [sort, setSort] = useState<TimeEntrySort>(DEFAULT_TIME_ENTRY_SORT);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const personFilter = person === "" ? null : person === "none" ? "none" : Number(person);
+  const personFilter: TimePersonFilter =
+    person === "" ? null : person === "none" ? "none" : person.startsWith("contact:") ? (person as `contact:${number}`) : Number(person);
   const customerFilter = customer === "" ? null : customer === "none" ? "none" : Number(customer);
   const projectFilter = project === "" ? null : project === "none" ? "none" : Number(project);
   const customers = useMemo(() => {
@@ -629,10 +685,6 @@ function WeekPanel({ data }: { data: Week }) {
     [sorted, sort],
   );
   const multiDay = daySpan(data.start, data.end) > 1;
-  const personName = (employeeId: number | null) => {
-    const person = employeeId === null ? null : data.people.find((item) => item.id === employeeId) ?? null;
-    return person ? `${person.firstName} ${person.lastName}` : "";
-  };
   const shownMinutes = useMemo(() => filtered.reduce((sum, entry) => sum + entry.minutes, 0), [filtered]);
   const active = Boolean(search.trim() || person || customer || project || taskType || billable);
   const activeFilterCount = [search.trim(), person, customer, project, taskType, billable].filter(Boolean).length;
@@ -741,9 +793,25 @@ function WeekPanel({ data }: { data: Week }) {
                   <SelectInput value={person} onChange={(event) => setPerson(event.target.value)}>
                     <option value="">{t("time.filterAll")}</option>
                     <option value="none">{t("time.filterNoPerson")}</option>
-                    {data.people.map((item) => (
-                      <option key={item.id} value={String(item.id)}>{item.firstName} {item.lastName}</option>
-                    ))}
+                    {data.people.length > 0 ? (
+                      <optgroup label={t("time.personTeam")}>
+                        {data.people.map((item) => (
+                          <option key={`employee-${item.id}`} value={formatTimePersonRef("employee", item.id)}>
+                            {item.firstName} {item.lastName}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
+                    {data.contacts.length > 0 ? (
+                      <optgroup label={t("time.personContacts")}>
+                        {data.contacts.map((item) => (
+                          <option key={`contact-${item.id}`} value={formatTimePersonRef("contact", item.id)}>
+                            {item.firstName} {item.lastName}
+                            {item.customerName ? ` · ${item.customerName}` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
                   </SelectInput>
                 </Field>
                 <Field label={t("time.customer")}>
@@ -805,7 +873,7 @@ function WeekPanel({ data }: { data: Week }) {
           {sorted.length === 0 ? (
             <Empty>{t("time.filterEmpty")}</Empty>
           ) : multiDay ? (
-            <EntryTable groups={groups} selectedId={selectedId} onOpen={openEntry} personName={personName} />
+            <EntryTable groups={groups} selectedId={selectedId} onOpen={openEntry} />
           ) : (
             <EntryCards entries={sorted} selectedId={selectedId} onOpen={openEntry} />
           )}

@@ -125,6 +125,9 @@ export type FilterableTimeEntry = {
   activities: readonly string[];
   billable: boolean;
   employeeId: number | null;
+  /** External contact at a customer, when the entry names no employee. */
+  contactId?: number | null;
+  contactName?: string;
   firstName: string;
   projectId: number | null;
   projectName: string;
@@ -133,10 +136,32 @@ export type FilterableTimeEntry = {
   taskType: string;
 };
 
+export const TIME_PERSON_KINDS = ["employee", "contact"] as const;
+
+export type TimePersonKind = (typeof TIME_PERSON_KINDS)[number];
+
+export type TimePersonRef = { kind: TimePersonKind; id: number };
+
+export function formatTimePersonRef(kind: TimePersonKind, id: number): string {
+  return `${kind}:${id}`;
+}
+
+/** Reads `employee:3` or `contact:7`; an empty or malformed value means nobody. */
+export function parseTimePersonRef(value: string): TimePersonRef | null {
+  const match = /^(employee|contact):([1-9]\d*)$/.exec(value.trim());
+  if (!match) return null;
+  return { kind: match[1] as TimePersonKind, id: Number(match[2]) };
+}
+
+/**
+ * An employee id, `contact:<id>` for an external contact, `"none"` for entries
+ * without a person, or `null` for everyone.
+ */
+export type TimePersonFilter = number | `contact:${number}` | "none" | null;
+
 export type TimeEntryFilter = {
   query: string;
-  /** Employee id, `"none"` for entries without a person, or `null` for everyone. */
-  person: number | "none" | null;
+  person: TimePersonFilter;
   /** Project id, `"none"` for entries without a project, or `null` for every project. */
   project: number | "none" | null;
   /** Customer id, `"none"` for entries without a customer, or `null` for every customer. */
@@ -150,7 +175,10 @@ export function filterTimeEntries<T extends FilterableTimeEntry>(entries: readon
   const needle = normalize(filter.query.trim());
   return entries.filter((entry) => {
     if (filter.person === "none") {
-      if (entry.employeeId !== null) return false;
+      if (entry.employeeId !== null || (entry.contactId ?? null) !== null) return false;
+    } else if (typeof filter.person === "string") {
+      const contactId = Number(filter.person.slice("contact:".length));
+      if ((entry.contactId ?? null) !== contactId) return false;
     } else if (filter.person !== null && entry.employeeId !== filter.person) {
       return false;
     }
@@ -168,7 +196,7 @@ export function filterTimeEntries<T extends FilterableTimeEntry>(entries: readon
     if (filter.billable === "yes" && !entry.billable) return false;
     if (filter.billable === "no" && entry.billable) return false;
     if (!needle) return true;
-    return normalize([entry.activities.join(" "), entry.memo, entry.firstName, entry.projectName].join(" ")).includes(needle);
+    return normalize([entry.activities.join(" "), entry.memo, entry.firstName, entry.contactName ?? "", entry.projectName].join(" ")).includes(needle);
   });
 }
 
@@ -193,7 +221,7 @@ export function sortTimeEntries<T extends FilterableTimeEntry>(entries: readonly
       case "durationAsc":
         return left.minutes - right.minutes || byEntryTime(left, right);
       case "person":
-        return left.firstName.localeCompare(right.firstName) || byEntryTime(left, right);
+        return (left.contactName || left.firstName).localeCompare(right.contactName || right.firstName) || byEntryTime(left, right);
       case "project":
         return left.projectName.localeCompare(right.projectName) || byEntryTime(left, right);
       default:

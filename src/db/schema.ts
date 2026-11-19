@@ -135,6 +135,20 @@ export const payments = sqliteTable("payments", {
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
 });
 
+/** A person at a customer or partner. Not employed by the company, so no payroll. */
+export const contacts = sqliteTable("contacts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  customerId: integer("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  role: text("role").notNull().default(""),
+  email: text("email").notNull().default(""),
+  phone: text("phone").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  deletedAt: text("deleted_at"),
+});
+
 export const employees = sqliteTable("employees", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
@@ -289,6 +303,8 @@ export const timeEntries = sqliteTable("time_entries", {
   taskId: integer("task_id").references(() => tasks.id),
   projectId: integer("project_id").references(() => projects.id, { onDelete: "set null" }),
   employeeId: integer("employee_id").references(() => employees.id),
+  /** An external contact at a customer. Mutually exclusive with employeeId. */
+  contactId: integer("contact_id").references(() => contacts.id, { onDelete: "set null" }),
   billable: integer("billable", { mode: "boolean" }).notNull().default(false),
   taskType: text("task_type").notNull().default("other"),
   hourlyRateCents: integer("hourly_rate_cents"),

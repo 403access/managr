@@ -23,6 +23,7 @@ const TRASH_LABEL: Record<TrashKind, MessageKey> = {
   document: "trash.kind.document",
   director_contract: "trash.kind.director_contract",
   founder_health: "trash.kind.founder_health",
+  contact: "trash.kind.contact",
 };
 
 function formatDeletedAt(iso: string, locale: string): string {

@@ -7,6 +7,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 // save_* tools upsert. Only the entity's own id field means "update".
 const SAVE_ID_KEYS: Record<string, string> = {
   save_customer: "customerId",
+  save_contact: "contactId",
   save_project: "projectId",
   save_milestone: "milestoneId",
   save_director_contract: "personId",

@@ -48,6 +48,7 @@ import {
   listTimeActivities,
   listTimeInRange,
   listCompanies,
+  listContacts,
   loadBankConnection,
   loadCompany,
   loadInvoice,
@@ -339,6 +340,8 @@ export function customerView(id: number) {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const people = listOrgMembers();
   const personById = new Map(people.map((person) => [person.id, `${person.firstName} ${person.lastName}`.trim()]));
+  const allContacts = listContacts(company.id, true);
+  const contactById = new Map(allContacts.map((person) => [person.id, `${person.firstName} ${person.lastName}`.trim()]));
 
   const allEntries = listTimeInRange("0001-01-01", "9999-12-31");
   const activitiesByEntry = new Map<number, string[]>();
@@ -371,7 +374,12 @@ export function customerView(id: number) {
         taskType: entry.taskType,
         projectId,
         projectName: project?.name ?? "",
-        employeeName: entry.employeeId === null ? "" : personById.get(entry.employeeId) ?? "",
+        employeeName:
+          entry.employeeId !== null
+            ? personById.get(entry.employeeId) ?? ""
+            : entry.contactId !== null
+              ? contactById.get(entry.contactId) ?? ""
+              : "",
         minutes,
         rate,
         valueCents: rate ? timeValueCents(minutes, rate.cents) : 0,
@@ -422,6 +430,7 @@ export function customerView(id: number) {
   return {
     customer,
     totals,
+    contacts: allContacts.filter((person) => person.customerId === id && person.deletedAt === null),
     projects: projectRows,
     entries,
     invoices: invoices.map((invoice) => ({
@@ -713,15 +722,17 @@ export function analyticsView(year: number, customerId: number | null = null) {
   const allCustomers = listCustomers(company.id);
   const tasks = listTasks();
   const people = listPeople();
+  const contacts = listContacts(company.id, true);
   const projectById = new Map(allProjects.map((project) => [project.id, project]));
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const employeeById = new Map(people.map(({ employee }) => [employee.id, employee]));
+  const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
   const customer = customerId === null ? null : allCustomers.find((item) => item.id === customerId) ?? null;
   const projects = customerId === null ? allProjects : allProjects.filter((project) => project.customerId === customerId);
   const projectIdsInScope = new Set(projects.map((project) => project.id));
   const invoices = listInvoices().filter((invoice) => invoice.issueDate.startsWith(`${year}-`) && invoice.status !== "void" && invoice.status !== "draft");
 
-  const work: { month: string; minutes: number; taskType: string; billable: boolean; projectId: number | null; employeeId: number | null }[] = [];
+  const work: { month: string; minutes: number; taskType: string; billable: boolean; projectId: number | null; employeeId: number | null; contactId: number | null }[] = [];
   for (const entry of listTimeInRange(`${year}-01-01`, `${year}-12-31`)) {
     const task = entry.taskId === null ? null : taskById.get(entry.taskId) ?? null;
     const projectId = entry.projectId ?? task?.projectId ?? null;
@@ -737,11 +748,12 @@ export function analyticsView(year: number, customerId: number | null = null) {
       billable: entry.billable,
       projectId,
       employeeId: entry.employeeId,
+      contactId: entry.contactId,
     });
   }
 
   const projectWork = new Map<string, WorkTotals & { projectId: number | null; minutes: number }>();
-  const personWork = new Map<string, WorkTotals & { employeeId: number | null; projectIds: Set<number> }>();
+  const personWork = new Map<string, WorkTotals & { employeeId: number | null; contactId: number | null; projectIds: Set<number> }>();
   const customerWork = new Map<number, WorkTotals>();
   for (const row of work) {
     const project = row.projectId === null ? null : projectById.get(row.projectId) ?? null;
@@ -750,8 +762,8 @@ export function analyticsView(year: number, customerId: number | null = null) {
     addWork(projectTotals, row.minutes, row.taskType, row.billable);
     projectWork.set(projectKey, projectTotals);
 
-    const personKey = String(row.employeeId ?? "none");
-    const personTotals = personWork.get(personKey) ?? { ...emptyWorkTotals(), employeeId: row.employeeId, projectIds: new Set<number>() };
+    const personKey = row.employeeId !== null ? `employee:${row.employeeId}` : row.contactId !== null ? `contact:${row.contactId}` : "none";
+    const personTotals = personWork.get(personKey) ?? { ...emptyWorkTotals(), employeeId: row.employeeId, contactId: row.contactId, projectIds: new Set<number>() };
     addWork(personTotals, row.minutes, row.taskType, row.billable);
     if (row.projectId !== null) personTotals.projectIds.add(row.projectId);
     personWork.set(personKey, personTotals);
@@ -780,11 +792,16 @@ export function analyticsView(year: number, customerId: number | null = null) {
   const peopleRows = [...personWork.values()]
     .map((totals) => {
       const employee = totals.employeeId === null ? null : employeeById.get(totals.employeeId) ?? null;
+      const contact = totals.contactId === null ? null : contactById.get(totals.contactId) ?? null;
       return {
         employeeId: totals.employeeId,
-        firstName: employee?.firstName ?? "",
-        lastName: employee?.lastName ?? "",
-        role: employee?.role ?? "",
+        contactId: totals.contactId,
+        kind: totals.employeeId !== null ? "employee" : totals.contactId !== null ? "contact" : "none",
+        firstName: employee?.firstName ?? contact?.firstName ?? "",
+        lastName: employee?.lastName ?? contact?.lastName ?? "",
+        role: employee?.role ?? contact?.role ?? "",
+        customerId: contact?.customerId ?? null,
+        customerName: contact?.customerName ?? "",
         projectCount: totals.projectIds.size,
         minutes: totals.minutes,
         productiveMinutes: totals.productiveMinutes,
@@ -880,6 +897,9 @@ export function analyticsView(year: number, customerId: number | null = null) {
 function timeViewForRange(start: string, end: string, anchor: string) {
   const company = loadCompany();
   const people = listPeople();
+  const allContacts = listContacts(company.id, true);
+  const contacts = allContacts.filter((contact) => contact.deletedAt === null);
+  const contactById = new Map(allContacts.map((contact) => [contact.id, contact]));
   const tasks = listTasks();
   const projects = listProjects();
   const customers = listCustomers(company.id);
@@ -904,6 +924,7 @@ function timeViewForRange(start: string, end: string, anchor: string) {
       error = caught instanceof Error ? caught.message : "Check this entry.";
     }
     const person = people.find((item) => item.employee.id === entry.employeeId);
+    const contact = entry.contactId === null ? null : contactById.get(entry.contactId) ?? null;
     const project = projectFor(entry.projectId);
     const customer = project?.customerId == null ? null : customerById.get(project.customerId) ?? null;
     const effectiveRate = effectiveHourlyRate({
@@ -923,12 +944,21 @@ function timeViewForRange(start: string, end: string, anchor: string) {
       billable: entry.billable,
       taskId: entry.taskId,
       employeeId: entry.employeeId,
+      contactId: entry.contactId,
+      contactName: contact ? `${contact.firstName} ${contact.lastName}`.trim() : "",
+      contactCustomerId: contact?.customerId ?? null,
+      contactCustomerName: contact?.customerName ?? "",
       projectId: entry.projectId,
       projectName: project?.name ?? "",
       customerId: project?.customerId ?? null,
       customerName: project?.customerName ?? "",
       taskType: entry.taskType,
-      firstName: person?.employee.firstName ?? "",
+      firstName: person?.employee.firstName ?? contact?.firstName ?? "",
+      personName: person
+        ? `${person.employee.firstName} ${person.employee.lastName}`.trim()
+        : contact
+          ? `${contact.firstName} ${contact.lastName}`.trim()
+          : "",
       minutes,
       warnings,
       error,
@@ -951,6 +981,14 @@ function timeViewForRange(start: string, end: string, anchor: string) {
     billableValueCents: entries.reduce((sum, entry) => sum + (entry.error || !entry.billable ? 0 : entry.valueCents), 0),
     globalHourlyRateCents: company.hourlyRateCents,
     people: people.map((item) => ({ id: item.employee.id, firstName: item.employee.firstName, lastName: item.employee.lastName })),
+    contacts: contacts.map((contact) => ({
+      id: contact.id,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      role: contact.role,
+      customerId: contact.customerId,
+      customerName: contact.customerName ?? "",
+    })),
     tasks: tasks.map((task) => ({ ...task, projectName: projectFor(task.projectId)?.name ?? "" })),
     projects: projects.map((project) => ({ id: project.id, name: project.name, customerId: project.customerId, customerName: project.customerName, hourlyRateCents: project.hourlyRateCents })),
   };

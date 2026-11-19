@@ -83,6 +83,7 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   read_desk: "assistant.tool.read_desk",
   read_company: "assistant.tool.read_company",
   read_customers: "assistant.tool.read_customers",
+  read_contacts: "assistant.tool.read_contacts",
   read_invoices: "assistant.tool.read_invoices",
   read_invoice: "assistant.tool.read_invoice",
   read_ledger: "assistant.tool.read_ledger",
@@ -110,6 +111,8 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   delete_policy: "assistant.tool.delete_policy",
   pay_profit_distribution: "assistant.tool.pay_profit_distribution",
   save_customer: "assistant.tool.save_customer",
+  save_contact: "assistant.tool.save_contact",
+  delete_contact: "assistant.tool.delete_contact",
   create_invoice: "assistant.tool.create_invoice",
   issue_invoice: "assistant.tool.issue_invoice",
   update_buyer_reference: "assistant.tool.update_buyer_reference",
@@ -161,6 +164,9 @@ function recordHref(step: Step): string | null {
     case "pay_shareholder":
       return id("personId") ? `/people/${id("personId")}` : null;
     case "save_customer":
+      return "/customers";
+    case "save_contact":
+    case "delete_contact":
       return "/customers";
     case "post_expense":
     case "post_vat_prepayment":

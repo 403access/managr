@@ -4,6 +4,7 @@ import { getDb } from "@/db/client";
 import {
   absences,
   companies,
+  contacts,
   customDeadlines,
   customers,
   employees,
@@ -48,6 +49,15 @@ export function changeLabels(name: string, input: unknown): Record<string, strin
         .where(eq(employees.id, personId))
         .get();
       if (row) labels.personId = `${row.firstName} ${row.lastName}`.trim();
+    }
+    const contactId = idOf("contactId");
+    if (contactId) {
+      const row = db
+        .select({ firstName: contacts.firstName, lastName: contacts.lastName })
+        .from(contacts)
+        .where(eq(contacts.id, contactId))
+        .get();
+      if (row) labels.contactId = `${row.firstName} ${row.lastName}`.trim();
     }
     const taskId = idOf("taskId");
     if (taskId) {
@@ -113,6 +123,13 @@ export function changeLabels(name: string, input: unknown): Record<string, strin
           .where(eq(absences.id, entityId))
           .get();
         if (row) labels.id = `${row.kind} ${row.startDate}–${row.endDate}`;
+      } else if (name === "delete_contact") {
+        const row = db
+          .select({ firstName: contacts.firstName, lastName: contacts.lastName })
+          .from(contacts)
+          .where(eq(contacts.id, entityId))
+          .get();
+        if (row) labels.id = `${row.firstName} ${row.lastName}`.trim();
       }
     }
   } catch {

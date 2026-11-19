@@ -10,6 +10,7 @@ import {
   bankTransactions,
   companies,
   complianceItems,
+  contacts,
   customers,
   customDeadlines,
   directorContracts,
@@ -90,6 +91,31 @@ export function loadShareholders() {
 
 export function listCustomers(companyId = loadCompany().id) {
   return getDb().select().from(customers).where(eq(customers.companyId, companyId)).orderBy(asc(customers.name)).all();
+}
+
+/** External contact people, optionally including soft-deleted ones for old time entries. */
+export function listContacts(companyId = loadCompany().id, includeDeleted = false) {
+  const conditions = [eq(contacts.companyId, companyId)];
+  if (!includeDeleted) conditions.push(isNull(contacts.deletedAt));
+  return getDb()
+    .select({
+      id: contacts.id,
+      companyId: contacts.companyId,
+      customerId: contacts.customerId,
+      customerName: customers.name,
+      firstName: contacts.firstName,
+      lastName: contacts.lastName,
+      role: contacts.role,
+      email: contacts.email,
+      phone: contacts.phone,
+      notes: contacts.notes,
+      deletedAt: contacts.deletedAt,
+    })
+    .from(contacts)
+    .leftJoin(customers, eq(customers.id, contacts.customerId))
+    .where(and(...conditions))
+    .orderBy(asc(contacts.lastName), asc(contacts.firstName))
+    .all();
 }
 
 export function listProjects(companyId = loadCompany().id) {

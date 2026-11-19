@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { saveCustomer } from "@/server/actions";
+import { deleteContact, saveContact, saveCustomer } from "@/server/actions";
 import type { customerView, customersView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import {
@@ -78,6 +78,85 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
       <dt className="text-xs font-medium tracking-wide text-muted uppercase sm:pt-0.5">{label}</dt>
       <dd className="min-w-0 break-words">{children}</dd>
     </div>
+  );
+}
+
+type Contact = CustomerDetail["contacts"][number];
+
+function ContactFields({ contact }: { contact?: Contact }) {
+  const { t } = useI18n();
+  return (
+    <>
+      {contact ? <input type="hidden" name="id" value={contact.id} /> : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t("contacts.first")}><TextInput name="firstName" defaultValue={contact?.firstName} required /></Field>
+        <Field label={t("contacts.last")}><TextInput name="lastName" defaultValue={contact?.lastName} /></Field>
+        <Field label={t("contacts.role")}><TextInput name="role" defaultValue={contact?.role} /></Field>
+        <Field label={t("common.email")}><TextInput name="email" type="email" defaultValue={contact?.email} /></Field>
+        <Field label={t("common.phone")}><TextInput name="phone" defaultValue={contact?.phone} /></Field>
+        <Field label={t("common.notes")}><TextInput name="notes" defaultValue={contact?.notes} /></Field>
+      </div>
+    </>
+  );
+}
+
+function ContactRow({ contact, customerId }: { contact: Contact; customerId: number }) {
+  const { t } = useI18n();
+  const [editing, setEditing] = useState(false);
+  return (
+    <li className="rounded-xl border border-line bg-white p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <span className="font-medium">{contact.firstName} {contact.lastName}</span>
+          {contact.role ? <span className="text-sm text-muted"> · {contact.role}</span> : null}
+          {contact.email ? (
+            <a href={`mailto:${contact.email}`} className="mt-1 block text-xs text-pine">{contact.email}</a>
+          ) : null}
+          {contact.phone ? <span className="mt-1 block text-xs text-muted">{contact.phone}</span> : null}
+          {contact.notes ? <span className="mt-1 block text-xs text-muted">{contact.notes}</span> : null}
+        </div>
+        <span className="flex flex-wrap items-center gap-2">
+          <button type="button" className={buttonClass("quiet")} onClick={() => setEditing((open) => !open)}>
+            {editing ? t("common.close") : t("common.edit")}
+          </button>
+          <ActionForm action={deleteContact} compact confirm={t("contacts.remove")}>
+            <input type="hidden" name="id" value={contact.id} />
+            <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
+          </ActionForm>
+        </span>
+      </div>
+      {editing ? (
+        <ActionForm action={saveContact} className="mt-3 grid gap-3">
+          <input type="hidden" name="customerId" value={customerId} />
+          <ContactFields contact={contact} />
+          <SubmitButton tone="quiet">{t("contacts.save")}</SubmitButton>
+        </ActionForm>
+      ) : null}
+    </li>
+  );
+}
+
+function ContactsCard({ customerId, contacts }: { customerId: number; contacts: Contact[] }) {
+  const { t } = useI18n();
+  return (
+    <Card>
+      <h3 className="text-lg">{t("contacts.title")}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-muted">{t("contacts.hint")}</p>
+      {contacts.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">{t("contacts.none")}</p>
+      ) : (
+        <ul className="mt-3 grid gap-2">
+          {contacts.map((contact) => (
+            <ContactRow key={contact.id} contact={contact} customerId={customerId} />
+          ))}
+        </ul>
+      )}
+      <ActionForm action={saveContact} className="mt-4 grid gap-3 border-t border-line pt-3" resetOnSuccess>
+        <input type="hidden" name="customerId" value={customerId} />
+        <ContactFields />
+        <SubmitButton tone="quiet">{t("contacts.add")}</SubmitButton>
+      </ActionForm>
+    </Card>
   );
 }
 
@@ -158,6 +237,8 @@ function CustomerDetails({ data }: { data: CustomerDetail }) {
           {t("customers.report")}
         </Link>
       </Card>
+
+      <ContactsCard customerId={customer.id} contacts={data.contacts} />
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">

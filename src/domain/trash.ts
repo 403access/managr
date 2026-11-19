@@ -11,7 +11,8 @@ export type TrashKind =
   | "deadline"
   | "document"
   | "director_contract"
-  | "founder_health";
+  | "founder_health"
+  | "contact";
 
 export type TrashEntry = {
   kind: TrashKind;
@@ -35,4 +36,5 @@ export const TRASH_KINDS: TrashKind[] = [
   "document",
   "director_contract",
   "founder_health",
+  "contact",
 ];

@@ -49,6 +49,8 @@ Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be 
 
 **Personen** holds the employment record of each person, including the manager. `employees.manager_id` is a self-reference added in `0009_org_chart.sql`; a person without one sits at the top. The manager is chosen on the person's **Beschäftigung** tab, and the save refuses a self-reference or a line that would loop.
 
+**Kontaktpersonen** are the opposite case: people at a customer who are not employed by the company. They live in `contacts` (migration `0019_contacts.sql`) with an optional `customer_id`, a name, role, and contact details, and are edited in the customer's detail panel. They are not people, never enter payroll or the org chart, and have no social-insurance estimate. A time entry names an employee through `time_entries.employee_id` or a contact through `time_entries.contact_id`, never both. Removing a contact is a soft delete, so an old entry still shows the name; `read_contacts`, `save_contact`, and `delete_contact` expose the same records to the assistant and MCP clients.
+
 **Organigramm** sits on the **Personen** page. `peoplePageView` in `src/server/views.ts` combines the employment list with `orgView`, which builds the tree. `src/domain/org.ts` sorts each level by name, leaves people with an end date out of the tree, and breaks an existing loop at its lowest id so the page still renders. A manager outside the active company leaves the person at the top. Nothing in the org chart is posted to the journal. `read_org` exposes the same tree to the assistant and MCP clients.
 
 ## Projects and analysis

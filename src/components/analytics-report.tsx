@@ -178,8 +178,15 @@ export function AnalyticsReport({ data }: { data: Analytics }) {
             </thead>
             <tbody>
               {data.peopleRows.map((person) => (
-                <tr key={String(person.employeeId ?? "none")} className="border-b border-line">
-                  <td className="py-2">{person.employeeId === null ? text("analytics.noPerson") : `${person.firstName} ${person.lastName}`}</td>
+                <tr key={person.kind === "employee" ? `employee-${person.employeeId}` : person.kind === "contact" ? `contact-${person.contactId}` : "none"} className="border-b border-line">
+                  <td className="py-2">
+                    {person.kind === "none"
+                      ? text("analytics.noPerson")
+                      : `${person.firstName} ${person.lastName}`}
+                    {person.kind === "contact" && person.customerName ? (
+                      <span className="block text-xs text-muted">{person.customerName}</span>
+                    ) : null}
+                  </td>
                   <td className="py-2">{person.role}</td>
                   <td className="py-2 text-right font-mono tabular-nums">{formatDuration(person.minutes)}</td>
                   <td className="py-2 text-right font-mono tabular-nums">{person.productiveShare} %</td>

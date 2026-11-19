@@ -123,7 +123,7 @@ function categoryOf(name: string): ToolCategory {
   if (name.startsWith("read_")) {
     if (name === "read_desk" || name === "read_companies") return "desk";
     if (name === "read_company" || name === "read_shareholder_loans") return "company";
-    if (name === "read_customers") return "customers";
+    if (name === "read_customers" || name === "read_contacts") return "customers";
     if (name === "read_invoices" || name === "read_invoice") return "invoices";
     if (name === "read_ledger") return "ledger";
     if (name === "read_cashflow") return "cashflow";
@@ -140,7 +140,7 @@ function categoryOf(name: string): ToolCategory {
     return "other";
   }
   if (name === "update_buyer_reference" || name.includes("invoice")) return "invoices";
-  if (name.includes("customer")) return "customers";
+  if (name.includes("customer") || name.includes("contact")) return "customers";
   if (name.includes("time") || name.includes("task")) return "time";
   if (name.includes("project")) return "projects";
   if (name.includes("milestone")) return "milestones";
