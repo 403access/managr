@@ -250,8 +250,6 @@ function ActivityFields({ defaultValue = [] }: { defaultValue?: string[] }) {
           <TextArea
             compact
             rows={2}
-            wrap="off"
-            className="whitespace-pre"
             name="activities"
             value={row.value}
             onChange={(event) => updateRow(row.id, event.target.value)}
