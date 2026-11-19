@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { formatDate } from "@/domain/calendar";
 import { isCorporation, legalFormLabel } from "@/domain/company";
-import { groupInvoicePositions, isKleinunternehmerNote } from "@/domain/invoice";
+import { groupInvoicePositions, isKleinunternehmerNote, sharedHourlyRateCents } from "@/domain/invoice";
 import { fillInvoiceLetter, hasInvoiceLetter, invoicePaymentDays, type InvoiceLetter } from "@/domain/invoice-letter";
 import { formatEuro, formatPercentBps, formatQuantity } from "@/domain/money";
 import type { InvoiceLineGrouping } from "@/domain/settings";
@@ -85,6 +85,7 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
     displayCents: grossDisplay ? lineAmounts[index]?.grossCents ?? line.netCents : line.netCents,
   }));
   const groups = groupInvoicePositions(documentLines, grouping);
+  const hourlyRateCents = sharedHourlyRateCents(data.lines);
   const groupLabel = (entryDate: string | null) => (entryDate ? formatDay(entryDate) : "Ohne Datum");
   const displayStamp = stamp ?? (data.status === "void" ? "STORNIERT" : data.status === "draft" ? "ENTWURF" : "");
   const letter = data.letter && hasInvoiceLetter(data.letter) ? data.letter : null;
@@ -188,6 +189,11 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
             {letter.intro ? <p className="whitespace-pre-line">{fillInvoiceLetter(letter.intro, variables)}</p> : null}
             <div>
               <p className="font-medium">Leistungsbeschreibung (Art und Umfang):</p>
+              {hourlyRateCents !== null ? (
+                <p className="mt-1 text-sm text-muted">
+                  Stundensatz: {formatEuro(hourlyRateCents)}/h{grossDisplay ? " netto" : ""}
+                </p>
+              ) : null}
               <ul className="mt-2 grid gap-1.5">
                 {data.lines.length === 0 ? (
                   <li className="text-muted">Noch keine Position.</li>
@@ -200,7 +206,9 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
                       <li key={line.key} className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line/60 pb-1.5">
                         <span className="min-w-0">{line.description || "—"}</span>
                         <span className="font-mono text-xs whitespace-nowrap text-muted">
-                          {formatQuantity(line.quantityMilli)} × {formatEuro(line.unitNetCents)}
+                          {hourlyRateCents !== null
+                            ? `${formatQuantity(line.quantityMilli)} h`
+                            : `${formatQuantity(line.quantityMilli)} × ${formatEuro(line.unitNetCents)}`}
                           {kleinunternehmer ? "" : ` · ${formatPercentBps(line.vatBps)} USt`}
                           {" · "}
                           <span className="text-ink">{formatEuro(line.displayCents)}</span>
@@ -228,12 +236,17 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
         </>
       ) : (
         <>
-          <table className="mt-8 w-full text-sm">
+          {hourlyRateCents !== null ? (
+            <p className="mt-8 text-sm text-muted">
+              Stundensatz: {formatEuro(hourlyRateCents)}/h{grossDisplay ? " netto" : ""}
+            </p>
+          ) : null}
+          <table className={`${hourlyRateCents !== null ? "mt-2" : "mt-8"} w-full text-sm`}>
             <thead>
               <tr className="border-b border-line text-left">
                 <th className="py-2 font-medium">Leistung</th>
                 <th className="py-2 font-medium">Menge</th>
-                <th className="py-2 text-right font-medium">Einzelpreis</th>
+                {hourlyRateCents === null ? <th className="py-2 text-right font-medium">Einzelpreis</th> : null}
                 {kleinunternehmer ? null : <th className="py-2 text-right font-medium">USt</th>}
                 <th className="py-2 text-right font-medium">{kleinunternehmer ? "Betrag" : grossDisplay ? "Betrag (brutto)" : "Netto"}</th>
               </tr>
@@ -241,13 +254,13 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
             <tbody>
               {data.lines.length === 0 ? (
                 <tr className="border-b border-line">
-                  <td className="py-2 text-muted" colSpan={kleinunternehmer ? 4 : 5}>Noch keine Position.</td>
+                  <td className="py-2 text-muted" colSpan={kleinunternehmer ? (hourlyRateCents === null ? 4 : 3) : hourlyRateCents === null ? 5 : 4}>Noch keine Position.</td>
                 </tr>
               ) : groups.map((group) => (
                 <Fragment key={group.key}>
                   {showGroups ? (
                     <tr>
-                      <td colSpan={kleinunternehmer ? 4 : 5} className="pt-4 pb-1 text-xs font-medium tracking-wide text-muted uppercase">
+                      <td colSpan={kleinunternehmer ? (hourlyRateCents === null ? 4 : 3) : hourlyRateCents === null ? 5 : 4} className="pt-4 pb-1 text-xs font-medium tracking-wide text-muted uppercase">
                         {groupLabel(group.entryDate)}
                       </td>
                     </tr>
@@ -255,8 +268,8 @@ export function InvoiceDocument({ data, stamp, className = "" }: { data: Invoice
                   {group.positions.map((line) => (
                     <tr key={line.key} className="border-b border-line">
                       <td className="py-2">{line.description || "—"}</td>
-                      <td className="py-2">{formatQuantity(line.quantityMilli)}</td>
-                      <td className="py-2 text-right font-mono">{formatEuro(line.unitNetCents)}</td>
+                      <td className="py-2">{formatQuantity(line.quantityMilli)}{hourlyRateCents !== null ? " h" : ""}</td>
+                      {hourlyRateCents === null ? <td className="py-2 text-right font-mono">{formatEuro(line.unitNetCents)}</td> : null}
                       {kleinunternehmer ? null : <td className="py-2 text-right">{formatPercentBps(line.vatBps)}</td>}
                       <td className="py-2 text-right font-mono">{formatEuro(line.displayCents)}</td>
                     </tr>

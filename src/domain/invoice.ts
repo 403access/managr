@@ -83,6 +83,21 @@ export function groupInvoicePositions<T extends { entryDate?: string | null }>(
   return [...groups.values()];
 }
 
+/**
+ * The one hourly rate an invoice bills, or null when the positions mix rates or
+ * are not all time-derived. A shared rate is printed once instead of on every
+ * position.
+ */
+export function sharedHourlyRateCents(
+  lines: readonly { unitNetCents: number; entryDate?: string | null }[],
+): number | null {
+  if (lines.length === 0) return null;
+  if (lines.some((line) => !line.entryDate)) return null;
+  const rate = lines[0].unitNetCents;
+  if (rate <= 0) return null;
+  return lines.every((line) => line.unitNetCents === rate) ? rate : null;
+}
+
 export type InvoiceReviewInput = {
   legalName: string;
   legalForm?: string;
