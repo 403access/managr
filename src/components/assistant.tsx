@@ -5,7 +5,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDate } from "@/domain/calendar";
 import { formatEuro } from "@/domain/money";
-import { nextMessageId, readChat, writeChat, type ChatMessage, type ChatMessageDetails, type ChatStep } from "@/client/chat-history";
+import { nextMessageId, readChat, readDraft, writeChat, writeDraft, type ChatMessage, type ChatMessageDetails, type ChatStep } from "@/client/chat-history";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import type { MessageKey } from "@/i18n";
 import { Combobox } from "./combobox";
@@ -235,6 +235,7 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
   const [messages, setMessages] = useState<Message[]>([]);
   const [restored, setRestored] = useState(false);
   const [draft, setDraft] = useState("");
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const [streaming, setStreaming] = useState<{ content: string; steps: Step[]; proposal?: Proposal } | null>(null);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -280,6 +281,26 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
       // A private window may refuse storage; the history then lasts for the session.
     }
   }, [messages, restored]);
+
+  useEffect(() => {
+    let stored = "";
+    try {
+      stored = readDraft(window.localStorage);
+    } catch {
+      // A private window may refuse storage; the draft then lasts for the session.
+    }
+    if (stored) setDraft((current) => current || stored);
+    setDraftLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftLoaded) return;
+    try {
+      writeDraft(window.localStorage, draft);
+    } catch {
+      // A private window may refuse storage; the draft then lasts for the session.
+    }
+  }, [draft, draftLoaded]);
 
   useEffect(() => {
     let active = true;

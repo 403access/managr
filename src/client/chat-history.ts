@@ -25,6 +25,7 @@ export type ChatMessageDetails = {
 export type ChatMessage = { id: number; role: "user" | "assistant"; content: string; steps: ChatStep[]; details?: ChatMessageDetails };
 
 const STORAGE_KEY = "managr-assistant-chat";
+const DRAFT_KEY = "managr-assistant-draft";
 const VERSION = 1;
 const MAX_MESSAGES = 40;
 
@@ -101,4 +102,25 @@ export function writeChat(storage: StorageLike, messages: ChatMessage[]): void {
 /** The id to use for the next message after restoring a conversation. */
 export function nextMessageId(messages: ChatMessage[]): number {
   return messages.reduce((highest, message) => Math.max(highest, message.id), 0) + 1;
+}
+
+/** An unsent draft survives a reload; an empty draft removes the entry. */
+export function readDraft(storage: Pick<Storage, "getItem">): string {
+  try {
+    return storage.getItem(DRAFT_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function writeDraft(storage: StorageLike, draft: string): void {
+  try {
+    if (!draft) {
+      storage.removeItem(DRAFT_KEY);
+      return;
+    }
+    storage.setItem(DRAFT_KEY, draft);
+  } catch {
+    // A full quota or a private window must not break the input.
+  }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextMessageId, readChat, writeChat, type ChatMessage } from "@/client/chat-history";
+import { nextMessageId, readChat, readDraft, writeChat, writeDraft, type ChatMessage } from "@/client/chat-history";
 
 function memoryStorage() {
   const data = new Map<string, string>();
@@ -136,5 +136,37 @@ describe("assistant chat history", () => {
   it("continues numbering after the restored messages", () => {
     expect(nextMessageId([])).toBe(1);
     expect(nextMessageId([message(3, "user", "a"), message(7, "assistant", "b")])).toBe(8);
+  });
+});
+
+describe("assistant draft", () => {
+  it("round-trips an unsent draft and removes it when cleared", () => {
+    const storage = memoryStorage();
+
+    writeDraft(storage, "Trage die letzten beiden Zeiten auf das Projekt Arbeitsmittel Setup um.");
+    expect(readDraft(storage)).toBe("Trage die letzten beiden Zeiten auf das Projekt Arbeitsmittel Setup um.");
+
+    writeDraft(storage, "");
+    expect(readDraft(storage)).toBe("");
+    expect(storage.data.size).toBe(0);
+  });
+
+  it("returns nothing when storage is missing or broken", () => {
+    const storage = memoryStorage();
+    expect(readDraft(storage)).toBe("");
+
+    const broken = {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("denied");
+      },
+      removeItem: () => {
+        throw new Error("denied");
+      },
+    };
+    expect(readDraft(broken)).toBe("");
+    expect(() => writeDraft(broken, "Hallo")).not.toThrow();
   });
 });
