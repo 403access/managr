@@ -5,6 +5,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDate } from "@/domain/calendar";
 import { changeAction, type ChangeAction } from "@/domain/assistant-actions";
+import { mergePlan, type PlanChange, type PlanStep, type PlanStepStatus, type PlanStepView } from "@/domain/assistant-plan";
 import { needsApproval } from "@/domain/assistant-writes";
 import { formatEuro } from "@/domain/money";
 import { nextMessageId, readChat, readDraft, writeChat, writeDraft, type ChatMessage, type ChatMessageDetails, type ChatStep } from "@/client/chat-history";
@@ -50,6 +51,7 @@ type StreamEvent =
   | { type: "tool"; name: string; input: unknown }
   | { type: "tool_result"; name: string; input: unknown; ok: boolean; summary: string; data?: unknown }
   | { type: "proposal"; id: string; changes: ProposalChange[] }
+  | { type: "plan"; steps: PlanStep[] }
   | { type: "reply"; text: string }
   | { type: "error"; message: string };
 
@@ -75,6 +77,86 @@ export function ActionBadge({ action }: { action: ChangeAction }) {
     <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ACTION_STYLE[action]}`}>
       {t(`assistant.approval.${action}`)}
     </span>
+  );
+}
+
+const PLAN_CHANGE_STYLE: Record<PlanChange, string> = {
+  added: "bg-moss/15 text-moss",
+  changed: "bg-amber/15 text-amber",
+  removed: "bg-clay/15 text-clay",
+};
+
+function PlanChangeBadge({ change }: { change: PlanChange }) {
+  const { t } = useI18n();
+  return (
+    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${PLAN_CHANGE_STYLE[change]}`}>
+      {t(`assistant.plan.${change}`)}
+    </span>
+  );
+}
+
+function PlanStatusIcon({ status }: { status: PlanStepStatus }) {
+  const { t } = useI18n();
+  const label = t(`assistant.plan.status.${status}`);
+  if (status === "doing") {
+    return <span role="img" aria-label={label} className="mt-1 size-3.5 animate-spin rounded-full border-2 border-line border-t-pine" />;
+  }
+  if (status === "done") {
+    return (
+      <span role="img" aria-label={label} className="mt-0.5 text-[13px] text-moss">
+        ✓
+      </span>
+    );
+  }
+  if (status === "skipped") {
+    return (
+      <span role="img" aria-label={label} className="mt-0.5 text-[13px] text-muted">
+        –
+      </span>
+    );
+  }
+  return (
+    <span role="img" aria-label={label} className="mt-1 inline-flex size-3.5 items-center justify-center">
+      <span className="size-2.5 rounded-full border border-line bg-white" />
+    </span>
+  );
+}
+
+/** The vertical roadmap above the steps of one assistant turn. */
+export function PlanBar({ plan, className = "" }: { plan: PlanStepView[]; className?: string }) {
+  const { t } = useI18n();
+  const done = plan.filter((step) => step.status === "done").length;
+  return (
+    <div className={`rounded-xl border border-line bg-card p-3 ${className}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold tracking-[0.12em] text-muted uppercase">{t("assistant.plan.title")}</p>
+        <p className="text-[10px] text-muted">{t("assistant.plan.progress", { done, total: plan.length })}</p>
+      </div>
+      <ol className="mt-2 grid">
+        {plan.map((step, index) => {
+          const reason = step.note ?? (step.change ? t(`assistant.plan.${step.change}Reason`) : "");
+          return (
+            <li key={step.id} className="flex gap-2">
+              <span className="relative flex w-4 shrink-0 justify-center">
+                <PlanStatusIcon status={step.status} />
+                {index < plan.length - 1 ? (
+                  <span className="absolute top-4 bottom-0 w-px bg-line" aria-hidden="true" />
+                ) : null}
+              </span>
+              <div className={`min-w-0 flex-1 ${index < plan.length - 1 ? "pb-3" : ""}`}>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className={`text-xs leading-relaxed ${step.status === "done" || step.status === "skipped" ? "text-muted" : ""} ${step.status === "done" ? "line-through" : ""}`}>
+                    {step.title}
+                  </p>
+                  {step.change ? <PlanChangeBadge change={step.change} /> : null}
+                </div>
+                {reason ? <p className="mt-0.5 text-[11px] leading-relaxed text-muted">{reason}</p> : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
@@ -130,6 +212,7 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   post_payroll: "assistant.tool.post_payroll",
   pay_shareholder: "assistant.tool.pay_shareholder",
   add_time: "assistant.tool.add_time",
+  update_plan: "assistant.tool.update_plan",
   update_time: "assistant.tool.update_time",
   delete_time: "assistant.tool.delete_time",
   add_task: "assistant.tool.add_task",
@@ -254,7 +337,7 @@ export function Assistant({ variant = "popover", onHistory }: { variant?: "popov
   const [restored, setRestored] = useState(false);
   const [draft, setDraft] = useState("");
   const [draftLoaded, setDraftLoaded] = useState(false);
-  const [streaming, setStreaming] = useState<{ content: string; steps: Step[]; proposal?: Proposal } | null>(null);
+  const [streaming, setStreaming] = useState<{ content: string; steps: Step[]; proposal?: Proposal; plan?: PlanStepView[] } | null>(null);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -429,8 +512,15 @@ export function Assistant({ variant = "popover", onHistory }: { variant?: "popov
     let errorText = "";
     let modelInfo: { name: string; providerID?: string; modelID?: string; baseUrl: string; local: boolean } | null = null;
     let proposal: Proposal | null = null;
+    let plan: PlanStepView[] = [];
     setStreaming({ content: "", steps: [] });
-    const sync = () => setStreaming({ content: answer, steps, ...(proposal ? { proposal } : {}) });
+    const sync = () =>
+      setStreaming({
+        content: answer,
+        steps,
+        ...(proposal ? { proposal } : {}),
+        ...(plan.length > 0 ? { plan } : {}),
+      });
     const clearProposal = () => {
       if (!proposal) return;
       proposal = null;
@@ -526,6 +616,9 @@ export function Assistant({ variant = "popover", onHistory }: { variant?: "popov
             } else if (event.type === "proposal") {
               proposal = { id: event.id, changes: event.changes };
               sync();
+            } else if (event.type === "plan") {
+              plan = mergePlan(plan, event.steps);
+              sync();
             } else if (event.type === "error") {
               errorText = event.message;
             }
@@ -554,7 +647,10 @@ export function Assistant({ variant = "popover", onHistory }: { variant?: "popov
           toolCalls: steps.length,
           status: controller.signal.aborted ? "stopped" : errorText ? "error" : "ok",
         };
-        setMessages((current) => [...current, { id: nextId++, role: "assistant", content: answer, steps, details }]);
+        setMessages((current) => [
+          ...current,
+          { id: nextId++, role: "assistant", content: answer, steps, details, ...(plan.length > 0 ? { plan } : {}) },
+        ]);
       } else if (retryBackup && retryBackup.length > 0) {
         // A retry that produced nothing puts the previous answer back.
         setMessages((current) => [...current, ...retryBackup]);
@@ -734,6 +830,7 @@ MANAGR_AI_API_KEY=…`}</pre>
                     ) : (
                       <>
                         <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
+                          {message.plan?.length ? <PlanBar plan={message.plan} className="mb-2" /> : null}
                           {message.steps.length > 0 ? <Steps steps={message.steps} /> : null}
                           {message.content ? <Markdown text={message.content} className="mt-2" /> : null}
                         </div>
@@ -745,9 +842,10 @@ MANAGR_AI_API_KEY=…`}</pre>
                 {streaming ? (
                   <li>
                     <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
+                      {streaming.plan?.length ? <PlanBar plan={streaming.plan} className="mb-2" /> : null}
                       {streaming.steps.length > 0 ? <Steps steps={streaming.steps} /> : null}
                       {streaming.proposal ? <ProposalCard key={streaming.proposal.id} proposal={streaming.proposal} /> : null}
-                      {streaming.steps.length === 0 && !streaming.proposal && !streaming.content ? (
+                      {streaming.steps.length === 0 && !streaming.plan?.length && !streaming.proposal && !streaming.content ? (
                         <p className="text-muted">{t("assistant.thinking")}</p>
                       ) : null}
                       {streaming.content ? <Markdown text={streaming.content} className="mt-2" /> : null}

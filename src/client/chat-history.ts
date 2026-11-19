@@ -1,3 +1,5 @@
+import type { PlanStepView } from "@/domain/assistant-plan";
+
 export type ChatStep = {
   key: string;
   name: string;
@@ -25,7 +27,14 @@ export type ChatMessageDetails = {
   lastRetryAt?: string;
 };
 
-export type ChatMessage = { id: number; role: "user" | "assistant"; content: string; steps: ChatStep[]; details?: ChatMessageDetails };
+export type ChatMessage = {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  steps: ChatStep[];
+  details?: ChatMessageDetails;
+  plan?: PlanStepView[];
+};
 
 const STORAGE_KEY = "managr-assistant-chat";
 const DRAFT_KEY = "managr-assistant-draft";
@@ -63,6 +72,17 @@ function isDetails(value: unknown): value is ChatMessageDetails {
   return true;
 }
 
+function isPlanStep(value: unknown): value is PlanStepView {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    (value.status === "pending" || value.status === "doing" || value.status === "done" || value.status === "skipped") &&
+    (value.note === undefined || typeof value.note === "string") &&
+    (value.change === undefined || value.change === "added" || value.change === "changed" || value.change === "removed")
+  );
+}
+
 function isMessage(value: unknown): value is ChatMessage {
   return (
     isRecord(value) &&
@@ -72,7 +92,8 @@ function isMessage(value: unknown): value is ChatMessage {
     typeof value.content === "string" &&
     Array.isArray(value.steps) &&
     value.steps.every(isStep) &&
-    (value.details === undefined || isDetails(value.details))
+    (value.details === undefined || isDetails(value.details)) &&
+    (value.plan === undefined || (Array.isArray(value.plan) && value.plan.every(isPlanStep)))
   );
 }
 

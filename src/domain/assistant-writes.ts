@@ -7,6 +7,7 @@ const NO_WRITE_TOOLS = new Set([
   "draft_dunning_letter",
   "web_search",
   "web_fetch",
+  "update_plan",
 ]);
 
 export function needsApproval(name: string): boolean {

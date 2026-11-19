@@ -87,7 +87,8 @@ Write tools follow the server actions:
 - **Invoices:** `save_customer`, `save_contact`, `delete_contact`, `create_invoice`, `issue_invoice`, `update_buyer_reference`, `record_invoice_payment`, `void_invoice`, `delete_invoice_draft`
 - **Books:** `post_expense`, `post_vat_prepayment`, `post_journal_entry`
 - **People:** `create_person`, `update_person`, `add_salary_change`, `delete_salary_change`, `save_director_contract`, `delete_director_contract`, `save_founder_health`, `delete_founder_health`, `add_absence`, `delete_absence`, `post_payroll`, `pay_shareholder`
-- **Time, tasks, deadlines:** `add_time`, `update_time`, `delete_time`, `save_project`, `delete_project`, `set_hourly_rate`, `add_task`, `set_task_status`, `delete_task`, `set_obligation`, `add_deadline`, `complete_deadline`, `delete_deadline`. `add_time` and `update_time` take `personId` for an employee or `contactId` for an external contact, never both.
+- **Time, tasks, deadlines:** `add_time`, `update_time`, `delete_time`, `save_project`, `delete_project`, `set_hourly_rate`, `add_task`, `set_task_status`, `delete_task`, `set_obligation`, `add_deadline`, `complete_deadline`, `delete_deadline`
+- **Planning:** `update_plan`. `add_time` and `update_time` take `personId` for an employee or `contactId` for an external contact, never both.
 - **Milestones:** `save_milestone`, `delete_milestone`
 - **Legal:** `set_compliance_done`, `save_resolution`
 
@@ -107,6 +108,7 @@ A floating button in the app shell opens a panel. The browser sends the conversa
 - `tool`: a tool call started, with its input.
 - `tool_result`: the call finished, with `ok`, a summary, and a capped copy of the data.
 - `proposal`: one or more write calls are waiting for confirmation, with a `proposal` id and each change's call id, tool, action (`add`, `update`, `delete`), and input.
+- `plan`: the roadmap the assistant intends to follow, with stable step ids, statuses, and notes. A later `plan` event replaces it; the panel keeps removed steps visible and marks additions, changes, and removals.
 - `reply`: the final answer text.
 - `error`: the run failed, with a message.
 
@@ -117,6 +119,7 @@ The panel renders each event as it arrives, so the steps appear while the model 
 - The provider and model come from the local opencode installation; `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL`, and `MANAGR_AI_API_KEY` remain the fallback. Without either source the panel explains the setup instead of pretending to answer.
 - Each tool call shows a spinner, then a check or a cross with the error. A read shows no card; a write shows what it created. A web search shows the query and hit count, and a fetched page shows its URL.
 - Before a write tool runs, the panel shows a confirmation card with every proposed change: its action (add, update, or delete), the tool, and its inputs. **Alle übernehmen** accepts the batch, **Alle ablehnen** rejects it, and the checkboxes plus **Auswahl übernehmen** accept or reject individual changes. Only approved calls execute; a rejected call returns a rejection result to the model. Read tools and the four briefings never ask. This applies to the in-app assistant; an external MCP client still calls a tool directly.
+- The assistant starts with a visible roadmap. It calls `update_plan` before its first desk tool, then updates the same plan as it works. Added, changed, and dropped steps carry the reason from the step note; the roadmap stays above the tool steps and is stored with the answer.
 - The same chat opens as a full page at `/assistant`. It keeps the provider and model picker and adds the stored history, web-search status, the MCP endpoint, the tool count, and the privacy notes. The history card opens a list of every add, update, and delete the assistant proposed, with time and status; rejected and failed changes stay visible. The list has a search field, action and status filters, sorting by time or tool, and grouping by area, action, day, or none. The tools card opens a searchable sidebar with access filters and grouping by area or access; each entry shows its description, and a write is marked as needing confirmation. Both panels follow the global detail-sidebar setting and are listed on the settings page as **KI**, so they can be inline or overlay.
 - A delete hides the record instead of removing it. Shareholders, policies, invoice drafts, salary changes, absences, projects, milestones, tasks, time entries, deadlines, documents, director contracts, and founder health cover can be restored from `/trash`; the last screen deletion also offers **Rückgängig**. Projects and tasks bring their time entries back when restored. Qonto disconnect and the line replacement inside an edited draft remain hard deletes.
 - The answer renders as light Markdown: bold, italics, strikethrough, inline code, links, bullet and numbered lists, task lists, tables, quotes, headings, and code blocks. A marker without its pair stays visible while the text streams. Raw HTML stays text, and a link points only at an `http(s)` URL or a path inside the desk.

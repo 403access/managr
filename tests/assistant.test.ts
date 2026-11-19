@@ -234,6 +234,39 @@ describe("assistant loop", () => {
     expect(events.some((event) => event.type === "reply" && event.text.includes("Entwurf"))).toBe(true);
   });
 
+  it("emits the roadmap before the first read and does not show the planning call as a step", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        completion({
+          role: "assistant",
+          content: "",
+          tool_calls: [
+            {
+              id: "plan-1",
+              type: "function",
+              function: {
+                name: "update_plan",
+                arguments: JSON.stringify({ steps: [{ id: "1", title: "Zeiten lesen" }] }),
+              },
+            },
+            { id: "read-1", type: "function", function: { name: "read_desk", arguments: "{}" } },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(completion({ role: "assistant", content: "Fertig." }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const events: AssistantEvent[] = [];
+    for await (const event of streamAssistant([{ role: "user", content: "Was ist offen?" }])) events.push(event);
+
+    expect(events[0]).toEqual({ type: "plan", steps: [{ id: "1", title: "Zeiten lesen", status: "pending" }] });
+    expect(events.some((event) => event.type === "tool" && event.name === "update_plan")).toBe(false);
+    expect(events.some((event) => event.type === "tool" && event.name === "read_desk")).toBe(true);
+    expect(events.at(-1)?.type).toBe("reply");
+  });
+
   it("waits for approval before a write and runs it when approved", async () => {
     vi.stubEnv("MANAGR_AI_MODEL", "test-model");
     const { projects } = await import("@/db/schema");

@@ -75,6 +75,20 @@ describe("tool registry", () => {
     })).resolves.toMatchObject({ ok: false });
   });
 
+  it("validates a roadmap with unique step ids", async () => {
+    const plan = data<{ steps: { id: string; title: string; status: string }[] }>(
+      await runTool("update_plan", { steps: [{ id: "1", title: "Zeiten lesen" }] }),
+    );
+    expect(plan.steps).toEqual([{ id: "1", title: "Zeiten lesen", status: "pending" }]);
+    const duplicate = await runTool("update_plan", {
+      steps: [
+        { id: "1", title: "A" },
+        { id: "1", title: "B" },
+      ],
+    });
+    expect(duplicate.ok).toBe(false);
+  });
+
   it("updates a time entry in place instead of deleting and recreating it", async () => {
     const added = data<{ id: number }>(
       await runTool("add_time", {

@@ -11,6 +11,7 @@ import {
 import { loadCompany } from "./queries";
 import { changeAction, type ApprovalGate, type ProposedChange } from "./approvals";
 import { changeLabels } from "./change-labels";
+import type { PlanStep } from "@/domain/assistant-plan";
 import { needsApproval, openAiTools, runTool, findTool } from "./tools";
 import { webEnabled } from "./web";
 
@@ -43,6 +44,7 @@ export type AssistantEvent =
   | { type: "tool"; name: string; input: unknown }
   | { type: "tool_result"; name: string; input: unknown; ok: boolean; summary: string; data?: unknown }
   | { type: "proposal"; id: string; changes: ProposedChange[] }
+  | { type: "plan"; steps: PlanStep[] }
   | { type: "reply"; text: string };
 
 const MAX_STEPS = 8;
@@ -156,6 +158,7 @@ function systemPrompt(): string {
     "",
     "Rules:",
     "- Use the tools for every figure, date, and status. Never invent an amount, a deadline, a tax rate, a wage-tax figure, or a social-insurance status.",
+    "- Your first tool call must be update_plan: list every step you intend to take, in order. Call it again as you work to mark steps doing or done, and whenever the plan changes. Keep each step id stable. When you add, change, or drop a step, put the reason in that step's note; keep a dropped step with status skipped and its reason. The user sees this roadmap.",
     "- Read before you write: list or get the record, then act. Do not ask for permission in chat; the panel confirms every write. Ask only when the record or the intent is ambiguous.",
     "- To change an existing record, use its update tool or its save_* tool with the record id. Never delete and recreate a record just to change a field. Delete only when the user asks to remove it.",
     "- Call write tools as usual: the panel pauses each write and asks the user to confirm it, then the tool result reports whether it was approved or rejected. Never claim a change happened before that result arrives, and never retry a rejected change.",
@@ -368,10 +371,21 @@ export async function* streamAssistant(
         };
       });
       // Reads answer the question; only writes wait for the panel's confirmation.
-      const reads = items.filter((item) => !item.write);
+      const reads = items
+        .filter((item) => !item.write)
+        .sort((left, right) => (left.name === "update_plan" ? -1 : right.name === "update_plan" ? 1 : 0));
       const writes = items.filter((item) => item.write);
 
       for (const item of reads) {
+        if (item.name === "update_plan") {
+          const result = await runTool(item.name, item.input);
+          if (result.ok) {
+            const steps = (result.data as { steps: PlanStep[] }).steps;
+            yield { type: "plan", steps };
+          }
+          chat.push({ role: "tool", tool_call_id: item.id, content: toolContent(result) });
+          continue;
+        }
         yield { type: "tool", name: item.name, input: item.input };
         const result = await runTool(item.name, item.input);
         const summary = result.ok ? "ok" : result.error;

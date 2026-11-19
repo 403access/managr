@@ -363,6 +363,35 @@ const addressInput = {
 const idInput = { id: z.number().int().positive().describe("The record id from a read tool.") };
 
 export const tools: DeskTool[] = [
+  // ---------------------------------------------------------------- planning
+  tool({
+    name: "update_plan",
+    description:
+      "Show or update the roadmap the user sees above your work. Call this before the first read or write with every step you intend to take, then call it again to mark steps doing/done and whenever the plan changes. Keep each step id stable. When you add, change, or drop a step, put the reason in that step's note; keep a dropped step with status skipped and its reason.",
+    input: {
+      steps: z
+        .array(
+          z.object({
+            id: z.string().trim().min(1).max(40),
+            title: z.string().trim().min(1).max(200),
+            status: z.enum(["pending", "doing", "done", "skipped"]).optional(),
+            note: z.string().trim().max(400).optional(),
+          }),
+        )
+        .min(1)
+        .max(20),
+    },
+    run: (input) => {
+      const seen = new Set<string>();
+      for (const step of input.steps) {
+        if (seen.has(step.id)) throw new Error("Step ids must be unique.");
+        seen.add(step.id);
+      }
+      return {
+        steps: input.steps.map((step) => ({ ...step, status: step.status ?? "pending" })),
+      };
+    },
+  }),
   // ---------------------------------------------------------------- reads
   tool({
     name: "read_companies",

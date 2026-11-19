@@ -159,6 +159,36 @@ describe("assistant draft", () => {
     expect(storage.data.size).toBe(0);
   });
 
+  it("keeps the plan of an assistant answer", () => {
+    const storage = memoryStorage();
+    const chat: ChatMessage[] = [
+      {
+        ...message(1, "assistant", "Erledigt."),
+        plan: [
+          { id: "1", title: "Zeiten lesen", status: "done" },
+          { id: "2", title: "Rechnung prüfen", status: "pending", change: "added", note: "Nach der Antwort ergänzt" },
+        ],
+      },
+    ];
+
+    writeChat(storage, chat);
+
+    expect(readChat(storage)).toEqual(chat);
+  });
+
+  it("drops an assistant message with a malformed plan", () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      "managr-assistant-chat",
+      JSON.stringify({
+        version: 1,
+        messages: [{ ...message(1, "assistant", "x"), plan: [{ id: 1, title: "x", status: "unbekannt" }] }],
+      }),
+    );
+
+    expect(readChat(storage)).toEqual([]);
+  });
+
   it("returns nothing when storage is missing or broken", () => {
     const storage = memoryStorage();
     expect(readDraft(storage)).toBe("");

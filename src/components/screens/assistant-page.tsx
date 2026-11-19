@@ -15,6 +15,7 @@ import type { MessageKey } from "@/i18n";
 type ToolInfo = { name: string; description: string; write: boolean };
 type ToolAccess = "read" | "write" | "briefing" | "web";
 type ToolCategory =
+  | "planning"
   | "desk"
   | "invoices"
   | "customers"
@@ -58,6 +59,7 @@ const OUTCOME_ORDER: ActionOutcome[] = ["ok", "rejected", "error"];
 const BRIEFINGS = new Set(["daily_briefing", "vat_overview", "monthly_close_checklist", "draft_dunning_letter"]);
 const ACCESS_ORDER: ToolAccess[] = ["read", "write", "briefing", "web"];
 const CATEGORY_ORDER: ToolCategory[] = [
+  "planning",
   "desk",
   "invoices",
   "customers",
@@ -88,6 +90,7 @@ const ACCESS_LABELS: Record<ToolAccess, MessageKey> = {
 };
 
 const CATEGORY_LABELS: Record<ToolCategory, MessageKey> = {
+  planning: "assistantPage.toolsPlanning",
   desk: "nav.desk",
   invoices: "nav.invoices",
   customers: "nav.customers",
@@ -119,6 +122,7 @@ function accessOf(tool: ToolInfo): ToolAccess {
 function categoryOf(name: string): ToolCategory {
   if (BRIEFINGS.has(name)) return "briefing";
   if (name.startsWith("web_")) return "web";
+  if (name === "update_plan") return "planning";
   if (name === "set_hourly_rate") return "rates";
   if (name.startsWith("read_")) {
     if (name === "read_desk" || name === "read_companies") return "desk";
