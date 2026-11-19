@@ -26,6 +26,12 @@ function inline(nodes: InlineNode[], prefix: string): ReactNode[] {
             {inline(node.children, key)}
           </em>
         );
+      case "strike":
+        return (
+          <del key={key} className="line-through">
+            {inline(node.children, key)}
+          </del>
+        );
       case "link": {
         const className = "text-pine underline underline-offset-2 hover:text-pine-deep";
         const children = inline(node.children, key);
@@ -52,6 +58,8 @@ const HEADING_CLASS: Record<number, string> = {
   6: "font-sans text-xs font-semibold tracking-wide uppercase",
 };
 
+const TABLE_ALIGN = { left: "text-left", center: "text-center", right: "text-right" } as const;
+
 function block(node: MarkdownBlock, key: string): ReactNode {
   switch (node.type) {
     case "paragraph":
@@ -69,21 +77,73 @@ function block(node: MarkdownBlock, key: string): ReactNode {
       );
     }
     case "list": {
-      const items = node.items.map((item, index) => (
-        <li key={`${key}-${index}`} className="whitespace-pre-wrap">
-          {inline(item, `${key}-${index}`)}
-        </li>
-      ));
-      return node.ordered ? (
-        <ol key={key} start={node.start} className="grid list-decimal gap-1 pl-5 leading-relaxed">
-          {items}
-        </ol>
-      ) : (
-        <ul key={key} className="grid list-disc gap-1 pl-5 leading-relaxed">
+      const hasTasks = Boolean(node.checked?.length);
+      const items = node.items.map((item, index) => {
+        if (!hasTasks) {
+          return (
+            <li key={`${key}-${index}`} className="whitespace-pre-wrap">
+              {inline(item, `${key}-${index}`)}
+            </li>
+          );
+        }
+        const state = node.checked?.[index];
+        return (
+          <li key={`${key}-${index}`} className="flex items-start gap-2 whitespace-pre-wrap">
+            {state === undefined ? (
+              <span className="mt-1 size-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <input type="checkbox" checked={state} readOnly disabled className="mt-0.5 size-4 shrink-0 accent-pine" />
+            )}
+            <span className="min-w-0 flex-1">{inline(item, `${key}-${index}`)}</span>
+          </li>
+        );
+      });
+      if (node.ordered) {
+        return (
+          <ol key={key} start={node.start} className={`grid gap-1 leading-relaxed ${hasTasks ? "" : "list-decimal pl-5"}`}>
+            {items}
+          </ol>
+        );
+      }
+      return (
+        <ul key={key} className={`grid gap-1 leading-relaxed ${hasTasks ? "" : "list-disc pl-5"}`}>
           {items}
         </ul>
       );
     }
+    case "table":
+      return (
+        <div key={key} className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-[12px] leading-relaxed">
+            <thead>
+              <tr className="border-b border-line">
+                {node.header.map((cell, column) => (
+                  <th
+                    key={`${key}-h-${column}`}
+                    className={`px-2 py-1 font-semibold ${TABLE_ALIGN[node.align[column] ?? "left"]}`}
+                  >
+                    {inline(cell, `${key}-h-${column}`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {node.rows.map((row, rowIndex) => (
+                <tr key={`${key}-r-${rowIndex}`} className="border-b border-line/60 last:border-0">
+                  {row.map((cell, column) => (
+                    <td
+                      key={`${key}-r-${rowIndex}-c-${column}`}
+                      className={`px-2 py-1 align-top ${TABLE_ALIGN[node.align[column] ?? "left"]}`}
+                    >
+                      {inline(cell, `${key}-r-${rowIndex}-c-${column}`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
     case "code":
       return (
         <pre key={key} className="overflow-x-auto rounded-lg bg-ink/5 p-2 font-mono text-[11px] leading-relaxed">

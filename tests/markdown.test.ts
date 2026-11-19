@@ -42,6 +42,14 @@ describe("markdown inline", () => {
   it("does not treat a multiplication star as emphasis", () => {
     expect(parseInline("3 * 4 = 12")).toEqual([{ type: "text", text: "3 * 4 = 12" }]);
   });
+
+  it("reads strikethrough", () => {
+    expect(parseInline("alt ~~gelöscht~~ neu")).toEqual([
+      { type: "text", text: "alt " },
+      { type: "strike", children: [{ type: "text", text: "gelöscht" }] },
+      { type: "text", text: " neu" },
+    ]);
+  });
 });
 
 describe("markdown blocks", () => {
@@ -99,6 +107,65 @@ describe("markdown blocks", () => {
       { type: "heading", level: 2, children: [{ type: "text", text: "Adresse" }] },
       { type: "quote", children: [{ type: "text", text: "Zitiert" }] },
       { type: "rule" },
+    ]);
+  });
+
+  it("reads a task list with checked and open items", () => {
+    expect(parseMarkdown("- [x] Rechnung prüfen\n- [ ] Zeit buchen\n- normal")).toEqual([
+      {
+        type: "list",
+        ordered: false,
+        start: 1,
+        items: [
+          [{ type: "text", text: "Rechnung prüfen" }],
+          [{ type: "text", text: "Zeit buchen" }],
+          [{ type: "text", text: "normal" }],
+        ],
+        checked: [true, false, undefined],
+      },
+    ]);
+  });
+
+  it("reads a table with alignment and inline formatting", () => {
+    expect(parseMarkdown("| **Tag** | Stunden | Betrag |\n| :--- | :---: | ---: |\n| Montag | 2 | **190,00 €** |\n| Dienstag | 3 | 285,00 € |")).toEqual([
+      {
+        type: "table",
+        align: ["left", "center", "right"],
+        header: [
+          [{ type: "strong", children: [{ type: "text", text: "Tag" }] }],
+          [{ type: "text", text: "Stunden" }],
+          [{ type: "text", text: "Betrag" }],
+        ],
+        rows: [
+          [
+            [{ type: "text", text: "Montag" }],
+            [{ type: "text", text: "2" }],
+            [{ type: "strong", children: [{ type: "text", text: "190,00 €" }] }],
+          ],
+          [
+            [{ type: "text", text: "Dienstag" }],
+            [{ type: "text", text: "3" }],
+            [{ type: "text", text: "285,00 €" }],
+          ],
+        ],
+      },
+    ]);
+  });
+
+  it("reads a table without outer pipes and keeps a broken table as text", () => {
+    expect(parseMarkdown("Tag | Stunden\n--- | ---\nMontag | 2")).toEqual([
+      {
+        type: "table",
+        align: [null, null],
+        header: [
+          [{ type: "text", text: "Tag" }],
+          [{ type: "text", text: "Stunden" }],
+        ],
+        rows: [[[{ type: "text", text: "Montag" }], [{ type: "text", text: "2" }]]],
+      },
+    ]);
+    expect(parseMarkdown("Tag | Stunden\nMontag | 2")).toEqual([
+      { type: "paragraph", children: [{ type: "text", text: "Tag | Stunden\nMontag | 2" }] },
     ]);
   });
 });

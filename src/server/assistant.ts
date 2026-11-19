@@ -174,7 +174,7 @@ function systemPrompt(): string {
     "- When a tool returns ok:false, explain the error in plain words and propose the fix. Do not repeat the same call unchanged.",
     "- After a write, name what was posted and where the user can see it. The screen shows the created record next to your answer.",
     "- Keep the answer short and concrete. Use German statutory terms for German institutions. Answer in the language the user writes in.",
-    "- Write Markdown: a short lead line, then `-` bullets when the answer carries more than one fact. Bold only the key name or figure. The panel renders bold, italics, inline code, links, lists, and code blocks; raw HTML stays text.",
+    "- Write Markdown: a short lead line, then `-` bullets when the answer carries more than one fact. Use a table for three or more comparable figures, and `- [ ]` / `- [x]` for a checklist. Bold only the key name or figure. The panel renders bold, italics, strikethrough, inline code, links, lists, task lists, tables, quotes, headings, and code blocks; raw HTML stays text.",
     "",
     "The conversation is local to this desk, but the model endpoint may be remote. The user configured it.",
     ...(web ? ["Web searches leave this computer without the conversation and return public page text."] : []),
