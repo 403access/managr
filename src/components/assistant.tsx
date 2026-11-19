@@ -2,74 +2,50 @@
 
 import Link from "next/link";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { formatDate } from "@/domain/calendar";
 import { changeAction, type ChangeAction } from "@/domain/assistant-actions";
-import { mergePlan, type PlanChange, type PlanStep, type PlanStepStatus, type PlanStepView } from "@/domain/assistant-plan";
+import { type PlanChange, type PlanStepStatus, type PlanStepView } from "@/domain/assistant-plan";
 import { needsApproval } from "@/domain/assistant-writes";
 import { formatEuro } from "@/domain/money";
-import { nextMessageId, readChat, readDraft, writeChat, writeDraft, type ChatMessage, type ChatMessageDetails, type ChatStep } from "@/client/chat-history";
+import type { ChatMessageDetails } from "@/client/chat-history";
+import {
+  MCP_SERVER,
+  type Proposal,
+  type ProposalChange,
+  type Step,
+} from "@/client/assistant-types";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import type { MessageKey } from "@/i18n";
+import { useAssistant } from "./assistant-provider";
 import { Combobox } from "./combobox";
 import { useI18n } from "./locale-provider";
 import { Markdown } from "./markdown";
 import { buttonClass, inputClass, Pill } from "./ui";
-
-type Step = ChatStep;
-
-type Message = ChatMessage;
-
-type Settings = { configured: boolean; model: string; baseUrl: string; local: boolean; web?: boolean };
-
-type Selection = { providerID: string; modelID: string };
-
-type CatalogProvider = { id: string; name: string };
-
-type CatalogModel = {
-  id: string;
-  providerID: string;
-  modelID: string;
-  name: string;
-  providerName: string;
-  local: boolean;
-  context?: number;
-};
-
-type Catalog = {
-  available: boolean;
-  error?: string;
-  providers: CatalogProvider[];
-  models: CatalogModel[];
-  default: Selection | null;
-};
-
-type StreamEvent =
-  | { type: "model"; model: string; baseUrl: string; local: boolean; providerID?: string; modelID?: string }
-  | { type: "delta"; text: string }
-  | { type: "reset" }
-  | { type: "tool"; name: string; input: unknown }
-  | { type: "tool_result"; name: string; input: unknown; ok: boolean; summary: string; data?: unknown }
-  | { type: "proposal"; id: string; changes: ProposalChange[] }
-  | { type: "plan"; steps: PlanStep[] }
-  | { type: "reply"; text: string }
-  | { type: "error"; message: string };
-
-type ProposalChange = {
-  callId: string;
-  name: string;
-  action: ChangeAction;
-  input: unknown;
-  labels?: Record<string, string>;
-};
-
-type Proposal = { id: string; changes: ProposalChange[] };
 
 const ACTION_STYLE: Record<ChangeAction, string> = {
   add: "bg-moss/15 text-moss",
   update: "bg-amber/15 text-amber",
   delete: "bg-clay/15 text-clay",
 };
+
+const PANEL_OPEN_KEY = "managr-assistant-open";
+
+function readPanelOpen(): boolean {
+  try {
+    return window.sessionStorage.getItem(PANEL_OPEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function storePanelOpen(open: boolean): void {
+  try {
+    window.sessionStorage.setItem(PANEL_OPEN_KEY, open ? "1" : "0");
+  } catch {
+    // A private window may refuse storage; the panel then lasts for the mount.
+  }
+}
 
 export function ActionBadge({ action }: { action: ChangeAction }) {
   const { t } = useI18n();
@@ -295,371 +271,54 @@ function recordHref(step: Step): string | null {
   }
 }
 
-let nextId = 1;
-
-const MODEL_STORAGE_KEY = "managr-assistant-model";
-/** The desk's own tool registry, also served at /api/mcp. */
-const MCP_SERVER = "managr-mcp";
-
-function readStoredSelection(): Selection | null {
-  try {
-    const raw = window.localStorage.getItem(MODEL_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<Selection>;
-    return typeof parsed.providerID === "string" && typeof parsed.modelID === "string"
-      ? { providerID: parsed.providerID, modelID: parsed.modelID }
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function storeSelection(selection: Selection): void {
-  try {
-    window.localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(selection));
-  } catch {
-    // A private window may refuse storage; the choice then lasts for the session.
-  }
-}
-
 function contextHint(tokens?: number): string | undefined {
   if (!tokens || tokens < 1_000) return undefined;
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(tokens % 1_000_000 === 0 ? 0 : 1)}M`;
   return `${Math.round(tokens / 1_000)}k`;
 }
 
-export function Assistant({ variant = "popover", onHistory }: { variant?: "popover" | "page"; onHistory?: (messages: ChatMessage[]) => void } = {}) {
-  const { t, tx, label } = useI18n();
-  const queryClient = useQueryClient();
+export function Assistant({ variant = "popover" }: { variant?: "popover" | "page" } = {}) {
+  const { t } = useI18n();
+  const {
+    messages,
+    streaming,
+    error,
+    settings,
+    catalog,
+    selection,
+    draft,
+    setDraft,
+    pending,
+    send,
+    chooseSelection,
+    clear,
+    abort,
+  } = useAssistant();
   const page = variant === "page";
   const [open, setOpen] = useState(false);
   const shown = page || open;
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [restored, setRestored] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [draftLoaded, setDraftLoaded] = useState(false);
-  const [streaming, setStreaming] = useState<{ content: string; steps: Step[]; proposal?: Proposal; plan?: PlanStepView[] } | null>(null);
-  const [error, setError] = useState("");
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [selection, setSelection] = useState<Selection | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const pending = streaming !== null;
   const lastUserMessageId = [...messages].reverse().find((message) => message.role === "user")?.id ?? null;
 
   useEffect(() => {
-    let active = true;
-    fetch("/api/assistant")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data: Settings | null) => {
-        if (active && data) setSettings(data);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (page) return;
+    if (readPanelOpen()) setOpen(true);
+  }, [page]);
 
   useEffect(() => {
-    let stored: Message[] = [];
-    try {
-      stored = readChat(window.localStorage);
-    } catch {
-      // A private window may refuse storage; the history then lasts for the session.
-    }
-    if (stored.length > 0) {
-      nextId = Math.max(nextId, nextMessageId(stored));
-      setMessages((current) => (current.length > 0 ? current : stored));
-    }
-    setRestored(true);
-  }, []);
-
-  useEffect(() => {
-    if (!restored) return;
-    try {
-      writeChat(window.localStorage, messages);
-    } catch {
-      // A private window may refuse storage; the history then lasts for the session.
-    }
-  }, [messages, restored]);
-
-  useEffect(() => {
-    onHistory?.(messages);
-  }, [messages, onHistory]);
-
-  useEffect(() => {
-    let stored = "";
-    try {
-      stored = readDraft(window.localStorage);
-    } catch {
-      // A private window may refuse storage; the draft then lasts for the session.
-    }
-    if (stored) setDraft((current) => current || stored);
-    setDraftLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (!draftLoaded) return;
-    try {
-      writeDraft(window.localStorage, draft);
-    } catch {
-      // A private window may refuse storage; the draft then lasts for the session.
-    }
-  }, [draft, draftLoaded]);
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/assistant/models")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data: Catalog | null) => {
-        if (active) setCatalog(data ?? { available: false, providers: [], models: [], default: null });
-      })
-      .catch(() => {
-        if (active) setCatalog({ available: false, providers: [], models: [], default: null });
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!catalog) return;
-    const valid = (candidate: Selection | null): Selection | null =>
-      candidate && catalog.models.some((model) => model.providerID === candidate.providerID && model.modelID === candidate.modelID)
-        ? candidate
-        : null;
-    if (valid(selection)) return;
-    const first = catalog.models[0];
-    const next =
-      valid(readStoredSelection()) ??
-      valid(catalog.default) ??
-      (first ? { providerID: first.providerID, modelID: first.modelID } : null);
-    if (next) {
-      setSelection(next);
-      storeSelection(next);
-    } else {
-      setSelection(null);
-    }
-  }, [catalog, selection]);
+    if (page) return;
+    storePanelOpen(open);
+  }, [open, page]);
 
   useEffect(() => {
     if (!shown) return;
     inputRef.current?.focus();
   }, [shown]);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
-
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages, streaming, error]);
-
-  function chooseSelection(next: Selection) {
-    setSelection(next);
-    storeSelection(next);
-  }
-
-  async function send(raw: string, retryOf?: number) {
-    if (pending) return;
-    const content = raw.trim();
-    if (!retryOf && !content) return;
-    const startedAt = Date.now();
-    const nowIso = new Date(startedAt).toISOString();
-    const promptModel = selection
-      ? (catalog?.models.find((model) => model.providerID === selection.providerID && model.modelID === selection.modelID) ?? null)
-      : null;
-    let history: Message[];
-    let retryBackup: Message[] | null = null;
-    if (retryOf !== undefined) {
-      // Regenerate the last user turn in place: the message stays, the old
-      // answer is replaced, and the retry is noted in its details.
-      const lastUser = [...messages].reverse().find((message) => message.role === "user");
-      if (!lastUser || lastUser.id !== retryOf) return;
-      const index = messages.findIndex((message) => message.id === retryOf);
-      if (index < 0) return;
-      const target = messages[index];
-      retryBackup = messages.slice(index + 1);
-      const details: ChatMessageDetails = {
-        ...(target.details ?? { at: nowIso }),
-        at: target.details?.at ?? nowIso,
-        retries: (target.details?.retries ?? 0) + 1,
-        lastRetryAt: nowIso,
-      };
-      history = [...messages.slice(0, index), { ...target, details }];
-      setMessages(history);
-    } else {
-      const question: Message = {
-        id: nextId++,
-        role: "user",
-        content,
-        steps: [],
-        details: {
-          at: nowIso,
-          model: promptModel?.name ?? (settings?.model || undefined),
-          provider: promptModel?.providerName,
-          local: promptModel?.local ?? settings?.local,
-          mcpServer: MCP_SERVER,
-        },
-      };
-      history = [...messages, question];
-      setMessages(history);
-      setDraft("");
-    }
-    setError("");
-    let answer = "";
-    let steps: Step[] = [];
-    let stepSeq = 0;
-    let errorText = "";
-    let modelInfo: { name: string; providerID?: string; modelID?: string; baseUrl: string; local: boolean } | null = null;
-    let proposal: Proposal | null = null;
-    let plan: PlanStepView[] = [];
-    setStreaming({ content: "", steps: [] });
-    const sync = () =>
-      setStreaming({
-        content: answer,
-        steps,
-        ...(proposal ? { proposal } : {}),
-        ...(plan.length > 0 ? { plan } : {}),
-      });
-    const clearProposal = () => {
-      if (!proposal) return;
-      proposal = null;
-      sync();
-    };
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      // An assistant turn that only ran tools has no text; it adds nothing to
-      // the model's context. Keep the request near the stored history size.
-      const turns = history
-        .filter((message) => message.role === "user" || message.content.trim().length > 0)
-        .slice(-40)
-        .map(({ role, content: text }) => ({ role, content: text }));
-      const response = await fetch("/api/assistant", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          messages: turns,
-          ...(selection ? { selection } : {}),
-        }),
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        if (data.notConfigured) {
-          setSettings((current) => ({
-            configured: false,
-            model: data.model ?? "",
-            baseUrl: data.baseUrl ?? "",
-            local: true,
-            web: current?.web,
-          }));
-        }
-        errorText = typeof data.error === "string" ? data.error : t("assistant.failed");
-      } else if (!response.body) {
-        errorText = t("assistant.failed");
-      } else {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let sawReply = false;
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          let newline = buffer.indexOf("\n");
-          while (newline !== -1) {
-            const line = buffer.slice(0, newline).trim();
-            buffer = buffer.slice(newline + 1);
-            newline = buffer.indexOf("\n");
-            if (!line) continue;
-            let event: StreamEvent;
-            try {
-              event = JSON.parse(line) as StreamEvent;
-            } catch {
-              continue;
-            }
-            if (proposal && event.type !== "model" && event.type !== "proposal") {
-              clearProposal();
-            }
-            if (event.type === "model") {
-              modelInfo = {
-                name: event.model,
-                providerID: event.providerID,
-                modelID: event.modelID,
-                baseUrl: event.baseUrl,
-                local: Boolean(event.local),
-              };
-              setSettings({ configured: true, model: event.model, baseUrl: event.baseUrl, local: Boolean(event.local) });
-            } else if (event.type === "delta") {
-              answer += event.text;
-              sync();
-            } else if (event.type === "reset") {
-              answer = "";
-              sync();
-            } else if (event.type === "tool") {
-              steps = [...steps, { key: `${stepSeq++}`, name: event.name, input: event.input, status: "running", summary: "" }];
-              sync();
-            } else if (event.type === "tool_result") {
-              steps = steps.map((step, index) =>
-                index === steps.length - 1 ? { ...step, status: event.ok ? "ok" : "error", summary: event.summary, data: event.data } : step,
-              );
-              sync();
-              if (event.ok && needsApproval(event.name)) {
-                void queryClient.invalidateQueries({ queryKey: ["view"] });
-              }
-            } else if (event.type === "reply") {
-              answer = event.text;
-              sawReply = true;
-              sync();
-            } else if (event.type === "proposal") {
-              proposal = { id: event.id, changes: event.changes };
-              sync();
-            } else if (event.type === "plan") {
-              plan = mergePlan(plan, event.steps);
-              sync();
-            } else if (event.type === "error") {
-              errorText = event.message;
-            }
-          }
-        }
-        if (!sawReply && !answer && steps.length === 0 && !errorText) errorText = t("assistant.failed");
-      }
-    } catch (caught) {
-      if (!controller.signal.aborted) errorText = t("assistant.failed");
-    } finally {
-      abortRef.current = null;
-      if (answer || steps.length > 0) {
-        const providerName = modelInfo?.providerID
-          ? (catalog?.models.find(
-              (model) => model.providerID === modelInfo?.providerID && model.modelID === modelInfo?.modelID,
-            )?.providerName ?? modelInfo.providerID)
-          : promptModel?.providerName;
-        const details: ChatMessageDetails = {
-          at: new Date().toISOString(),
-          durationMs: Date.now() - startedAt,
-          model: modelInfo?.name ?? promptModel?.name ?? (settings?.model || undefined),
-          provider: providerName,
-          baseUrl: modelInfo?.baseUrl,
-          local: modelInfo?.local ?? promptModel?.local ?? settings?.local,
-          mcpServer: MCP_SERVER,
-          toolCalls: steps.length,
-          status: controller.signal.aborted ? "stopped" : errorText ? "error" : "ok",
-        };
-        setMessages((current) => [
-          ...current,
-          { id: nextId++, role: "assistant", content: answer, steps, details, ...(plan.length > 0 ? { plan } : {}) },
-        ]);
-      } else if (retryBackup && retryBackup.length > 0) {
-        // A retry that produced nothing puts the previous answer back.
-        setMessages((current) => [...current, ...retryBackup]);
-      }
-      setStreaming(null);
-      setError(errorText ? tx(errorText) : "");
-    }
-  }
 
   const quickActions = [
     { key: "assistant.quickBriefing", prompt: t("assistant.promptBriefing") },
@@ -710,13 +369,14 @@ export function Assistant({ variant = "popover", onHistory }: { variant?: "popov
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={shown}
-          aria-label={shown ? t("assistant.close") : t("assistant.open")}
+          aria-label={shown ? t("assistant.close") : pending ? t("assistant.openRunning") : t("assistant.open")}
           className="fixed right-3 bottom-20 z-30 inline-flex min-h-12 items-center gap-2 rounded-full border border-pine-deep bg-pine px-4 text-sm font-medium text-paper shadow-lg shadow-ink/20 md:right-6 md:bottom-6"
         >
           <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
             <path d="M4 12a8 8 0 0 1 8-8h1a7 7 0 0 1 0 14H9l-4 3v-4.5A8 8 0 0 1 4 12Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
           </svg>
-          <span className="hidden md:inline">{t("assistant.open")}</span>
+          <span className="hidden md:inline">{pending ? t("assistant.openRunning") : t("assistant.open")}</span>
+          {pending ? <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-amber" /> : null}
         </button>
       )}
 
@@ -737,7 +397,7 @@ export function Assistant({ variant = "popover", onHistory }: { variant?: "popov
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 {messages.length > 0 ? (
-                  <button type="button" className="rounded-full px-2 py-1 text-xs text-muted hover:text-ink disabled:opacity-50" onClick={() => { setMessages([]); setError(""); }} disabled={pending}>
+                  <button type="button" className="rounded-full px-2 py-1 text-xs text-muted hover:text-ink disabled:opacity-50" onClick={clear} disabled={pending}>
                     {t("assistant.newChat")}
                   </button>
                 ) : null}
@@ -884,7 +544,7 @@ MANAGR_AI_API_KEY=…`}</pre>
             <div className="mt-2 flex items-center justify-between gap-2">
               <p className="text-[11px] leading-tight text-muted">{t("assistant.footer")}</p>
               {pending ? (
-                <button type="button" className={buttonClass("quiet")} onClick={() => abortRef.current?.abort()}>
+                <button type="button" className={buttonClass("quiet")} onClick={abort}>
                   {t("assistant.stop")}
                 </button>
               ) : (

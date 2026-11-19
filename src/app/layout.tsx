@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { AssistantProvider } from "@/components/assistant-provider";
 import { LocaleProvider } from "@/components/locale-provider";
 import { QueryProvider } from "@/components/query-provider";
 import { t } from "@/i18n";
@@ -30,7 +31,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <style>{`.section-panel[hidden]{display:block !important}`}</style>
         </noscript>
         <QueryProvider>
-          <LocaleProvider locale={locale}>{children}</LocaleProvider>
+          <LocaleProvider locale={locale}>
+            <AssistantProvider>{children}</AssistantProvider>
+          </LocaleProvider>
         </QueryProvider>
       </body>
     </html>

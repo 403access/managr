@@ -176,6 +176,7 @@ export const de = {
   "shell.hideSample": "Beispiel ausblenden",
 
   "assistant.open": "Assistent",
+  "assistant.openRunning": "Assistent · läuft",
   "assistant.title": "Assistent",
   "assistant.subtitle": "Fragen zu Zahlen, Rechnungen und Fristen",
   "assistant.close": "Assistent schließen",
@@ -1689,6 +1690,7 @@ export const en: { [K in MessageKey]: string } = {
   "shell.hideSample": "Hide sample label",
 
   "assistant.open": "Assistant",
+  "assistant.openRunning": "Assistant · running",
   "assistant.title": "Assistant",
   "assistant.subtitle": "Questions about figures, invoices, and deadlines",
   "assistant.close": "Close the assistant",

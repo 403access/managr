@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { changeAction, type ChangeAction } from "@/domain/assistant-actions";
 import { needsApproval } from "@/domain/assistant-writes";
 import { ActionBadge, Assistant, formatMessageTime, toolLabelFor } from "@/components/assistant";
-import type { ChatMessage } from "@/client/chat-history";
+import { useAssistantMessages } from "@/components/assistant-provider";
 import { useI18n } from "@/components/locale-provider";
 import { SidePanel } from "@/components/side-panel";
 import { useDetailSidebarMode } from "@/components/settings-provider";
@@ -209,7 +209,7 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
   const mode = useDetailSidebarMode("assistant");
   const wide = useWideLayout();
   const inline = mode === "inline" && wide;
-  const [history, setHistory] = useState<ChatMessage[]>([]);
+  const history = useAssistantMessages();
   const [panel, setPanel] = useState<"tools" | "history" | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | ToolAccess>("all");
@@ -587,7 +587,7 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
             : "grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
         }
       >
-        <Assistant variant="page" onHistory={setHistory} />
+        <Assistant variant="page" />
         {inline && activePanel ? (
           <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start">{activePanel}</aside>
         ) : (
