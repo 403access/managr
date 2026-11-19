@@ -581,43 +581,41 @@ function WeekPanel({ data }: { data: Week }) {
 
   const content = (
     <>
-      <Card className="mb-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg">{t("time.rangeTitle")}</h2>
-          <p className="font-mono text-sm">{formatDate(data.start)} – {formatDate(data.end)}</p>
-        </div>
-        <p className="mt-1 text-sm leading-relaxed text-muted">{t("time.rangeHint")}</p>
-        <DateRangeCalendar from={data.start} to={data.end} today={data.today} onSelect={applyRange} />
-      </Card>
-      {data.entries.length === 0 ? (
-        <Empty>{t("time.empty")}</Empty>
-      ) : (
-        <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <button
-              type="button"
-              aria-expanded={filtersOpen}
-              aria-controls="time-filters"
-              onClick={() => setFiltersOpen((open) => !open)}
-              className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm transition ${
-                filtersOpen || activeFilterCount > 0 ? "border-pine bg-pine/5 text-pine" : "border-line bg-card text-ink hover:border-ink"
-              }`}
-            >
-              <FilterGlyph />
-              {t("time.filterToggle")}
-              {activeFilterCount > 0 ? (
-                <span className="rounded-full bg-pine px-1.5 py-0.5 text-[11px] font-medium text-paper">{activeFilterCount}</span>
-              ) : null}
-            </button>
-            <p className="text-xs text-muted" aria-live="polite">
-              {t("time.filterResult", { shown: filtered.length, total: data.entries.length })}
-              {active ? ` · ${t("time.filterTotal", { duration: formatDuration(shownMinutes) })}` : ""}
-            </p>
-          </div>
-          {filtersOpen ? (
-            <Card id="time-filters" className="mb-3">
-              <div role="group" aria-label={t("time.filterLabel")} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                <div className="md:col-span-2 xl:col-span-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          aria-expanded={filtersOpen}
+          aria-controls="time-filters"
+          onClick={() => setFiltersOpen((open) => !open)}
+          className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm transition ${
+            filtersOpen || activeFilterCount > 0 ? "border-pine bg-pine/5 text-pine" : "border-line bg-card text-ink hover:border-ink"
+          }`}
+        >
+          <FilterGlyph />
+          {t("time.filterToggle")}
+          {activeFilterCount > 0 ? (
+            <span className="rounded-full bg-pine px-1.5 py-0.5 text-[11px] font-medium text-paper">{activeFilterCount}</span>
+          ) : null}
+        </button>
+        <p className="text-xs text-muted" aria-live="polite">
+          {t("time.filterResult", { shown: filtered.length, total: data.entries.length })}
+          {active ? ` · ${t("time.filterTotal", { duration: formatDuration(shownMinutes) })}` : ""}
+        </p>
+      </div>
+      {filtersOpen ? (
+        <div className="@container mb-3">
+          <div className="grid gap-3 @4xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+            <Card>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg">{t("time.rangeTitle")}</h2>
+                <p className="font-mono text-sm">{formatDate(data.start)} – {formatDate(data.end)}</p>
+              </div>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{t("time.rangeHint")}</p>
+              <DateRangeCalendar from={data.start} to={data.end} today={data.today} onSelect={applyRange} />
+            </Card>
+            <Card id="time-filters" className="@container">
+              <div role="group" aria-label={t("time.filterLabel")} className="grid gap-3 @md:grid-cols-2 @3xl:grid-cols-3">
+                <div className="@md:col-span-2 @3xl:col-span-3">
                   <Field label={t("time.filterSearch")}>
                     <TextInput
                       type="search"
@@ -685,7 +683,13 @@ function WeekPanel({ data }: { data: Week }) {
                 </div>
               ) : null}
             </Card>
-          ) : null}
+          </div>
+        </div>
+      ) : null}
+      {data.entries.length === 0 ? (
+        <Empty>{t("time.empty")}</Empty>
+      ) : (
+        <>
           {sorted.length === 0 ? (
             <Empty>{t("time.filterEmpty")}</Empty>
           ) : multiDay ? (
