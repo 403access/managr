@@ -213,7 +213,6 @@ function TimeEntryPanel({
 }) {
   const { t, tx, label } = useI18n();
   const person = data.people.find((item) => item.id === entry.employeeId) ?? null;
-  const project = entry.projectId === null ? null : data.projects.find((item) => item.id === entry.projectId) ?? null;
   const task = entry.taskId === null ? null : data.tasks.find((item) => item.id === entry.taskId) ?? null;
   const checks = Boolean(entry.error) || entry.warnings.length > 0;
   return (
@@ -234,9 +233,31 @@ function TimeEntryPanel({
             <span className="font-mono tabular-nums">{formatDuration(entry.minutes)}</span>
           )}
         </DetailRow>
-        <DetailRow label={t("time.person")}>{person ? `${person.firstName} ${person.lastName}` : t("time.nobody")}</DetailRow>
-        <DetailRow label={t("time.project")}>{entry.projectId ? entry.projectName : t("time.projectNone")}</DetailRow>
-        {project?.customerName ? <DetailRow label={t("time.customer")}>{project.customerName}</DetailRow> : null}
+        <DetailRow label={t("time.person")}>
+          {person ? (
+            <Link href={`/people/${person.id}`} className="text-pine underline-offset-4 hover:underline">
+              {person.firstName} {person.lastName}
+            </Link>
+          ) : (
+            t("time.nobody")
+          )}
+        </DetailRow>
+        <DetailRow label={t("time.project")}>
+          {entry.projectId !== null ? (
+            <Link href={`/projects#project-${entry.projectId}`} className="text-pine underline-offset-4 hover:underline">
+              {entry.projectName}
+            </Link>
+          ) : (
+            t("time.projectNone")
+          )}
+        </DetailRow>
+        {entry.customerId !== null ? (
+          <DetailRow label={t("time.customer")}>
+            <Link href={`/customers#customer-${entry.customerId}`} className="text-pine underline-offset-4 hover:underline">
+              {entry.customerName}
+            </Link>
+          </DetailRow>
+        ) : null}
         <DetailRow label={t("time.task")}>{task ? task.title : t("time.none")}</DetailRow>
         <DetailRow label={t("time.taskType")}>{label(entry.taskType)}</DetailRow>
         <DetailRow label={t("time.billableCheck")}>{entry.billable ? t("time.billableCheck") : t("time.filterBillableNo")}</DetailRow>
@@ -367,7 +388,7 @@ function EntryTable({
                     <button
                       type="button"
                       onClick={() => onOpen(entry.id)}
-                      className="cursor-pointer rounded font-mono text-left text-ink focus-visible:ring-2 focus-visible:ring-pine"
+                      className="cursor-pointer rounded font-mono text-left whitespace-nowrap text-ink focus-visible:ring-2 focus-visible:ring-pine"
                     >
                       {entry.startedAt}–{entry.endedAt}
                     </button>
@@ -380,7 +401,7 @@ function EntryTable({
                   <td className="px-3 py-2 align-top whitespace-nowrap text-muted">
                     {t("time.minutesShort", { minutes: entry.breakMinutes })}
                   </td>
-                  <td className="px-3 py-2 text-right align-top font-mono tabular-nums">
+                  <td className="px-3 py-2 text-right align-top font-mono tabular-nums whitespace-nowrap">
                     {entry.error ? (
                       <span className="text-clay">{tx(entry.error)}</span>
                     ) : (
