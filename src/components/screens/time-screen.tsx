@@ -40,6 +40,14 @@ type Week = ReturnType<typeof timeView>;
 
 const areas = ["general", "invoices", "tax", "legal", "cover", "people"] as const;
 
+function FilterGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path d="M4 6h16M7 12h10M10 18h4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function TimeScreen({ from, to }: { from: string; to: string }) {
   const query = useView<Week>(queryKeys.time(from, to), viewPath.time(from, to));
   return <ViewGate query={query}>{(data) => <TimeBody data={data} />}</ViewGate>;
@@ -415,6 +423,7 @@ function WeekPanel({ data }: { data: Week }) {
   const [taskType, setTaskType] = useState<TaskType | "">("");
   const [billable, setBillable] = useState<"" | "yes" | "no">("");
   const [sort, setSort] = useState<TimeEntrySort>(DEFAULT_TIME_ENTRY_SORT);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const personFilter = person === "" ? null : person === "none" ? "none" : Number(person);
   const customerFilter = customer === "" ? null : customer === "none" ? "none" : Number(customer);
   const projectFilter = project === "" ? null : project === "none" ? "none" : Number(project);
@@ -441,6 +450,7 @@ function WeekPanel({ data }: { data: Week }) {
   };
   const shownMinutes = useMemo(() => filtered.reduce((sum, entry) => sum + entry.minutes, 0), [filtered]);
   const active = Boolean(search.trim() || person || customer || project || taskType || billable);
+  const activeFilterCount = [search.trim(), person, customer, project, taskType, billable].filter(Boolean).length;
   const selected = selectedId === null ? null : data.entries.find((entry) => entry.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -510,80 +520,99 @@ function WeekPanel({ data }: { data: Week }) {
         <Empty>{t("time.empty")}</Empty>
       ) : (
         <>
-          <Card className="mb-3">
-            <div role="group" aria-label={t("time.filterLabel")} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <div className="md:col-span-2 xl:col-span-3">
-                <Field label={t("time.filterSearch")}>
-                  <TextInput
-                    type="search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder={t("time.filterSearchPlaceholder")}
-                  />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              aria-expanded={filtersOpen}
+              aria-controls="time-filters"
+              onClick={() => setFiltersOpen((open) => !open)}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm transition ${
+                filtersOpen || activeFilterCount > 0 ? "border-pine bg-pine/5 text-pine" : "border-line bg-card text-ink hover:border-ink"
+              }`}
+            >
+              <FilterGlyph />
+              {t("time.filterToggle")}
+              {activeFilterCount > 0 ? (
+                <span className="rounded-full bg-pine px-1.5 py-0.5 text-[11px] font-medium text-paper">{activeFilterCount}</span>
+              ) : null}
+            </button>
+            <p className="text-xs text-muted" aria-live="polite">
+              {t("time.filterResult", { shown: filtered.length, total: data.entries.length })}
+              {active ? ` · ${t("time.filterTotal", { duration: formatDuration(shownMinutes) })}` : ""}
+            </p>
+          </div>
+          {filtersOpen ? (
+            <Card id="time-filters" className="mb-3">
+              <div role="group" aria-label={t("time.filterLabel")} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="md:col-span-2 xl:col-span-3">
+                  <Field label={t("time.filterSearch")}>
+                    <TextInput
+                      type="search"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder={t("time.filterSearchPlaceholder")}
+                    />
+                  </Field>
+                </div>
+                <Field label={t("time.person")}>
+                  <SelectInput value={person} onChange={(event) => setPerson(event.target.value)}>
+                    <option value="">{t("time.filterAll")}</option>
+                    <option value="none">{t("time.filterNoPerson")}</option>
+                    {data.people.map((item) => (
+                      <option key={item.id} value={String(item.id)}>{item.firstName} {item.lastName}</option>
+                    ))}
+                  </SelectInput>
+                </Field>
+                <Field label={t("time.customer")}>
+                  <SelectInput value={customer} onChange={(event) => setCustomer(event.target.value)}>
+                    <option value="">{t("time.filterAll")}</option>
+                    <option value="none">{t("time.filterNoCustomer")}</option>
+                    {customers.map(([id, name]) => (
+                      <option key={id} value={String(id)}>{name}</option>
+                    ))}
+                  </SelectInput>
+                </Field>
+                <Field label={t("time.project")}>
+                  <SelectInput value={project} onChange={(event) => setProject(event.target.value)}>
+                    <option value="">{t("time.filterAll")}</option>
+                    <option value="none">{t("time.projectNone")}</option>
+                    {data.projects.map((item) => (
+                      <option key={item.id} value={String(item.id)}>{item.name}</option>
+                    ))}
+                  </SelectInput>
+                </Field>
+                <Field label={t("time.taskType")}>
+                  <SelectInput value={taskType} onChange={(event) => setTaskType(event.target.value as TaskType | "")}>
+                    <option value="">{t("time.filterAll")}</option>
+                    {TASK_TYPES.map((type) => (
+                      <option key={type} value={type}>{label(type)}</option>
+                    ))}
+                  </SelectInput>
+                </Field>
+                <Field label={t("time.filterBillable")}>
+                  <SelectInput value={billable} onChange={(event) => setBillable(event.target.value as "" | "yes" | "no")}>
+                    <option value="">{t("time.filterAll")}</option>
+                    <option value="yes">{t("time.filterBillableYes")}</option>
+                    <option value="no">{t("time.filterBillableNo")}</option>
+                  </SelectInput>
+                </Field>
+                <Field label={t("time.sortBy")}>
+                  <SelectInput value={sort} onChange={(event) => setSort(event.target.value as TimeEntrySort)}>
+                    {TIME_ENTRY_SORTS.map((value) => (
+                      <option key={value} value={value}>{sortLabel(value)}</option>
+                    ))}
+                  </SelectInput>
                 </Field>
               </div>
-              <Field label={t("time.person")}>
-                <SelectInput value={person} onChange={(event) => setPerson(event.target.value)}>
-                  <option value="">{t("time.filterAll")}</option>
-                  <option value="none">{t("time.filterNoPerson")}</option>
-                  {data.people.map((item) => (
-                    <option key={item.id} value={String(item.id)}>{item.firstName} {item.lastName}</option>
-                  ))}
-                </SelectInput>
-              </Field>
-              <Field label={t("time.customer")}>
-                <SelectInput value={customer} onChange={(event) => setCustomer(event.target.value)}>
-                  <option value="">{t("time.filterAll")}</option>
-                  <option value="none">{t("time.filterNoCustomer")}</option>
-                  {customers.map(([id, name]) => (
-                    <option key={id} value={String(id)}>{name}</option>
-                  ))}
-                </SelectInput>
-              </Field>
-              <Field label={t("time.project")}>
-                <SelectInput value={project} onChange={(event) => setProject(event.target.value)}>
-                  <option value="">{t("time.filterAll")}</option>
-                  <option value="none">{t("time.projectNone")}</option>
-                  {data.projects.map((item) => (
-                    <option key={item.id} value={String(item.id)}>{item.name}</option>
-                  ))}
-                </SelectInput>
-              </Field>
-              <Field label={t("time.taskType")}>
-                <SelectInput value={taskType} onChange={(event) => setTaskType(event.target.value as TaskType | "")}>
-                  <option value="">{t("time.filterAll")}</option>
-                  {TASK_TYPES.map((type) => (
-                    <option key={type} value={type}>{label(type)}</option>
-                  ))}
-                </SelectInput>
-              </Field>
-              <Field label={t("time.filterBillable")}>
-                <SelectInput value={billable} onChange={(event) => setBillable(event.target.value as "" | "yes" | "no")}>
-                  <option value="">{t("time.filterAll")}</option>
-                  <option value="yes">{t("time.filterBillableYes")}</option>
-                  <option value="no">{t("time.filterBillableNo")}</option>
-                </SelectInput>
-              </Field>
-              <Field label={t("time.sortBy")}>
-                <SelectInput value={sort} onChange={(event) => setSort(event.target.value as TimeEntrySort)}>
-                  {TIME_ENTRY_SORTS.map((value) => (
-                    <option key={value} value={value}>{sortLabel(value)}</option>
-                  ))}
-                </SelectInput>
-              </Field>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-muted" aria-live="polite">
-                {t("time.filterResult", { shown: filtered.length, total: data.entries.length })}
-                {active ? ` · ${t("time.filterTotal", { duration: formatDuration(shownMinutes) })}` : ""}
-              </p>
               {active ? (
-                <button type="button" onClick={reset} className="text-sm font-medium text-pine underline-offset-4 hover:underline">
-                  {t("time.filterReset")}
-                </button>
+                <div className="mt-3 flex justify-end">
+                  <button type="button" onClick={reset} className="text-sm font-medium text-pine underline-offset-4 hover:underline">
+                    {t("time.filterReset")}
+                  </button>
+                </div>
               ) : null}
-            </div>
-          </Card>
+            </Card>
+          ) : null}
           {sorted.length === 0 ? (
             <Empty>{t("time.filterEmpty")}</Empty>
           ) : multiDay ? (
