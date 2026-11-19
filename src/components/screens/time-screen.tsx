@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, Fragment, type ReactNode } from "react";
 import { deleteTask, deleteTime, saveTask, saveTime, toggleTask } from "@/server/actions";
 import type { timeView } from "@/server/views";
 import { TASK_TYPES, type TaskType } from "@/domain/analytics";
@@ -15,9 +15,11 @@ import {
   daySpan,
   filterTasks,
   filterTimeEntries,
+  groupTimeEntriesByDay,
   sortTasks,
   sortTimeEntries,
   type TaskSort,
+  type TimeEntryDayGroup,
   type TimeEntrySort,
 } from "@/domain/time";
 import { queryKeys, viewPath } from "@/client/query-keys";
@@ -254,6 +256,160 @@ function TimeEntryPanel({
   );
 }
 
+type TimeEntries = Week["entries"];
+
+function EntryCards({ entries, selectedId, onOpen }: { entries: TimeEntries; selectedId: number | null; onOpen: (id: number) => void }) {
+  const { t, tx, label } = useI18n();
+  return (
+    <div className="grid gap-2">
+      {entries.map((entry) => (
+        <Card
+          key={entry.id}
+          id={`time-${entry.id}`}
+          className={`scroll-mt-6 transition ${selectedId === entry.id ? "border-pine/60 bg-pine/5" : "hover:border-ink/30"}`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => onOpen(entry.id)}
+              className="min-w-0 flex-1 cursor-pointer rounded-lg text-left focus-visible:ring-2 focus-visible:ring-pine"
+            >
+              <span className="block text-sm font-medium">
+                {t("time.span", { date: formatDate(entry.entryDate), start: entry.startedAt, end: entry.endedAt, minutes: entry.breakMinutes })}
+              </span>
+              <span className="block text-sm text-muted">
+                {entry.memo || t("time.noMemo")}
+                {entry.firstName ? ` · ${entry.firstName}` : ""}
+                {entry.projectId ? ` · ${entry.projectName}` : ""}
+                {entry.taskType !== "other" ? ` · ${label(entry.taskType)}` : ""}
+                {entry.billable ? ` · ${t("time.billable")}` : ""}
+              </span>
+              {entry.error ? (
+                <span className="block text-sm text-clay">{tx(entry.error)}</span>
+              ) : (
+                <span className="block font-mono text-sm">{formatDuration(entry.minutes)}</span>
+              )}
+              {entry.warnings.map((warning) => (
+                <span key={warning.message} className="block text-sm text-amber">
+                  {tx(warning.message)}
+                </span>
+              ))}
+            </button>
+            <ActionForm action={deleteTime} compact>
+              <input type="hidden" name="id" value={entry.id} />
+              <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
+            </ActionForm>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function EntryTable({
+  groups,
+  selectedId,
+  onOpen,
+  personName,
+}: {
+  groups: TimeEntryDayGroup<TimeEntries[number]>[];
+  selectedId: number | null;
+  onOpen: (id: number) => void;
+  personName: (employeeId: number | null) => string;
+}) {
+  const { t, tx, label } = useI18n();
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-line bg-card">
+      <table className="w-full min-w-[52rem] text-sm">
+        <thead className="border-b border-line text-xs tracking-wide text-muted uppercase">
+          <tr>
+            <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.detailsTime")}</th>
+            <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.tableBreak")}</th>
+            <th scope="col" className="px-3 py-2 text-right font-medium">{t("time.detailsDuration")}</th>
+            <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.person")}</th>
+            <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.customer")}</th>
+            <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.project")}</th>
+            <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.taskType")}</th>
+            <th scope="col" className="px-3 py-2 text-left font-medium">{t("time.billableCheck")}</th>
+            <th scope="col" className="px-3 py-2">
+              <span className="sr-only">{t("time.tableActions")}</span>
+            </th>
+          </tr>
+        </thead>
+        {groups.map((group) => (
+          <tbody key={group.key} className="border-b border-line last:border-0">
+            <tr className="bg-paper/70">
+              <th scope="colgroup" colSpan={9} className="px-3 py-2 text-left">
+                <span className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span>
+                    <span className="font-medium text-ink">{formatDate(group.entryDate)}</span>
+                    <span className="ml-2 text-xs font-normal text-muted">
+                      {t("time.dayEntries", { count: group.entries.length })}
+                    </span>
+                  </span>
+                  <span className="font-mono text-xs font-normal text-muted">{t("time.dayTotal", { duration: formatDuration(group.minutes) })}</span>
+                </span>
+              </th>
+            </tr>
+            {group.entries.map((entry) => (
+              <Fragment key={entry.id}>
+                <tr
+                  id={`time-${entry.id}`}
+                  onClick={() => onOpen(entry.id)}
+                  className={`cursor-pointer scroll-mt-6 border-t border-line/60 transition hover:bg-pine/5 ${selectedId === entry.id ? "bg-pine/5" : ""}`}
+                >
+                  <td className="px-3 py-2 align-top">
+                    <button
+                      type="button"
+                      onClick={() => onOpen(entry.id)}
+                      className="cursor-pointer rounded font-mono text-left text-ink focus-visible:ring-2 focus-visible:ring-pine"
+                    >
+                      {entry.startedAt}–{entry.endedAt}
+                    </button>
+                    {entry.memo ? (
+                      <span className="mt-0.5 block max-w-[16rem] truncate text-xs text-muted" title={entry.memo}>
+                        {entry.memo}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2 align-top whitespace-nowrap text-muted">
+                    {t("time.minutesShort", { minutes: entry.breakMinutes })}
+                  </td>
+                  <td className="px-3 py-2 text-right align-top font-mono tabular-nums">
+                    {entry.error ? (
+                      <span className="text-clay">{tx(entry.error)}</span>
+                    ) : (
+                      formatDuration(entry.minutes)
+                    )}
+                  </td>
+                  <td className="px-3 py-2 align-top">{personName(entry.employeeId) || t("time.nobody")}</td>
+                  <td className="px-3 py-2 align-top">{entry.customerName || "—"}</td>
+                  <td className="px-3 py-2 align-top">{entry.projectId ? entry.projectName : t("time.projectNone")}</td>
+                  <td className="px-3 py-2 align-top">{label(entry.taskType)}</td>
+                  <td className="px-3 py-2 align-top">{entry.billable ? t("time.billable") : "—"}</td>
+                  <td className="px-3 py-2 align-top" onClick={(event) => event.stopPropagation()}>
+                    <ActionForm action={deleteTime} compact>
+                      <input type="hidden" name="id" value={entry.id} />
+                      <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
+                    </ActionForm>
+                  </td>
+                </tr>
+                {entry.warnings.length > 0 ? (
+                  <tr className="border-t border-line/60 bg-amber/5">
+                    <td colSpan={9} className="px-3 py-1.5 text-xs text-amber">
+                      {entry.warnings.map((warning) => tx(warning.message)).join(" · ")}
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            ))}
+          </tbody>
+        ))}
+      </table>
+    </div>
+  );
+}
+
 function WeekPanel({ data }: { data: Week }) {
   const { t, tx, label } = useI18n();
   const router = useRouter();
@@ -283,6 +439,15 @@ function WeekPanel({ data }: { data: Week }) {
     [billable, customerFilter, data.entries, personFilter, projectFilter, search, taskType],
   );
   const sorted = useMemo(() => sortTimeEntries(filtered, sort), [filtered, sort]);
+  const groups = useMemo(
+    () => groupTimeEntriesByDay(sorted, sort === "dateDesc" ? "desc" : "asc"),
+    [sorted, sort],
+  );
+  const multiDay = daySpan(data.start, data.end) > 1;
+  const personName = (employeeId: number | null) => {
+    const person = employeeId === null ? null : data.people.find((item) => item.id === employeeId) ?? null;
+    return person ? `${person.firstName} ${person.lastName}` : "";
+  };
   const shownMinutes = useMemo(() => filtered.reduce((sum, entry) => sum + entry.minutes, 0), [filtered]);
   const active = Boolean(search.trim() || person || customer || project || taskType || billable);
   const selected = selectedId === null ? null : data.entries.find((entry) => entry.id === selectedId) ?? null;
@@ -430,49 +595,10 @@ function WeekPanel({ data }: { data: Week }) {
           </Card>
           {sorted.length === 0 ? (
             <Empty>{t("time.filterEmpty")}</Empty>
+          ) : multiDay ? (
+            <EntryTable groups={groups} selectedId={selectedId} onOpen={openEntry} personName={personName} />
           ) : (
-            <div className="grid gap-2">
-              {sorted.map((entry) => (
-                <Card
-                  key={entry.id}
-                  id={`time-${entry.id}`}
-                  className={`scroll-mt-6 transition ${selectedId === entry.id ? "border-pine/60 bg-pine/5" : "hover:border-ink/30"}`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openEntry(entry.id)}
-                      className="min-w-0 flex-1 cursor-pointer rounded-lg text-left focus-visible:ring-2 focus-visible:ring-pine"
-                    >
-                      <span className="block text-sm font-medium">
-                        {t("time.span", { date: formatDate(entry.entryDate), start: entry.startedAt, end: entry.endedAt, minutes: entry.breakMinutes })}
-                      </span>
-                      <span className="block text-sm text-muted">
-                        {entry.memo || t("time.noMemo")}
-                        {entry.firstName ? ` · ${entry.firstName}` : ""}
-                        {entry.projectId ? ` · ${entry.projectName}` : ""}
-                        {entry.taskType !== "other" ? ` · ${label(entry.taskType)}` : ""}
-                        {entry.billable ? ` · ${t("time.billable")}` : ""}
-                      </span>
-                      {entry.error ? (
-                        <span className="block text-sm text-clay">{tx(entry.error)}</span>
-                      ) : (
-                        <span className="block font-mono text-sm">{formatDuration(entry.minutes)}</span>
-                      )}
-                      {entry.warnings.map((warning) => (
-                        <span key={warning.message} className="block text-sm text-amber">
-                          {tx(warning.message)}
-                        </span>
-                      ))}
-                    </button>
-                    <ActionForm action={deleteTime} compact>
-                      <input type="hidden" name="id" value={entry.id} />
-                      <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
-                    </ActionForm>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <EntryCards entries={sorted} selectedId={selectedId} onOpen={openEntry} />
           )}
           <p className="mt-3 text-sm">{t("time.total", { duration: formatDuration(data.total) })}</p>
         </>

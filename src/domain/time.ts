@@ -175,6 +175,38 @@ export function sortTimeEntries<T extends FilterableTimeEntry>(entries: readonly
   });
 }
 
+export type TimeEntryDayGroup<T> = {
+  /** The day as `YYYY-MM-DD`; also the key for React lists. */
+  key: string;
+  entryDate: string;
+  minutes: number;
+  entries: T[];
+};
+
+/**
+ * Entries grouped by day. Days are sorted by date; the order inside a day is
+ * kept, so the chosen sort applies there.
+ */
+export function groupTimeEntriesByDay<T extends FilterableTimeEntry>(
+  entries: readonly T[],
+  direction: "asc" | "desc" = "asc",
+): TimeEntryDayGroup<T>[] {
+  const buckets = new Map<string, T[]>();
+  for (const entry of entries) {
+    const bucket = buckets.get(entry.entryDate);
+    if (bucket) bucket.push(entry);
+    else buckets.set(entry.entryDate, [entry]);
+  }
+  return [...buckets.entries()]
+    .sort(([left], [right]) => (direction === "asc" ? left.localeCompare(right) : right.localeCompare(left)))
+    .map(([entryDate, members]) => ({
+      key: entryDate,
+      entryDate,
+      minutes: members.reduce((sum, entry) => sum + entry.minutes, 0),
+      entries: members,
+    }));
+}
+
 export const TASK_SORTS = ["status", "dueAsc", "dueDesc", "title", "project"] as const;
 
 export type TaskSort = (typeof TASK_SORTS)[number];

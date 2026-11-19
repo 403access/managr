@@ -840,6 +840,7 @@ function timeViewForRange(start: string, end: string, anchor: string) {
       projectId: entry.projectId,
       projectName: project?.name ?? "",
       customerId: project?.customerId ?? null,
+      customerName: project?.customerName ?? "",
       taskType: entry.taskType,
       firstName: person?.employee.firstName ?? "",
       minutes,

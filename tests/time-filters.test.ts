@@ -5,6 +5,7 @@ import {
   daySpan,
   filterTasks,
   filterTimeEntries,
+  groupTimeEntriesByDay,
   resolveTimeRange,
   sortTasks,
   sortTimeEntries,
@@ -193,6 +194,21 @@ const tasks: Task[] = [
 ];
 
 const noTaskFilter = { query: "", status: "", project: null, area: "", taskType: "" } as const;
+
+describe("time entries grouped by day", () => {
+  it("sums each day and keeps the order inside it", () => {
+    const groups = groupTimeEntriesByDay(sortTimeEntries(entries, "durationDesc"));
+    expect(groups.map((group) => group.entryDate)).toEqual(["2026-11-09", "2026-11-10", "2026-11-11"]);
+    expect(groups.map((group) => ids(group.entries))).toEqual([[1, 2], [3], [4]]);
+    expect(groups.map((group) => group.minutes)).toEqual([510, 120, 30]);
+  });
+
+  it("reverses the days for a descending date order but keeps the entries inside", () => {
+    const groups = groupTimeEntriesByDay(sortTimeEntries(entries, "dateDesc"), "desc");
+    expect(groups.map((group) => group.entryDate)).toEqual(["2026-11-11", "2026-11-10", "2026-11-09"]);
+    expect(groups.map((group) => ids(group.entries))).toEqual([[4], [3], [2, 1]]);
+  });
+});
 
 describe("task filters", () => {
   it("returns every task when no filter is set", () => {
