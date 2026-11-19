@@ -1,6 +1,7 @@
 export const queryKeys = {
   shell: ["view", "shell"] as const,
   desk: ["view", "desk"] as const,
+  command: ["view", "command"] as const,
   company: ["view", "company"] as const,
   invoices: ["view", "invoices"] as const,
   customers: ["view", "customers"] as const,
@@ -27,6 +28,7 @@ export const queryKeys = {
 export const viewPath = {
   shell: "/api/views/shell",
   desk: "/api/views/desk",
+  command: "/api/views/command",
   company: "/api/views/company",
   invoices: "/api/views/invoices",
   customers: "/api/views/customers",

@@ -1,6 +1,7 @@
 export const VIEW_NAMES = [
   "shell",
   "desk",
+  "command",
   "company",
   "invoices",
   "customers",

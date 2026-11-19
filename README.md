@@ -13,6 +13,10 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000). The first launch creates `data/managr.db` and loads the sample company Atelier Nordlicht UG. Delete that file to start over. Uploaded files live in `data/uploads`.
 
+## Search
+
+The command bar opens from the sidebar, the mobile header, or with `Cmd/Ctrl+K`. It searches the navigation pages and the records behind them: invoices, customers, people, projects and tasks, documents, deadlines, milestones, legal records, company records, and ledger accounts. A result opens the record's detail page or the tab that holds it. The index comes from the same queries the screens use and is cached in the browser; a write refreshes it.
+
 ## Multiple companies
 
 The desk can keep several companies in the same database, for example a UG and an Einzelunternehmen. On the company screen, open **Companies** and add another company. Each company has separate customers, invoices, invoice numbering, ledger, people, tasks, documents, deadlines, and legal records. The sidebar switcher changes the active company; existing data stays with the company that owned it.

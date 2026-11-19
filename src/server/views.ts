@@ -1,6 +1,6 @@
 import "server-only";
 import { CHART, ACCOUNTS, signedBalance } from "@/domain/accounts";
-import { addDays, fiscalYearContaining, todayIso } from "@/domain/calendar";
+import { addDays, fiscalYearContaining, formatDate, todayIso } from "@/domain/calendar";
 import { currentDirectorContract, reviewDirectorContract } from "@/domain/director-contract";
 import { reviewDirectorSalary } from "@/domain/director-salary";
 import { reviewFounderHealth } from "@/domain/founder-health";
@@ -18,6 +18,7 @@ import { buildOrgChart } from "@/domain/org";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
 import { daySpan, durationMinutes, minimumVacationDays, resolveTimeRange, timeWarnings, vacationShortfall, weekStart } from "@/domain/time";
 import { euroInput, quantityInput } from "@/components/amounts";
+import { formatEuro, formatPercentBps } from "@/domain/money";
 import {
   accountBalances,
   getFounderHealth,
@@ -1125,6 +1126,218 @@ export function milestonesView(year: number) {
   };
 }
 
+export const COMMAND_PAGE_KEYS = [
+  "invoices",
+  "customers",
+  "people",
+  "projects",
+  "documents",
+  "obligations",
+  "milestones",
+  "legal",
+  "company",
+  "ledger",
+] as const;
+
+export type CommandPageKey = (typeof COMMAND_PAGE_KEYS)[number];
+
+export type CommandEntry = {
+  page: CommandPageKey;
+  id: string;
+  title: string;
+  detail: string;
+  href: string;
+  keywords: string;
+};
+
+function commandDetail(parts: Array<string | null | undefined>): string {
+  return parts.filter((part): part is string => Boolean(part && part.trim())).join(" · ");
+}
+
+/**
+ * The command bar searches pages and the records they hold. The index is built
+ * from the same list queries the screens use, so a record appears with the
+ * label and link its page would show.
+ */
+export function commandView() {
+  const company = loadCompany();
+  const today = todayIso();
+  const year = Number(today.slice(0, 4));
+  const entries: CommandEntry[] = [];
+
+  for (const invoice of listInvoices()) {
+    entries.push({
+      page: "invoices",
+      id: `invoice-${invoice.id}`,
+      title: invoice.number || `#${invoice.id}`,
+      detail: commandDetail([invoice.customerName, formatEuro(invoice.grossCents)]),
+      href: `/invoices/${invoice.id}`,
+      keywords: commandDetail([invoice.number, invoice.customerName, invoice.status, invoice.displayStatus, invoice.issueDate]),
+    });
+  }
+
+  for (const customer of listCustomers(company.id)) {
+    entries.push({
+      page: "customers",
+      id: `customer-${customer.id}`,
+      title: customer.name,
+      detail: commandDetail([customer.city, customer.email]),
+      href: `/customers#customer-${customer.id}`,
+      keywords: commandDetail([customer.name, customer.street, customer.postalCode, customer.city, customer.email, customer.website, customer.vatId, customer.buyerReference]),
+    });
+  }
+
+  for (const person of listOrgMembers()) {
+    entries.push({
+      page: "people",
+      id: `person-${person.id}`,
+      title: `${person.firstName} ${person.lastName}`.trim(),
+      detail: person.role,
+      href: `/people/${person.id}`,
+      keywords: commandDetail([person.firstName, person.lastName, person.role, person.kind]),
+    });
+  }
+
+  const projects = listProjects(company.id);
+  const projectById = new Map(projects.map((project) => [project.id, project]));
+  for (const project of projects) {
+    entries.push({
+      page: "projects",
+      id: `project-${project.id}`,
+      title: project.name,
+      detail: commandDetail([project.customerName]),
+      href: `/projects#project-${project.id}`,
+      keywords: commandDetail([project.name, project.customerName, project.status, project.notes]),
+    });
+  }
+
+  for (const task of listTasks()) {
+    const project = task.projectId === null ? null : projectById.get(task.projectId) ?? null;
+    entries.push({
+      page: "projects",
+      id: `task-${task.id}`,
+      title: task.title,
+      detail: commandDetail([project?.name, task.dueDate ? formatDate(task.dueDate) : null]),
+      href: project ? `/projects#project-${project.id}` : "/projects",
+      keywords: commandDetail([task.title, project?.name, task.notes, task.area, task.status, task.deliverable ? "deliverable" : null]),
+    });
+  }
+
+  for (const document of listDocuments()) {
+    entries.push({
+      page: "documents",
+      id: `document-${document.id}`,
+      title: document.title || document.fileName,
+      detail: commandDetail([document.fileName]),
+      href: `/documents#document-${document.id}`,
+      keywords: commandDetail([document.title, document.fileName, document.category, document.notes]),
+    });
+  }
+
+  for (const obligationYear of [year, year + 1]) {
+    for (const item of listObligations(obligationYear)) {
+      entries.push({
+        page: "obligations",
+        id: `obligation-${item.key}`,
+        title: item.title,
+        detail: commandDetail([formatDate(item.dueDate)]),
+        href: `/obligations?year=${item.dueDate.slice(0, 4)}#year`,
+        keywords: commandDetail([item.title, item.detail, item.key, item.category, item.status]),
+      });
+    }
+  }
+
+  for (const deadline of listDeadlines()) {
+    entries.push({
+      page: "obligations",
+      id: `deadline-${deadline.id}`,
+      title: deadline.title,
+      detail: commandDetail([formatDate(deadline.dueDate)]),
+      href: `/obligations?year=${deadline.dueDate.slice(0, 4)}#custom`,
+      keywords: commandDetail([deadline.title, deadline.notes, deadline.category, deadline.status, deadline.recurrence]),
+    });
+  }
+
+  for (const milestone of listMilestones()) {
+    entries.push({
+      page: "milestones",
+      id: `milestone-${milestone.id}`,
+      title: milestone.title,
+      detail: commandDetail([formatDate(milestone.targetDate)]),
+      href: `/milestones?year=${milestone.targetDate.slice(0, 4)}#goals`,
+      keywords: commandDetail([milestone.title, milestone.description, milestone.category, milestone.status]),
+    });
+  }
+
+  for (const item of listCompliance()) {
+    entries.push({
+      page: "legal",
+      id: `compliance-${item.id}`,
+      title: item.title,
+      detail: item.detail,
+      href: `/legal#${item.area}`,
+      keywords: commandDetail([item.title, item.detail, item.area, item.done ? "done" : "open"]),
+    });
+  }
+
+  for (const resolution of listResolutions()) {
+    entries.push({
+      page: "legal",
+      id: `resolution-${resolution.id}`,
+      title: resolution.title,
+      detail: commandDetail([formatDate(resolution.resolvedOn)]),
+      href: `/legal#resolutions`,
+      keywords: commandDetail([resolution.title, resolution.summary, resolution.body, resolution.kind]),
+    });
+  }
+
+  for (const holder of loadShareholders()) {
+    entries.push({
+      page: "company",
+      id: `shareholder-${holder.id}`,
+      title: holder.name,
+      detail: commandDetail([formatPercentBps(holder.shareBps), holder.city]),
+      href: `/company#shareholders`,
+      keywords: commandDetail([holder.name, holder.street, holder.postalCode, holder.city]),
+    });
+  }
+
+  for (const policy of listPolicies()) {
+    entries.push({
+      page: "company",
+      id: `policy-${policy.id}`,
+      title: policy.label,
+      detail: commandDetail([policy.provider, policy.policyNumber, policy.renewalDate ? formatDate(policy.renewalDate) : null]),
+      href: `/company#cover`,
+      keywords: commandDetail([policy.label, policy.kind, policy.provider, policy.policyNumber, policy.notes]),
+    });
+  }
+
+  for (const loan of listShareholderLoans()) {
+    entries.push({
+      page: "company",
+      id: `loan-${loan.id}`,
+      title: loan.label,
+      detail: commandDetail([loan.shareholderName, formatEuro(loan.outstandingCents)]),
+      href: `/company#shareholders`,
+      keywords: commandDetail([loan.label, loan.shareholderName, loan.notes, formatEuro(loan.principalCents)]),
+    });
+  }
+
+  for (const account of CHART) {
+    entries.push({
+      page: "ledger",
+      id: `account-${account.code}`,
+      title: `${account.code} ${account.name}`,
+      detail: "",
+      href: `/ledger#accounts`,
+      keywords: commandDetail([account.code, account.name, account.type]),
+    });
+  }
+
+  return { entries };
+}
+
 export function loadView(name: ViewName, params: URLSearchParams) {
   const query = parseViewQuery(params, todayIso());
   if (!viewIsReady(name, query)) return null;
@@ -1133,6 +1346,8 @@ export function loadView(name: ViewName, params: URLSearchParams) {
       return shellView();
     case "desk":
       return deskView();
+    case "command":
+      return commandView();
     case "company":
       return companyView();
     case "invoices":

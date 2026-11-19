@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { dismissSample } from "@/server/actions";
 import type { shellView } from "@/server/views";
 import { queryKeys, viewPath } from "@/client/query-keys";
@@ -9,6 +9,7 @@ import { AppNav } from "@/components/app-nav";
 import { Assistant } from "@/components/assistant";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { CompanySwitcher } from "@/components/company-switcher";
+import { CommandBar } from "@/components/command-bar";
 import { InfoPanel, InfoProvider } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { SettingsProvider } from "@/components/settings-provider";
@@ -31,6 +32,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const company = query.data;
   const [collapsed, setCollapsed] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const openCommand = useCallback(() => setCommandOpen(true), []);
+  const closeCommand = useCallback(() => setCommandOpen(false), []);
 
   useEffect(() => {
     if (readCollapsedPreference()) setCollapsed(true);
@@ -86,12 +90,46 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </svg>
               </button>
             </div>
+            <button
+              type="button"
+              onClick={openCommand}
+              aria-label={t("command.open")}
+              title={t("command.open")}
+              className={`mt-4 flex min-h-11 items-center rounded-xl border border-line bg-card text-sm text-muted transition hover:border-ink hover:text-ink ${collapsed ? "w-11 justify-center" : "w-full gap-2 px-3"}`}
+            >
+              <svg viewBox="0 0 24 24" className="size-5 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="m15.5 15.5 4.5 4.5" strokeLinecap="round" />
+              </svg>
+              {collapsed ? null : (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-left">{t("command.open")}</span>
+                  <kbd className="rounded border border-line bg-white px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
+                </>
+              )}
+            </button>
             {company && !collapsed ? <CompanySwitcher companies={company.companies} activeId={company.activeCompanyId} /> : null}
             <AppNav variant="side" collapsed={collapsed} />
           </aside>
           <div className="min-w-0 flex-1 px-4 pt-4 pb-28 md:px-8 md:pt-8 md:pb-12">
-            <p className="mb-1 font-display text-2xl text-pine md:hidden">managr</p>
-            <p className="mb-4 text-xs leading-relaxed text-muted md:hidden">{company?.legalName}</p>
+            <div className="mb-4 flex items-start justify-between gap-3 md:hidden">
+              <div className="min-w-0">
+                <p className="font-display text-2xl text-pine">managr</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">{company?.legalName}</p>
+              </div>
+              <button
+                type="button"
+                onClick={openCommand}
+                aria-label={t("command.open")}
+                title={t("command.open")}
+                className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-card text-muted hover:border-ink hover:text-ink"
+              >
+                <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <circle cx="10.5" cy="10.5" r="6.5" />
+                  <path d="m15.5 15.5 4.5 4.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
             {company ? <div className="mb-4 md:hidden"><CompanySwitcher companies={company.companies} activeId={company.activeCompanyId} /></div> : null}
             {company?.isSample ? (
               <ActionForm action={dismissSample} className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber/40 bg-amber/10 px-4 py-3 text-sm">
@@ -106,6 +144,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <InfoPanel variant="column" />
         </div>
         <AppNav variant="bottom" />
+        <CommandBar open={commandOpen} onOpen={openCommand} onClose={closeCommand} />
         <Assistant />
       </div>
         </AddSheetProvider>

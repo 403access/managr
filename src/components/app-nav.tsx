@@ -13,7 +13,7 @@ function active(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function Icon({ name }: { name: NavIcon }) {
+export function NavIconGlyph({ name }: { name: NavIcon }) {
   const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   return (
     <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
@@ -50,7 +50,7 @@ function Item({ item, pathname, label, collapsed, onNavigate }: { item: NavItem;
       className={`flex min-h-11 items-center rounded-xl text-sm ${collapsed ? "w-11 justify-center" : "gap-3 px-3"} ${on ? "bg-pine text-paper" : "text-ink hover:bg-white"}`}
       aria-current={on ? "page" : undefined}
     >
-      <Icon name={item.icon} />
+      <NavIconGlyph name={item.icon} />
       {collapsed ? null : label}
     </Link>
   );
@@ -104,7 +104,7 @@ export function AppNav({ variant, collapsed = false }: { variant: "side" | "bott
           const on = active(pathname, item.href);
           return (
             <Link key={item.href} href={item.href} className={`flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-center text-[11px] leading-tight ${on ? "text-pine" : "text-muted"}`} aria-current={on ? "page" : undefined}>
-              <Icon name={item.icon} />
+              <NavIconGlyph name={item.icon} />
               {t(item.labelKey)}
             </Link>
           );

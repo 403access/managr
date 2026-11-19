@@ -4,6 +4,7 @@ import { parseViewName, parseViewQuery, viewIsReady } from "@/server/view-reques
 describe("view requests", () => {
   it("accepts only known view names", () => {
     expect(parseViewName("desk")).toBe("desk");
+    expect(parseViewName("command")).toBe("command");
     expect(parseViewName("invoice-edit")).toBe("invoice-edit");
     expect(parseViewName("analytics")).toBe("analytics");
     expect(parseViewName("bank")).toBe("bank");
@@ -40,5 +41,6 @@ describe("view requests", () => {
     expect(viewIsReady("customer", { id: null })).toBe(false);
     expect(viewIsReady("customer", { id: 2 })).toBe(true);
     expect(viewIsReady("desk", { id: null })).toBe(true);
+    expect(viewIsReady("command", { id: null })).toBe(true);
   });
 });

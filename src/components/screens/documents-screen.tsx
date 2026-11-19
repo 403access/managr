@@ -53,7 +53,7 @@ export function DocumentsScreen() {
           ) : (
             <div className="grid gap-2">
               {data.documents.map((document) => (
-                <Card key={document.id} className="flex flex-wrap items-center justify-between gap-3">
+                <Card key={document.id} id={`document-${document.id}`} className="scroll-mt-6 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <a className={textLinkClass} href={`/documents/${document.id}/file`}>
                       {document.title}
