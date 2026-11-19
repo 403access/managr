@@ -16,7 +16,7 @@ import { bankPeriodSummary, bankTotals, maskSecret } from "@/domain/bank";
 import { analyzeMilestones, analyzeMilestonesByCompany, milestoneIsOverdue, milestoneProgress, milestoneYears, sortMilestones } from "@/domain/milestones";
 import { buildOrgChart } from "@/domain/org";
 import { kleinunternehmerAssessment, estimateCorporateTax } from "@/domain/tax";
-import { durationMinutes, minimumVacationDays, timeWarnings, vacationShortfall } from "@/domain/time";
+import { daySpan, durationMinutes, minimumVacationDays, resolveTimeRange, timeWarnings, vacationShortfall, weekStart } from "@/domain/time";
 import { euroInput, quantityInput } from "@/components/amounts";
 import {
   accountBalances,
@@ -803,13 +803,12 @@ export function analyticsView(year: number, customerId: number | null = null) {
   };
 }
 
-export function timeView(anchor: string) {
-  const week = listTime(anchor);
+function timeViewForRange(start: string, end: string, anchor: string) {
   const people = listPeople();
   const tasks = listTasks();
   const projects = listProjects();
   const projectName = (id: number | null) => (id === null ? "" : projects.find((project) => project.id === id)?.name ?? "");
-  const entries = week.entries.map((entry) => {
+  const entries = listTimeInRange(start, end).map((entry) => {
     let minutes = 0;
     let warnings: { level: "stop" | "watch"; message: string }[] = [];
     let error = "";
@@ -839,18 +838,32 @@ export function timeView(anchor: string) {
       error,
     };
   });
+  const span = daySpan(start, end);
   return {
     anchor,
-    start: week.start,
-    end: week.end,
-    previous: addDays(week.start, -7),
-    next: addDays(week.start, 7),
+    today: todayIso(),
+    start,
+    end,
+    previous: addDays(start, -span),
+    next: addDays(end, 1),
     entries,
     total: entries.reduce((sum, entry) => sum + (entry.error ? 0 : entry.minutes), 0),
     people: people.map((item) => ({ id: item.employee.id, firstName: item.employee.firstName, lastName: item.employee.lastName })),
     tasks: tasks.map((task) => ({ ...task, projectName: projectName(task.projectId) })),
     projects: projects.map((project) => ({ id: project.id, name: project.name, customerName: project.customerName })),
   };
+}
+
+export function timeView(anchor: string) {
+  const start = weekStart(anchor);
+  return timeViewForRange(start, addDays(start, 6), anchor);
+}
+
+export function timeRangeView(from: string, to: string) {
+  const today = todayIso();
+  const range = resolveTimeRange(from, to, today);
+  const anchor = range.from <= today && today <= range.to ? today : range.from;
+  return timeViewForRange(range.from, range.to, anchor);
 }
 
 export function obligationsView(year: number) {
@@ -1146,7 +1159,7 @@ export function loadView(name: ViewName, params: URLSearchParams) {
     case "org":
       return orgView();
     case "time":
-      return timeView(query.week);
+      return query.from && query.to ? timeRangeView(query.from, query.to) : timeView(query.week);
     case "obligations":
       return obligationsView(query.year);
     case "documents":

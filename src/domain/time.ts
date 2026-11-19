@@ -66,6 +66,23 @@ export function weekStart(isoDate: string): string {
   return addDays(isoDate, -mondayOffset);
 }
 
+/** Inclusive number of days from the first to the last date. */
+export function daySpan(from: string, to: string): number {
+  return Math.round((toUtcDate(to).getTime() - toUtcDate(from).getTime()) / 86_400_000) + 1;
+}
+
+/**
+ * The viewed range: an explicit pair wins, a single end date fills a week,
+ * and without both the week around the anchor is shown.
+ */
+export function resolveTimeRange(from: string | null, to: string | null, anchor: string): { from: string; to: string } {
+  if (from && to) return from <= to ? { from, to } : { from: to, to: from };
+  if (from) return { from, to: addDays(from, 6) };
+  if (to) return { from: addDays(to, -6), to };
+  const start = weekStart(anchor);
+  return { from: start, to: addDays(start, 6) };
+}
+
 function normalize(value: string): string {
   return value
     .toLowerCase()

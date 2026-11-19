@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { deleteTask, deleteTime, saveTask, saveTime, toggleTask } from "@/server/actions";
 import type { timeView } from "@/server/views";
 import { TASK_TYPES, type TaskType } from "@/domain/analytics";
-import { formatDate } from "@/domain/calendar";
+import { addDays, formatDate } from "@/domain/calendar";
 import {
   DEFAULT_TASK_SORT,
   DEFAULT_TIME_ENTRY_SORT,
   TASK_SORTS,
   TIME_ENTRY_SORTS,
+  daySpan,
   filterTasks,
   filterTimeEntries,
   sortTasks,
@@ -22,6 +24,7 @@ import { queryKeys, viewPath } from "@/client/query-keys";
 import { formatDuration } from "@/components/amounts";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { AddSheet } from "@/components/add-sheet";
+import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { InfoButton } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { useView, ViewGate } from "@/components/use-view";
@@ -32,14 +35,17 @@ type Week = ReturnType<typeof timeView>;
 
 const areas = ["general", "invoices", "tax", "legal", "cover", "people"] as const;
 
-export function TimeScreen({ week }: { week: string }) {
-  const query = useView<Week>(queryKeys.time(week), viewPath.time(week));
+export function TimeScreen({ from, to }: { from: string; to: string }) {
+  const query = useView<Week>(queryKeys.time(from, to), viewPath.time(from, to));
   return <ViewGate query={query}>{(data) => <TimeBody data={data} />}</ViewGate>;
 }
 
 function TimeBody({ data }: { data: Week }) {
   const { t, label } = useI18n();
   const areaName = (code: string) => (code === "legal" ? t("nav.legal") : label(code));
+  const span = daySpan(data.start, data.end);
+  const previousHref = `/time?from=${addDays(data.start, -span)}&to=${addDays(data.end, -span)}`;
+  const nextHref = `/time?from=${addDays(data.end, 1)}&to=${addDays(data.end, span)}`;
   return (
     <>
       <PageHeader
@@ -54,10 +60,10 @@ function TimeBody({ data }: { data: Week }) {
             <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href="/time/playback">
               {t("time.playback")}
             </Link>
-            <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={`/time?week=${data.previous}`}>
+            <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={previousHref}>
               {t("common.previous")}
             </Link>
-            <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={`/time?week=${data.next}`}>
+            <Link className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-sm" href={nextHref}>
               {t("common.next")}
             </Link>
             <AddSheet label={t("common.add")} title={t("common.add")}>
@@ -159,7 +165,7 @@ function TimeBody({ data }: { data: Week }) {
         }
       />
       <Tabs label={t("tabs.sections")}>
-        <Tab id="week" label={t("time.week")}>
+        <Tab id="week" label={t("time.entries")}>
           <WeekPanel data={data} />
         </Tab>
         <Tab id="tasks" label={t("time.tasks")}>
@@ -172,6 +178,7 @@ function TimeBody({ data }: { data: Week }) {
 
 function WeekPanel({ data }: { data: Week }) {
   const { t, tx, label } = useI18n();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [person, setPerson] = useState("");
   const [project, setProject] = useState("");
@@ -196,6 +203,10 @@ function WeekPanel({ data }: { data: Week }) {
     setBillable("");
   }
 
+  function applyRange(from: string, to: string) {
+    router.push(`/time?from=${from}&to=${to}#week`);
+  }
+
   function sortLabel(value: TimeEntrySort): string {
     switch (value) {
       case "dateDesc":
@@ -213,110 +224,122 @@ function WeekPanel({ data }: { data: Week }) {
     }
   }
 
-  if (data.entries.length === 0) return <Empty>{t("time.empty")}</Empty>;
-
   return (
     <>
       <Card className="mb-3">
-        <div role="group" aria-label={t("time.filterLabel")} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <div className="md:col-span-2 xl:col-span-3">
-            <Field label={t("time.filterSearch")}>
-              <TextInput
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={t("time.filterSearchPlaceholder")}
-              />
-            </Field>
-          </div>
-          <Field label={t("time.person")}>
-            <SelectInput value={person} onChange={(event) => setPerson(event.target.value)}>
-              <option value="">{t("time.filterAll")}</option>
-              <option value="none">{t("time.filterNoPerson")}</option>
-              {data.people.map((item) => (
-                <option key={item.id} value={String(item.id)}>{item.firstName} {item.lastName}</option>
-              ))}
-            </SelectInput>
-          </Field>
-          <Field label={t("time.project")}>
-            <SelectInput value={project} onChange={(event) => setProject(event.target.value)}>
-              <option value="">{t("time.filterAll")}</option>
-              <option value="none">{t("time.projectNone")}</option>
-              {data.projects.map((item) => (
-                <option key={item.id} value={String(item.id)}>{item.name}</option>
-              ))}
-            </SelectInput>
-          </Field>
-          <Field label={t("time.taskType")}>
-            <SelectInput value={taskType} onChange={(event) => setTaskType(event.target.value as TaskType | "")}>
-              <option value="">{t("time.filterAll")}</option>
-              {TASK_TYPES.map((type) => (
-                <option key={type} value={type}>{label(type)}</option>
-              ))}
-            </SelectInput>
-          </Field>
-          <Field label={t("time.filterBillable")}>
-            <SelectInput value={billable} onChange={(event) => setBillable(event.target.value as "" | "yes" | "no")}>
-              <option value="">{t("time.filterAll")}</option>
-              <option value="yes">{t("time.filterBillableYes")}</option>
-              <option value="no">{t("time.filterBillableNo")}</option>
-            </SelectInput>
-          </Field>
-          <Field label={t("time.sortBy")}>
-            <SelectInput value={sort} onChange={(event) => setSort(event.target.value as TimeEntrySort)}>
-              {TIME_ENTRY_SORTS.map((value) => (
-                <option key={value} value={value}>{sortLabel(value)}</option>
-              ))}
-            </SelectInput>
-          </Field>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg">{t("time.rangeTitle")}</h2>
+          <p className="font-mono text-sm">{formatDate(data.start)} – {formatDate(data.end)}</p>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-muted" aria-live="polite">
-            {t("time.filterResult", { shown: filtered.length, total: data.entries.length })}
-            {active ? ` · ${t("time.filterTotal", { duration: formatDuration(shownMinutes) })}` : ""}
-          </p>
-          {active ? (
-            <button type="button" onClick={reset} className="text-sm font-medium text-pine underline-offset-4 hover:underline">
-              {t("time.filterReset")}
-            </button>
-          ) : null}
-        </div>
+        <p className="mt-1 text-sm leading-relaxed text-muted">{t("time.rangeHint")}</p>
+        <DateRangeCalendar from={data.start} to={data.end} today={data.today} onSelect={applyRange} />
       </Card>
-      {sorted.length === 0 ? (
-        <Empty>{t("time.filterEmpty")}</Empty>
+      {data.entries.length === 0 ? (
+        <Empty>{t("time.empty")}</Empty>
       ) : (
-        <div className="grid gap-2">
-          {sorted.map((entry) => (
-            <Card key={entry.id}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-medium">
-                    {t("time.span", { date: formatDate(entry.entryDate), start: entry.startedAt, end: entry.endedAt, minutes: entry.breakMinutes })}
-                  </p>
-                  <p className="text-sm text-muted">
-                    {entry.memo || t("time.noMemo")}
-                    {entry.firstName ? ` · ${entry.firstName}` : ""}
-                    {entry.projectId ? ` · ${entry.projectName}` : ""}
-                    {entry.taskType !== "other" ? ` · ${label(entry.taskType)}` : ""}
-                    {entry.billable ? ` · ${t("time.billable")}` : ""}
-                  </p>
-                  {entry.error ? <p className="text-sm text-clay">{tx(entry.error)}</p> : <p className="font-mono text-sm">{formatDuration(entry.minutes)}</p>}
-                  {entry.warnings.map((warning) => (
-                    <p key={warning.message} className="text-sm text-amber">
-                      {tx(warning.message)}
-                    </p>
-                  ))}
-                </div>
-                <ActionForm action={deleteTime} compact>
-                  <input type="hidden" name="id" value={entry.id} />
-                  <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
-                </ActionForm>
+        <>
+          <Card className="mb-3">
+            <div role="group" aria-label={t("time.filterLabel")} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="md:col-span-2 xl:col-span-3">
+                <Field label={t("time.filterSearch")}>
+                  <TextInput
+                    type="search"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder={t("time.filterSearchPlaceholder")}
+                  />
+                </Field>
               </div>
-            </Card>
-          ))}
-        </div>
+              <Field label={t("time.person")}>
+                <SelectInput value={person} onChange={(event) => setPerson(event.target.value)}>
+                  <option value="">{t("time.filterAll")}</option>
+                  <option value="none">{t("time.filterNoPerson")}</option>
+                  {data.people.map((item) => (
+                    <option key={item.id} value={String(item.id)}>{item.firstName} {item.lastName}</option>
+                  ))}
+                </SelectInput>
+              </Field>
+              <Field label={t("time.project")}>
+                <SelectInput value={project} onChange={(event) => setProject(event.target.value)}>
+                  <option value="">{t("time.filterAll")}</option>
+                  <option value="none">{t("time.projectNone")}</option>
+                  {data.projects.map((item) => (
+                    <option key={item.id} value={String(item.id)}>{item.name}</option>
+                  ))}
+                </SelectInput>
+              </Field>
+              <Field label={t("time.taskType")}>
+                <SelectInput value={taskType} onChange={(event) => setTaskType(event.target.value as TaskType | "")}>
+                  <option value="">{t("time.filterAll")}</option>
+                  {TASK_TYPES.map((type) => (
+                    <option key={type} value={type}>{label(type)}</option>
+                  ))}
+                </SelectInput>
+              </Field>
+              <Field label={t("time.filterBillable")}>
+                <SelectInput value={billable} onChange={(event) => setBillable(event.target.value as "" | "yes" | "no")}>
+                  <option value="">{t("time.filterAll")}</option>
+                  <option value="yes">{t("time.filterBillableYes")}</option>
+                  <option value="no">{t("time.filterBillableNo")}</option>
+                </SelectInput>
+              </Field>
+              <Field label={t("time.sortBy")}>
+                <SelectInput value={sort} onChange={(event) => setSort(event.target.value as TimeEntrySort)}>
+                  {TIME_ENTRY_SORTS.map((value) => (
+                    <option key={value} value={value}>{sortLabel(value)}</option>
+                  ))}
+                </SelectInput>
+              </Field>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted" aria-live="polite">
+                {t("time.filterResult", { shown: filtered.length, total: data.entries.length })}
+                {active ? ` · ${t("time.filterTotal", { duration: formatDuration(shownMinutes) })}` : ""}
+              </p>
+              {active ? (
+                <button type="button" onClick={reset} className="text-sm font-medium text-pine underline-offset-4 hover:underline">
+                  {t("time.filterReset")}
+                </button>
+              ) : null}
+            </div>
+          </Card>
+          {sorted.length === 0 ? (
+            <Empty>{t("time.filterEmpty")}</Empty>
+          ) : (
+            <div className="grid gap-2">
+              {sorted.map((entry) => (
+                <Card key={entry.id}>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {t("time.span", { date: formatDate(entry.entryDate), start: entry.startedAt, end: entry.endedAt, minutes: entry.breakMinutes })}
+                      </p>
+                      <p className="text-sm text-muted">
+                        {entry.memo || t("time.noMemo")}
+                        {entry.firstName ? ` · ${entry.firstName}` : ""}
+                        {entry.projectId ? ` · ${entry.projectName}` : ""}
+                        {entry.taskType !== "other" ? ` · ${label(entry.taskType)}` : ""}
+                        {entry.billable ? ` · ${t("time.billable")}` : ""}
+                      </p>
+                      {entry.error ? <p className="text-sm text-clay">{tx(entry.error)}</p> : <p className="font-mono text-sm">{formatDuration(entry.minutes)}</p>}
+                      {entry.warnings.map((warning) => (
+                        <p key={warning.message} className="text-sm text-amber">
+                          {tx(warning.message)}
+                        </p>
+                      ))}
+                    </div>
+                    <ActionForm action={deleteTime} compact>
+                      <input type="hidden" name="id" value={entry.id} />
+                      <SubmitButton tone="quiet">{t("common.remove")}</SubmitButton>
+                    </ActionForm>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+          <p className="mt-3 text-sm">{t("time.total", { duration: formatDuration(data.total) })}</p>
+        </>
       )}
-      <p className="mt-3 text-sm">{t("time.total", { duration: formatDuration(data.total) })}</p>
     </>
   );
 }

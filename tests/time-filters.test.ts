@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TASK_SORT,
   DEFAULT_TIME_ENTRY_SORT,
+  daySpan,
   filterTasks,
   filterTimeEntries,
+  resolveTimeRange,
   sortTasks,
   sortTimeEntries,
   type FilterableTask,
@@ -225,5 +227,24 @@ describe("task sorting", () => {
   it("keeps the chosen sort order after filtering", () => {
     const open = filterTasks(tasks, { ...noTaskFilter, status: "open" });
     expect(ids(sortTasks(open, "dueAsc"))).toEqual([4, 1]);
+  });
+});
+
+describe("time range", () => {
+  it("counts both ends of a range", () => {
+    expect(daySpan("2026-11-09", "2026-11-09")).toBe(1);
+    expect(daySpan("2026-11-09", "2026-11-15")).toBe(7);
+    expect(daySpan("2026-11-01", "2026-11-30")).toBe(30);
+  });
+
+  it("prefers an explicit pair and orders it", () => {
+    expect(resolveTimeRange("2026-11-01", "2026-11-30", "2026-11-12")).toEqual({ from: "2026-11-01", to: "2026-11-30" });
+    expect(resolveTimeRange("2026-11-30", "2026-11-01", "2026-11-12")).toEqual({ from: "2026-11-01", to: "2026-11-30" });
+  });
+
+  it("fills a week from a single end and falls back to the anchor week", () => {
+    expect(resolveTimeRange("2026-11-04", null, "2026-11-12")).toEqual({ from: "2026-11-04", to: "2026-11-10" });
+    expect(resolveTimeRange(null, "2026-11-04", "2026-11-12")).toEqual({ from: "2026-10-29", to: "2026-11-04" });
+    expect(resolveTimeRange(null, null, "2026-11-12")).toEqual({ from: "2026-11-09", to: "2026-11-15" });
   });
 });
