@@ -19,8 +19,9 @@ function focusableChildren(panel: HTMLElement): HTMLElement[] {
 }
 
 /**
- * A right-hand detail panel. `inline` docks next to the page as a column;
- * `overlay` floats above the page and traps focus until it closes.
+ * A right-hand panel. `column` is a full-height rail beside the app content,
+ * `inline` docks next to a page's content, and `overlay` floats above the page
+ * and traps focus until it closes.
  */
 export function SidePanel({
   variant,
@@ -29,7 +30,7 @@ export function SidePanel({
   onClose,
   children,
 }: {
-  variant: "inline" | "overlay";
+  variant: "column" | "inline" | "overlay";
   title: string;
   subtitle?: string;
   onClose: () => void;
@@ -97,6 +98,20 @@ export function SidePanel({
   const body = (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 md:px-6">{children}</div>
   );
+
+  if (variant === "column") {
+    return (
+      <aside
+        ref={panelRef}
+        role="region"
+        aria-labelledby={headingId}
+        className="sticky top-0 hidden h-dvh w-[26rem] shrink-0 flex-col overflow-hidden border-l border-line bg-card 2xl:w-[28rem] xl:flex"
+      >
+        {header}
+        {body}
+      </aside>
+    );
+  }
 
   if (variant === "inline") {
     return (

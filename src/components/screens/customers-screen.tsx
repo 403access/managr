@@ -25,6 +25,7 @@ import { useI18n } from "@/components/locale-provider";
 import { useDetailSidebarMode } from "@/components/settings-provider";
 import { SidePanel } from "@/components/side-panel";
 import { useView, ViewGate } from "@/components/use-view";
+import { useWideLayout } from "@/components/use-wide-layout";
 import { Card, Empty, Field, Money, PageHeader, Pill, SelectInput, Stat, TextInput, buttonClass } from "@/components/ui";
 
 type Customers = ReturnType<typeof customersView>;
@@ -42,19 +43,6 @@ type CustomerFieldsValue = {
   vatId: string;
   buyerReference: string;
 };
-
-/** The inline column only makes sense when the content still has room. */
-function useWideLayout(): boolean {
-  const [wide, setWide] = useState(false);
-  useEffect(() => {
-    const media = window.matchMedia("(min-width: 1280px)");
-    const update = () => setWide(media.matches);
-    update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
-  return wide;
-}
 
 function CustomerFields({ customer }: { customer?: CustomerFieldsValue }) {
   const { t } = useI18n();

@@ -12,8 +12,20 @@ import { Card, Field, PageHeader, SelectInput } from "@/components/ui";
 
 type Settings = ReturnType<typeof settingsView>;
 
+const PAGE_LABELS: Record<DetailPageKey, MessageKey> = {
+  customers: "nav.customers",
+  time: "nav.time",
+  obligations: "nav.dates",
+  company: "nav.company",
+  ledger: "nav.ledger",
+  projects: "nav.projects",
+  documents: "nav.documents",
+  legal: "nav.legal",
+  milestones: "nav.milestones",
+};
+
 function pageLabel(t: (key: MessageKey) => string, page: DetailPageKey): string {
-  return page === "customers" ? t("nav.customers") : page;
+  return t(PAGE_LABELS[page]);
 }
 
 function modeLabel(t: (key: MessageKey) => string, mode: DetailSidebarMode): string {

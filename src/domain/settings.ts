@@ -4,10 +4,22 @@ export type DetailSidebarMode = (typeof DETAIL_SIDEBAR_MODES)[number];
 
 export const DEFAULT_DETAIL_SIDEBAR_MODE: DetailSidebarMode = "inline";
 
-/** Pages that can open a detail sidebar. Add a key here when a new page gets one. */
-export const DETAIL_PAGE_KEYS = ["customers"] as const;
+/** Pages that can open a side panel: a detail view or an add form. */
+export const DETAIL_PAGES = [
+  { key: "customers", path: "/customers" },
+  { key: "time", path: "/time" },
+  { key: "obligations", path: "/obligations" },
+  { key: "company", path: "/company" },
+  { key: "ledger", path: "/ledger" },
+  { key: "projects", path: "/projects" },
+  { key: "documents", path: "/documents" },
+  { key: "legal", path: "/legal" },
+  { key: "milestones", path: "/milestones" },
+] as const;
 
-export type DetailPageKey = (typeof DETAIL_PAGE_KEYS)[number];
+export type DetailPageKey = (typeof DETAIL_PAGES)[number]["key"];
+
+export const DETAIL_PAGE_KEYS: readonly DetailPageKey[] = DETAIL_PAGES.map((page) => page.key);
 
 export type DetailSidebarOverrides = Partial<Record<DetailPageKey, DetailSidebarMode>>;
 
@@ -27,6 +39,12 @@ export function isDetailSidebarMode(value: string): value is DetailSidebarMode {
 
 export function isDetailPageKey(value: string): value is DetailPageKey {
   return DETAIL_PAGE_KEYS.some((page) => page === value);
+}
+
+/** The page key for a route, following nested routes such as /time/playback. */
+export function detailPageKeyForPath(pathname: string): DetailPageKey | null {
+  const match = DETAIL_PAGES.find((page) => pathname === page.path || pathname.startsWith(`${page.path}/`));
+  return match?.key ?? null;
 }
 
 /** A page override wins; otherwise the global setting applies. */

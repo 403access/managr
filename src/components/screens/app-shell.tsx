@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { dismissSample } from "@/server/actions";
 import type { shellView } from "@/server/views";
 import { queryKeys, viewPath } from "@/client/query-keys";
+import { AddSheetHost, AddSheetProvider } from "@/components/add-sheet";
 import { AppNav } from "@/components/app-nav";
 import { Assistant } from "@/components/assistant";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -50,6 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <InfoProvider>
       <SettingsProvider settings={company?.settings}>
+        <AddSheetProvider>
         <div className="min-h-dvh">
         <div className="flex w-full">
           <aside
@@ -100,11 +102,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <InfoPanel variant="inline" />
             {children}
           </div>
+          <AddSheetHost />
           <InfoPanel variant="column" />
         </div>
         <AppNav variant="bottom" />
         <Assistant />
       </div>
+        </AddSheetProvider>
       </SettingsProvider>
     </InfoProvider>
   );

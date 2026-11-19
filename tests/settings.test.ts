@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_UI_SETTINGS,
+  detailPageKeyForPath,
   resolveDetailSidebarMode,
   parseDetailSidebarOverrides,
   serializeDetailSidebarOverrides,
@@ -26,10 +27,18 @@ describe("detail sidebar settings", () => {
   });
 
   it("round-trips overrides and validates modes", () => {
-    const json = serializeDetailSidebarOverrides({ customers: "overlay" });
-    expect(parseDetailSidebarOverrides(json)).toEqual({ customers: "overlay" });
+    const json = serializeDetailSidebarOverrides({ customers: "overlay", time: "inline" });
+    expect(parseDetailSidebarOverrides(json)).toEqual({ customers: "overlay", time: "inline" });
     expect(isDetailSidebarMode("inline")).toBe(true);
     expect(isDetailSidebarMode("overlay")).toBe(true);
     expect(isDetailSidebarMode("modal")).toBe(false);
+  });
+
+  it("maps routes to their page, including nested routes", () => {
+    expect(detailPageKeyForPath("/customers")).toBe("customers");
+    expect(detailPageKeyForPath("/time")).toBe("time");
+    expect(detailPageKeyForPath("/time/playback")).toBe("time");
+    expect(detailPageKeyForPath("/projects")).toBe("projects");
+    expect(detailPageKeyForPath("/invoices/3")).toBeNull();
   });
 });
