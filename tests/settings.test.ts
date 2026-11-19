@@ -39,6 +39,7 @@ describe("detail sidebar settings", () => {
     expect(detailPageKeyForPath("/time")).toBe("time");
     expect(detailPageKeyForPath("/time/playback")).toBe("time");
     expect(detailPageKeyForPath("/projects")).toBe("projects");
+    expect(detailPageKeyForPath("/assistant")).toBe("assistant");
     expect(detailPageKeyForPath("/invoices/3")).toBeNull();
   });
 });

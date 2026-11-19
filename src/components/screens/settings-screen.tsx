@@ -23,6 +23,7 @@ const PAGE_LABELS: Record<DetailPageKey, MessageKey> = {
   documents: "nav.documents",
   legal: "nav.legal",
   milestones: "nav.milestones",
+  assistant: "nav.assistant",
 };
 
 function pageLabel(t: (key: MessageKey) => string, page: DetailPageKey): string {

@@ -15,6 +15,7 @@ export const DETAIL_PAGES = [
   { key: "documents", path: "/documents" },
   { key: "legal", path: "/legal" },
   { key: "milestones", path: "/milestones" },
+  { key: "assistant", path: "/assistant" },
 ] as const;
 
 export type DetailPageKey = (typeof DETAIL_PAGES)[number]["key"];
