@@ -1,3 +1,4 @@
+import type { TaskType } from "./analytics";
 import { addDays, parseIso, toUtcDate } from "./calendar";
 
 export function parseClock(value: string): number {
@@ -64,3 +65,157 @@ export function weekStart(isoDate: string): string {
   const mondayOffset = sundayBased === 0 ? 6 : sundayBased - 1;
   return addDays(isoDate, -mondayOffset);
 }
+
+function normalize(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/ß/g, "ss")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+export type FilterableTimeEntry = {
+  entryDate: string;
+  startedAt: string;
+  minutes: number;
+  memo: string;
+  billable: boolean;
+  employeeId: number | null;
+  firstName: string;
+  projectId: number | null;
+  projectName: string;
+  taskType: string;
+};
+
+export type TimeEntryFilter = {
+  query: string;
+  /** Employee id, `"none"` for entries without a person, or `null` for everyone. */
+  person: number | "none" | null;
+  /** Project id, `"none"` for entries without a project, or `null` for every project. */
+  project: number | "none" | null;
+  taskType: TaskType | "";
+  billable: "" | "yes" | "no";
+};
+
+/** Time entries narrowed by free text, person, project, task type, and billable flag. */
+export function filterTimeEntries<T extends FilterableTimeEntry>(entries: readonly T[], filter: TimeEntryFilter): T[] {
+  const needle = normalize(filter.query.trim());
+  return entries.filter((entry) => {
+    if (filter.person === "none") {
+      if (entry.employeeId !== null) return false;
+    } else if (filter.person !== null && entry.employeeId !== filter.person) {
+      return false;
+    }
+    if (filter.project === "none") {
+      if (entry.projectId !== null) return false;
+    } else if (filter.project !== null && entry.projectId !== filter.project) {
+      return false;
+    }
+    if (filter.taskType && entry.taskType !== filter.taskType) return false;
+    if (filter.billable === "yes" && !entry.billable) return false;
+    if (filter.billable === "no" && entry.billable) return false;
+    if (!needle) return true;
+    return normalize([entry.memo, entry.firstName, entry.projectName].join(" ")).includes(needle);
+  });
+}
+
+export const TIME_ENTRY_SORTS = ["dateAsc", "dateDesc", "durationDesc", "durationAsc", "person", "project"] as const;
+
+export type TimeEntrySort = (typeof TIME_ENTRY_SORTS)[number];
+
+export const DEFAULT_TIME_ENTRY_SORT: TimeEntrySort = "dateAsc";
+
+function byEntryTime(left: FilterableTimeEntry, right: FilterableTimeEntry): number {
+  return left.entryDate.localeCompare(right.entryDate) || left.startedAt.localeCompare(right.startedAt);
+}
+
+/** Time entries in the chosen order. Ties fall back to the day and start time. */
+export function sortTimeEntries<T extends FilterableTimeEntry>(entries: readonly T[], sort: TimeEntrySort): T[] {
+  return [...entries].sort((left, right) => {
+    switch (sort) {
+      case "dateDesc":
+        return byEntryTime(right, left);
+      case "durationDesc":
+        return right.minutes - left.minutes || byEntryTime(left, right);
+      case "durationAsc":
+        return left.minutes - right.minutes || byEntryTime(left, right);
+      case "person":
+        return left.firstName.localeCompare(right.firstName) || byEntryTime(left, right);
+      case "project":
+        return left.projectName.localeCompare(right.projectName) || byEntryTime(left, right);
+      default:
+        return byEntryTime(left, right);
+    }
+  });
+}
+
+export const TASK_SORTS = ["status", "dueAsc", "dueDesc", "title", "project"] as const;
+
+export type TaskSort = (typeof TASK_SORTS)[number];
+
+export const DEFAULT_TASK_SORT: TaskSort = "status";
+
+export type FilterableTask = {
+  title: string;
+  notes: string;
+  area: string;
+  status: string;
+  taskType: string;
+  dueDate: string | null;
+  projectId: number | null;
+  projectName: string;
+};
+
+export type TaskFilter = {
+  query: string;
+  /** `""` for every status, otherwise `open`, `doing`, or `done`. */
+  status: string;
+  /** Project id, `"none"` for tasks without a project, or `null` for every project. */
+  project: number | "none" | null;
+  /** `""` for every area. */
+  area: string;
+  taskType: TaskType | "";
+};
+
+/** Tasks narrowed by free text, status, project, area, and task type. */
+export function filterTasks<T extends FilterableTask>(tasks: readonly T[], filter: TaskFilter): T[] {
+  const needle = normalize(filter.query.trim());
+  return tasks.filter((task) => {
+    if (filter.status && task.status !== filter.status) return false;
+    if (filter.project === "none") {
+      if (task.projectId !== null) return false;
+    } else if (filter.project !== null && task.projectId !== filter.project) {
+      return false;
+    }
+    if (filter.area && task.area !== filter.area) return false;
+    if (filter.taskType && task.taskType !== filter.taskType) return false;
+    if (!needle) return true;
+    return normalize([task.title, task.notes, task.projectName].join(" ")).includes(needle);
+  });
+}
+
+function taskStatusRank(status: string): number {
+  return status === "done" ? 2 : status === "doing" ? 1 : 0;
+}
+
+/** Tasks in the chosen order. Open work first, undated tasks last, ties by title. */
+export function sortTasks<T extends FilterableTask>(tasks: readonly T[], sort: TaskSort): T[] {
+  return [...tasks].sort((left, right) => {
+    switch (sort) {
+      case "dueAsc":
+        return (left.dueDate ?? "9999-12-31").localeCompare(right.dueDate ?? "9999-12-31") || left.title.localeCompare(right.title);
+      case "dueDesc":
+        return (right.dueDate ?? "0000-01-01").localeCompare(left.dueDate ?? "0000-01-01") || left.title.localeCompare(right.title);
+      case "title":
+        return left.title.localeCompare(right.title);
+      case "project":
+        return left.projectName.localeCompare(right.projectName) || (left.dueDate ?? "9999-12-31").localeCompare(right.dueDate ?? "9999-12-31");
+      default:
+        return taskStatusRank(left.status) - taskStatusRank(right.status)
+          || (left.dueDate ?? "9999-12-31").localeCompare(right.dueDate ?? "9999-12-31")
+          || left.title.localeCompare(right.title);
+    }
+  });
+}
+
+

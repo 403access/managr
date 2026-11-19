@@ -807,6 +807,8 @@ export function timeView(anchor: string) {
   const week = listTime(anchor);
   const people = listPeople();
   const tasks = listTasks();
+  const projects = listProjects();
+  const projectName = (id: number | null) => (id === null ? "" : projects.find((project) => project.id === id)?.name ?? "");
   const entries = week.entries.map((entry) => {
     let minutes = 0;
     let warnings: { level: "stop" | "watch"; message: string }[] = [];
@@ -827,7 +829,9 @@ export function timeView(anchor: string) {
       memo: entry.memo,
       billable: entry.billable,
       taskId: entry.taskId,
+      employeeId: entry.employeeId,
       projectId: entry.projectId,
+      projectName: projectName(entry.projectId),
       taskType: entry.taskType,
       firstName: person?.employee.firstName ?? "",
       minutes,
@@ -835,7 +839,6 @@ export function timeView(anchor: string) {
       error,
     };
   });
-  const projects = listProjects();
   return {
     anchor,
     start: week.start,
@@ -845,7 +848,7 @@ export function timeView(anchor: string) {
     entries,
     total: entries.reduce((sum, entry) => sum + (entry.error ? 0 : entry.minutes), 0),
     people: people.map((item) => ({ id: item.employee.id, firstName: item.employee.firstName, lastName: item.employee.lastName })),
-    tasks,
+    tasks: tasks.map((task) => ({ ...task, projectName: projectName(task.projectId) })),
     projects: projects.map((project) => ({ id: project.id, name: project.name, customerName: project.customerName })),
   };
 }
