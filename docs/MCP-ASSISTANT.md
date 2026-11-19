@@ -53,7 +53,7 @@ Only chat models that speak the OpenAI chat-completions protocol with tool calli
 
 `web_search` asks DuckDuckGo's HTML endpoint for up to ten results and falls back to Bing. With `MANAGR_WEB_SEARCH_URL` it asks a SearXNG JSON endpoint first. It returns a title, URL, and snippet per result. `web_fetch` accepts only public http(s) URLs, follows at most five redirects with the same check, caps the download at 2 MB, strips scripts and markup, and returns the readable text, the title, and any email addresses it finds. Both tools cache for five minutes in the server process.
 
-The tools are read-only: they never invalidate a screen and never post. `MANAGR_WEB=0` removes them from the registry that the assistant and MCP see, and `runTool` refuses them. The system prompt requires a source URL for every web fact and tells the model to list same-name companies instead of choosing one. A page is treated as untrusted data; an instruction on it is never followed.
+The tools are read-only: they never invalidate a screen and never post. `MANAGR_WEB=0` removes them from the registry that the assistant and MCP see, and `runTool` refuses them. The system prompt requires a source URL for every web fact, tells the model to list same-name companies instead of choosing one, and allows a search only when a detail is missing from the desk or the user asks for an online check. A stored VAT id, address, or contact is authoritative and is not re-checked on the web; a time entry or posting never needs a lookup. A page is treated as untrusted data; an instruction on it is never followed.
 
 ## Reference tools
 
