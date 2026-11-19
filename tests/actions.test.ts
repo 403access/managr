@@ -183,6 +183,8 @@ describe("project time", () => {
     const deleteForm = new FormData();
     deleteForm.set("id", String(project!.id));
     expect(await deleteProject(initialState, deleteForm)).toEqual({ error: "", message: "Project removed. Recorded time stays and is shown without a project." });
-    expect(db.select().from(timeEntries).all().find((row) => row.id === entered!.id)?.projectId).toBeNull();
+    const deletedProject = db.select().from(projects).all().find((row) => row.id === project!.id);
+    expect(deletedProject?.deletedAt).toBeTruthy();
+    expect(db.select().from(timeEntries).all().find((row) => row.id === entered!.id)?.projectId).toBe(project!.id);
   });
 });

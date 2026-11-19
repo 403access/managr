@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { getDb } from "@/db/client";
@@ -79,6 +79,8 @@ import { invoicePayloadSchema, journalPayloadSchema, type InvoicePayload } from 
 import { socialInput } from "./people";
 import { entryLines, payrollSourceId, postJournal } from "./posting";
 import { accountBalances, listSalaryPeriods, listShareholderLoans, loadCompany, signedAccount } from "./queries";
+import { clearLastDeletion, readLastDeletion, rememberDeletion } from "./deletions";
+import { isTrashKind, restoreDeleted, type RestoreResult } from "./trash";
 
 const KINDS = ["regular", "minijob", "midijob", "apprentice", "managing_director"] as const;
 const SV = ["automatic", "subject", "exempt"] as const;
@@ -173,6 +175,7 @@ export async function switchCompany(_state: ActionState, formData: FormData): Pr
       db.update(companies).set({ isActive: false }).where(eq(companies.isActive, true)).run();
       db.update(companies).set({ isActive: true }).where(eq(companies.id, id)).run();
     });
+    await clearLastDeletion();
     return saved("Company switched.");
   } catch (error) {
     return failed(error);
@@ -429,7 +432,13 @@ export async function addShareholder(_state: ActionState, formData: FormData): P
 export async function deleteShareholder(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const company = requireCompany();
-    getDb().delete(shareholders).where(and(eq(shareholders.id, requiredId(formData)), eq(shareholders.companyId, company.id))).run();
+    const id = requiredId(formData);
+    getDb()
+      .update(shareholders)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(eq(shareholders.id, id), eq(shareholders.companyId, company.id)))
+      .run();
+    await rememberDeletion("shareholder", id);
     return saved("Shareholder removed.");
   } catch (error) {
     return failed(error);
@@ -458,7 +467,7 @@ export async function addShareholderLoan(_state: ActionState, formData: FormData
     const shareholder = getDb()
       .select()
       .from(shareholders)
-      .where(and(eq(shareholders.id, shareholderId), eq(shareholders.companyId, company.id)))
+      .where(and(eq(shareholders.id, shareholderId), eq(shareholders.companyId, company.id), isNull(shareholders.deletedAt)))
       .get();
     if (!shareholder) throw new Error("Shareholder not found.");
     const amountCents = euros(formData, "amount");
@@ -647,7 +656,13 @@ export async function addPolicy(_state: ActionState, formData: FormData): Promis
 
 export async function deletePolicy(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(policies).where(and(eq(policies.id, requiredId(formData)), eq(policies.companyId, requireCompany().id))).run();
+    const id = requiredId(formData);
+    getDb()
+      .update(policies)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(eq(policies.id, id), eq(policies.companyId, requireCompany().id)))
+      .run();
+    await rememberDeletion("policy", id);
     return saved("Policy removed.");
   } catch (error) {
     return failed(error);
@@ -745,7 +760,11 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
       };
       let id = payload.invoiceId;
       if (id) {
-        const existing = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
+        const existing = db
+          .select()
+          .from(invoices)
+          .where(and(eq(invoices.id, id), eq(invoices.companyId, company.id), isNull(invoices.deletedAt)))
+          .get();
         if (!existing) throw new Error("Invoice not found.");
         if (existing.status !== "draft") throw new Error("Only a draft can be edited.");
         db.update(invoices).set(header).where(eq(invoices.id, id)).run();
@@ -815,7 +834,7 @@ export async function saveBuyerReference(_state: ActionState, formData: FormData
     if (problem) throw new Error(problem);
     const db = getDb();
     const company = requireCompany();
-    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
+    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id), isNull(invoices.deletedAt))).get();
     if (!invoice) throw new Error("Invoice not found.");
     if (invoice.status === "draft" || invoice.status === "void") throw new Error("The buyer reference on this invoice cannot be changed.");
     db.update(invoices).set({ buyerReference }).where(eq(invoices.id, id)).run();
@@ -830,7 +849,7 @@ export async function recordPayment(_state: ActionState, formData: FormData): Pr
     const id = requiredId(formData, "invoiceId");
     const db = getDb();
     const company = requireCompany();
-    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
+    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id), isNull(invoices.deletedAt))).get();
     if (!invoice) throw new Error("Invoice not found.");
     if (invoice.status === "draft" || invoice.status === "void") throw new Error("This invoice cannot take a payment.");
     const amountCents = euros(formData, "amount");
@@ -866,7 +885,7 @@ export async function voidInvoice(_state: ActionState, formData: FormData): Prom
     const id = requiredId(formData, "invoiceId");
     const db = getDb();
     const company = requireCompany();
-    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
+    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id), isNull(invoices.deletedAt))).get();
     if (!invoice) throw new Error("Invoice not found.");
     if (invoice.status === "draft") throw new Error("Delete the draft instead of voiding it.");
     if (invoice.status === "void") throw new Error("This invoice is already void.");
@@ -907,10 +926,11 @@ export async function deleteDraft(_state: ActionState, formData: FormData): Prom
     const id = requiredId(formData, "invoiceId");
     const db = getDb();
     const company = requireCompany();
-    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id))).get();
+    const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id), isNull(invoices.deletedAt))).get();
     if (!invoice) throw new Error("Invoice not found.");
     if (invoice.status !== "draft" || invoice.journalEntryId) throw new Error("Only a draft can be deleted.");
-    db.delete(invoices).where(eq(invoices.id, id)).run();
+    db.update(invoices).set({ deletedAt: new Date().toISOString() }).where(eq(invoices.id, id)).run();
+    await rememberDeletion("invoice", id);
     go("/invoices");
   } catch (error) {
     return failed(error);
@@ -1087,8 +1107,15 @@ export async function saveSalaryPeriod(_state: ActionState, formData: FormData):
       .from(salaryPeriods)
       .where(and(eq(salaryPeriods.employeeId, employee.id), eq(salaryPeriods.validFrom, validFrom)))
       .get();
-    if (existing) throw new Error("There is already a salary change on that date.");
-    db.insert(salaryPeriods).values({ employeeId: employee.id, validFrom, grossMonthlyCents, note: text(formData, "note") }).run();
+    if (existing && !existing.deletedAt) throw new Error("There is already a salary change on that date.");
+    if (existing) {
+      db.update(salaryPeriods)
+        .set({ grossMonthlyCents, note: text(formData, "note"), deletedAt: null })
+        .where(eq(salaryPeriods.id, existing.id))
+        .run();
+    } else {
+      db.insert(salaryPeriods).values({ employeeId: employee.id, validFrom, grossMonthlyCents, note: text(formData, "note") }).run();
+    }
     return saved("Salary change saved.");
   } catch (error) {
     return failed(error);
@@ -1115,7 +1142,11 @@ export async function saveDirectorContract(_state: ActionState, formData: FormDa
     const id = optionalId(formData);
     const values = { signedOn, validFrom, endedOn, grossMonthlyCents, notes: text(formData, "notes") };
     if (id) {
-      const existing = db.select().from(directorContracts).where(and(eq(directorContracts.id, id), eq(directorContracts.employeeId, employee.id))).get();
+      const existing = db
+        .select()
+        .from(directorContracts)
+        .where(and(eq(directorContracts.id, id), eq(directorContracts.employeeId, employee.id), isNull(directorContracts.deletedAt)))
+        .get();
       if (!existing) throw new Error("Service contract not found.");
       db.update(directorContracts).set(values).where(eq(directorContracts.id, id)).run();
       return saved("Managing-director service contract saved.");
@@ -1157,7 +1188,7 @@ export async function saveFounderHealth(_state: ActionState, formData: FormData)
       .where(and(eq(founderHealth.employeeId, employee.id), eq(founderHealth.companyId, company.id)))
       .get();
     if (existing) {
-      db.update(founderHealth).set(values).where(eq(founderHealth.id, existing.id)).run();
+      db.update(founderHealth).set({ ...values, deletedAt: null }).where(eq(founderHealth.id, existing.id)).run();
       return saved("Founder health cover saved.");
     }
     db.insert(founderHealth).values({ ...values, companyId: company.id, employeeId: employee.id, createdAt: new Date().toISOString() }).run();
@@ -1170,10 +1201,21 @@ export async function saveFounderHealth(_state: ActionState, formData: FormData)
 export async function deleteFounderHealth(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const employee = requireEmployee(formData);
-    getDb()
-      .delete(founderHealth)
-      .where(and(eq(founderHealth.employeeId, employee.id), eq(founderHealth.companyId, requireCompany().id)))
-      .run();
+    const db = getDb();
+    const row = db
+      .select()
+      .from(founderHealth)
+      .where(
+        and(
+          eq(founderHealth.employeeId, employee.id),
+          eq(founderHealth.companyId, requireCompany().id),
+          isNull(founderHealth.deletedAt),
+        ),
+      )
+      .get();
+    if (!row) throw new Error("Founder health cover not found.");
+    db.update(founderHealth).set({ deletedAt: new Date().toISOString() }).where(eq(founderHealth.id, row.id)).run();
+    await rememberDeletion("founder_health", row.id);
     return saved("Founder health cover removed.");
   } catch (error) {
     return failed(error);
@@ -1185,9 +1227,11 @@ export async function deleteDirectorContract(_state: ActionState, formData: Form
     const employee = requireEmployee(formData);
     const id = requiredId(formData);
     getDb()
-      .delete(directorContracts)
+      .update(directorContracts)
+      .set({ deletedAt: new Date().toISOString() })
       .where(and(eq(directorContracts.id, id), eq(directorContracts.employeeId, employee.id), eq(directorContracts.companyId, requireCompany().id)))
       .run();
+    await rememberDeletion("director_contract", id);
     return saved("Service contract removed.");
   } catch (error) {
     return failed(error);
@@ -1198,7 +1242,12 @@ export async function deleteSalaryPeriod(_state: ActionState, formData: FormData
   try {
     const employee = requireEmployee(formData);
     const id = requiredId(formData);
-    getDb().delete(salaryPeriods).where(and(eq(salaryPeriods.id, id), eq(salaryPeriods.employeeId, employee.id))).run();
+    getDb()
+      .update(salaryPeriods)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(eq(salaryPeriods.id, id), eq(salaryPeriods.employeeId, employee.id)))
+      .run();
+    await rememberDeletion("salary_change", id);
     return saved("Salary change removed.");
   } catch (error) {
     return failed(error);
@@ -1234,11 +1283,16 @@ export async function deleteAbsence(_state: ActionState, formData: FormData): Pr
   try {
     const id = requiredId(formData);
     const db = getDb();
-    const absence = db.select().from(absences).where(eq(absences.id, id)).get();
+    const absence = db
+      .select()
+      .from(absences)
+      .where(and(eq(absences.id, id), isNull(absences.deletedAt)))
+      .get();
     if (!absence) throw new Error("Absence not found.");
     const employee = db.select().from(employees).where(and(eq(employees.id, absence.employeeId), eq(employees.companyId, requireCompany().id))).get();
     if (!employee) throw new Error("Absence not found.");
-    db.delete(absences).where(eq(absences.id, id)).run();
+    db.update(absences).set({ deletedAt: new Date().toISOString() }).where(eq(absences.id, id)).run();
+    await rememberDeletion("absence", id);
     return saved("Absence removed.");
   } catch (error) {
     return failed(error);
@@ -1349,7 +1403,11 @@ export async function saveProject(_state: ActionState, formData: FormData): Prom
     const values = { name, status, startedOn, endedOn, customerId, notes: text(formData, "notes"), hourlyRateCents: optionalEuros(formData, "hourlyRate", "The project hourly rate") };
     const id = optionalId(formData);
     if (id) {
-      const existing = db.select().from(projects).where(and(eq(projects.id, id), eq(projects.companyId, company.id))).get();
+      const existing = db
+        .select()
+        .from(projects)
+        .where(and(eq(projects.id, id), eq(projects.companyId, company.id), isNull(projects.deletedAt)))
+        .get();
       if (!existing) throw new Error("Project not found.");
       db.update(projects).set(values).where(eq(projects.id, id)).run();
       return saved("Project saved.");
@@ -1363,7 +1421,13 @@ export async function saveProject(_state: ActionState, formData: FormData): Prom
 
 export async function deleteProject(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(projects).where(and(eq(projects.id, requiredId(formData)), eq(projects.companyId, requireCompany().id))).run();
+    const id = requiredId(formData);
+    getDb()
+      .update(projects)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(eq(projects.id, id), eq(projects.companyId, requireCompany().id)))
+      .run();
+    await rememberDeletion("project", id);
     return saved("Project removed. Recorded time stays and is shown without a project.");
   } catch (error) {
     return failed(error);
@@ -1392,7 +1456,7 @@ export async function saveMilestone(_state: ActionState, formData: FormData): Pr
     db.transaction(() => {
       let milestoneId = id ?? 0;
       if (id) {
-        if (!db.select().from(milestones).where(eq(milestones.id, id)).get()) throw new Error("Milestone not found.");
+        if (!db.select().from(milestones).where(and(eq(milestones.id, id), isNull(milestones.deletedAt))).get()) throw new Error("Milestone not found.");
         db.update(milestones).set(values).where(eq(milestones.id, id)).run();
       } else {
         milestoneId = Number(db.insert(milestones).values({ ...values, createdAt: new Date().toISOString() }).run().lastInsertRowid);
@@ -1410,7 +1474,13 @@ export async function saveMilestone(_state: ActionState, formData: FormData): Pr
 
 export async function deleteMilestone(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(milestones).where(eq(milestones.id, requiredId(formData))).run();
+    const id = requiredId(formData);
+    getDb()
+      .update(milestones)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(eq(milestones.id, id), isNull(milestones.deletedAt)))
+      .run();
+    await rememberDeletion("milestone", id);
     return saved("Milestone removed.");
   } catch (error) {
     return failed(error);
@@ -1425,7 +1495,7 @@ export async function saveTask(_state: ActionState, formData: FormData): Promise
     const db = getDb();
     const company = requireCompany();
     const projectId = optionalId(formData, "projectId");
-    if (projectId && !db.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.companyId, company.id))).get()) {
+    if (projectId && !db.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.companyId, company.id), isNull(projects.deletedAt))).get()) {
       throw new Error("Project not found.");
     }
     const status = oneOf(text(formData, "status") || "open", TASK_STATUS, "Status");
@@ -1453,7 +1523,11 @@ export async function toggleTask(_state: ActionState, formData: FormData): Promi
   try {
     const id = requiredId(formData);
     const db = getDb();
-    const task = db.select().from(tasks).where(and(eq(tasks.id, id), eq(tasks.companyId, requireCompany().id))).get();
+    const task = db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.id, id), eq(tasks.companyId, requireCompany().id), isNull(tasks.deletedAt)))
+      .get();
     if (!task) throw new Error("Task not found.");
     const status = task.status === "open" ? "doing" : task.status === "doing" ? "done" : "open";
     db.update(tasks).set({ status, completedAt: status === "done" ? (task.completedAt ?? todayIso()) : null }).where(eq(tasks.id, id)).run();
@@ -1465,7 +1539,13 @@ export async function toggleTask(_state: ActionState, formData: FormData): Promi
 
 export async function deleteTask(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(tasks).where(and(eq(tasks.id, requiredId(formData)), eq(tasks.companyId, requireCompany().id))).run();
+    const id = requiredId(formData);
+    getDb()
+      .update(tasks)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(eq(tasks.id, id), eq(tasks.companyId, requireCompany().id)))
+      .run();
+    await rememberDeletion("task", id);
     return saved("Task removed.");
   } catch (error) {
     return failed(error);
@@ -1487,10 +1567,10 @@ export async function saveTime(_state: ActionState, formData: FormData): Promise
     const employeeId = optionalId(formData, "employeeId");
     if (employeeId && !db.select().from(employees).where(and(eq(employees.id, employeeId), eq(employees.companyId, company.id))).get()) throw new Error("Person not found.");
     const taskId = optionalId(formData, "taskId");
-    const task = taskId ? db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.companyId, company.id))).get() : null;
+    const task = taskId ? db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.companyId, company.id), isNull(tasks.deletedAt))).get() : null;
     if (taskId && !task) throw new Error("Task not found.");
     const projectId = task?.projectId ?? optionalId(formData, "projectId") ?? null;
-    if (projectId && !db.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.companyId, company.id))).get()) throw new Error("Project not found.");
+    if (projectId && !db.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.companyId, company.id), isNull(projects.deletedAt))).get()) throw new Error("Project not found.");
     const taskType = text(formData, "taskType") ? oneOf(text(formData, "taskType"), TASK_TYPES, "Task type") : task?.taskType ?? "other";
     db.insert(timeEntries)
       .values({
@@ -1534,7 +1614,13 @@ export async function saveTimeRate(_state: ActionState, formData: FormData): Pro
 
 export async function deleteTime(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(timeEntries).where(and(eq(timeEntries.id, requiredId(formData)), eq(timeEntries.companyId, requireCompany().id))).run();
+    const id = requiredId(formData);
+    getDb()
+      .update(timeEntries)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(eq(timeEntries.id, id), eq(timeEntries.companyId, requireCompany().id)))
+      .run();
+    await rememberDeletion("time", id);
     return saved("Time entry removed.");
   } catch (error) {
     return failed(error);
@@ -1575,10 +1661,14 @@ export async function deleteDocument(_state: ActionState, formData: FormData): P
   try {
     const id = requiredId(formData);
     const db = getDb();
-    const document = db.select().from(documents).where(and(eq(documents.id, id), eq(documents.companyId, requireCompany().id))).get();
+    const document = db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, id), eq(documents.companyId, requireCompany().id), isNull(documents.deletedAt)))
+      .get();
     if (!document) throw new Error("Document not found.");
-    removeUpload(document.storedName);
-    db.delete(documents).where(eq(documents.id, id)).run();
+    db.update(documents).set({ deletedAt: new Date().toISOString() }).where(eq(documents.id, id)).run();
+    await rememberDeletion("document", id);
     return saved("Document removed.");
   } catch (error) {
     return failed(error);
@@ -1629,7 +1719,11 @@ export async function completeDeadline(_state: ActionState, formData: FormData):
   try {
     const id = requiredId(formData);
     const db = getDb();
-    const row = db.select().from(customDeadlines).where(and(eq(customDeadlines.id, id), eq(customDeadlines.companyId, requireCompany().id))).get();
+    const row = db
+      .select()
+      .from(customDeadlines)
+      .where(and(eq(customDeadlines.id, id), eq(customDeadlines.companyId, requireCompany().id), isNull(customDeadlines.deletedAt)))
+      .get();
     if (!row) throw new Error("Deadline not found.");
     const recurrence = oneOf(row.recurrence, RECURRENCE, "Repeat");
     if (recurrence === "none") {
@@ -1647,7 +1741,13 @@ export async function completeDeadline(_state: ActionState, formData: FormData):
 
 export async function deleteDeadline(_state: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    getDb().delete(customDeadlines).where(and(eq(customDeadlines.id, requiredId(formData)), eq(customDeadlines.companyId, requireCompany().id))).run();
+    const id = requiredId(formData);
+    getDb()
+      .update(customDeadlines)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(and(eq(customDeadlines.id, id), eq(customDeadlines.companyId, requireCompany().id)))
+      .run();
+    await rememberDeletion("deadline", id);
     return saved("Deadline removed.");
   } catch (error) {
     return failed(error);
@@ -1693,4 +1793,31 @@ export async function saveResolution(_state: ActionState, formData: FormData): P
   } catch (error) {
     return failed(error);
   }
+}
+
+export async function restoreDeletedRecord(kind: string, id: number): Promise<RestoreResult> {
+  if (!isTrashKind(kind)) return { ok: false, error: "That entry was not found." };
+  const result = restoreDeleted(kind, id);
+  if (result.ok) {
+    const last = await readLastDeletion();
+    if (last && last.kind === kind && last.id === id) await clearLastDeletion();
+    revalidatePath("/", "layout");
+  }
+  return result;
+}
+
+export async function restoreLastDeletion(): Promise<RestoreResult> {
+  const last = await readLastDeletion();
+  if (!last) return { ok: false, error: "That entry was not found." };
+  const result = restoreDeleted(last.kind, last.id);
+  if (result.ok) {
+    await clearLastDeletion();
+    revalidatePath("/", "layout");
+  }
+  return result;
+}
+
+export async function dismissLastDeletion(): Promise<void> {
+  await clearLastDeletion();
+  revalidatePath("/", "layout");
 }

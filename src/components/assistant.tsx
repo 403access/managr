@@ -224,10 +224,12 @@ function contextHint(tokens?: number): string | undefined {
   return `${Math.round(tokens / 1_000)}k`;
 }
 
-export function Assistant() {
+export function Assistant({ variant = "popover" }: { variant?: "popover" | "page" } = {}) {
   const { t, tx, label } = useI18n();
   const queryClient = useQueryClient();
+  const page = variant === "page";
   const [open, setOpen] = useState(false);
+  const shown = page || open;
   const [messages, setMessages] = useState<Message[]>([]);
   const [restored, setRestored] = useState(false);
   const [draft, setDraft] = useState("");
@@ -313,9 +315,9 @@ export function Assistant() {
   }, [catalog, selection]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!shown) return;
     inputRef.current?.focus();
-  }, [open]);
+  }, [shown]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -534,23 +536,29 @@ export function Assistant() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-label={open ? t("assistant.close") : t("assistant.open")}
-        className="fixed right-3 bottom-20 z-30 inline-flex min-h-12 items-center gap-2 rounded-full border border-pine-deep bg-pine px-4 text-sm font-medium text-paper shadow-lg shadow-ink/20 md:right-6 md:bottom-6"
-      >
-        <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-          <path d="M4 12a8 8 0 0 1 8-8h1a7 7 0 0 1 0 14H9l-4 3v-4.5A8 8 0 0 1 4 12Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        </svg>
-        <span className="hidden md:inline">{t("assistant.open")}</span>
-      </button>
+      {page ? null : (
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={shown}
+          aria-label={shown ? t("assistant.close") : t("assistant.open")}
+          className="fixed right-3 bottom-20 z-30 inline-flex min-h-12 items-center gap-2 rounded-full border border-pine-deep bg-pine px-4 text-sm font-medium text-paper shadow-lg shadow-ink/20 md:right-6 md:bottom-6"
+        >
+          <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+            <path d="M4 12a8 8 0 0 1 8-8h1a7 7 0 0 1 0 14H9l-4 3v-4.5A8 8 0 0 1 4 12Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          </svg>
+          <span className="hidden md:inline">{t("assistant.open")}</span>
+        </button>
+      )}
 
-      {open ? (
+      {shown ? (
         <section
           aria-label={t("assistant.title")}
-          className="fixed inset-x-3 bottom-20 z-50 flex max-h-[78dvh] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl shadow-ink/25 md:inset-x-auto md:right-6 md:bottom-24 md:w-[27rem] md:max-h-[42rem]"
+          className={
+            page
+              ? "flex h-[70dvh] min-h-[28rem] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-sm md:h-[calc(100dvh-12rem)] md:min-h-[32rem]"
+              : "fixed inset-x-3 bottom-20 z-50 flex max-h-[78dvh] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl shadow-ink/25 md:inset-x-auto md:right-6 md:bottom-24 md:w-[27rem] md:max-h-[42rem]"
+          }
         >
           <header className="border-b border-line px-4 py-3">
             <div className="flex items-start justify-between gap-3">
@@ -564,11 +572,18 @@ export function Assistant() {
                     {t("assistant.newChat")}
                   </button>
                 ) : null}
-                <button type="button" className="grid size-9 place-items-center rounded-full text-muted hover:text-ink" onClick={() => setOpen(false)} aria-label={t("assistant.close")}>
-                  <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-                    <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  </svg>
-                </button>
+                {page ? null : (
+                  <Link href="/assistant" className="rounded-full px-2 py-1 text-xs font-medium text-pine hover:underline">
+                    {t("assistant.openPage")}
+                  </Link>
+                )}
+                {page ? null : (
+                  <button type="button" className="grid size-9 place-items-center rounded-full text-muted hover:text-ink" onClick={() => setOpen(false)} aria-label={t("assistant.close")}>
+                    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+                      <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
             {catalog === null ? <p className="mt-2 text-[11px] text-muted">{t("assistant.modelsLoading")}</p> : null}

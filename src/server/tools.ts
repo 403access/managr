@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import {
@@ -209,38 +209,62 @@ function requireEmployee(id: number) {
 }
 
 function requireTask(id: number) {
-  const row = getDb().select().from(tasks).where(and(eq(tasks.id, id), eq(tasks.companyId, requireCompany().id))).get();
+  const row = getDb()
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, id), eq(tasks.companyId, requireCompany().id), isNull(tasks.deletedAt)))
+    .get();
   if (!row) throw new Error("Task not found.");
   return row;
 }
 
 function requireProject(id: number) {
-  const row = getDb().select().from(projects).where(and(eq(projects.id, id), eq(projects.companyId, requireCompany().id))).get();
+  const row = getDb()
+    .select()
+    .from(projects)
+    .where(and(eq(projects.id, id), eq(projects.companyId, requireCompany().id), isNull(projects.deletedAt)))
+    .get();
   if (!row) throw new Error("Project not found.");
   return row;
 }
 
 /** Milestones are not scoped to a company, so this lookup has no company filter. */
 function requireMilestone(id: number) {
-  const row = getDb().select().from(milestones).where(eq(milestones.id, id)).get();
+  const row = getDb()
+    .select()
+    .from(milestones)
+    .where(and(eq(milestones.id, id), isNull(milestones.deletedAt)))
+    .get();
   if (!row) throw new Error("Milestone not found.");
   return row;
 }
 
 function requireShareholder(id: number) {
-  const row = getDb().select().from(shareholders).where(and(eq(shareholders.id, id), eq(shareholders.companyId, requireCompany().id))).get();
+  const row = getDb()
+    .select()
+    .from(shareholders)
+    .where(and(eq(shareholders.id, id), eq(shareholders.companyId, requireCompany().id), isNull(shareholders.deletedAt)))
+    .get();
   if (!row) throw new Error("Shareholder not found.");
   return row;
 }
 
 function requirePolicy(id: number) {
-  const row = getDb().select().from(policies).where(and(eq(policies.id, id), eq(policies.companyId, requireCompany().id))).get();
+  const row = getDb()
+    .select()
+    .from(policies)
+    .where(and(eq(policies.id, id), eq(policies.companyId, requireCompany().id), isNull(policies.deletedAt)))
+    .get();
   if (!row) throw new Error("Policy not found.");
   return row;
 }
 
 function requireDeadline(id: number) {
-  const row = getDb().select().from(customDeadlines).where(and(eq(customDeadlines.id, id), eq(customDeadlines.companyId, requireCompany().id))).get();
+  const row = getDb()
+    .select()
+    .from(customDeadlines)
+    .where(and(eq(customDeadlines.id, id), eq(customDeadlines.companyId, requireCompany().id), isNull(customDeadlines.deletedAt)))
+    .get();
   if (!row) throw new Error("Deadline not found.");
   return row;
 }
@@ -881,7 +905,7 @@ export const tools: DeskTool[] = [
     input: idInput,
     run: (input) => {
       const holder = requireShareholder(input.id);
-      getDb().delete(shareholders).where(eq(shareholders.id, holder.id)).run();
+      getDb().update(shareholders).set({ deletedAt: new Date().toISOString() }).where(eq(shareholders.id, holder.id)).run();
       return { removed: holder.name };
     },
   }),
@@ -985,7 +1009,7 @@ export const tools: DeskTool[] = [
     input: idInput,
     run: (input) => {
       const policy = requirePolicy(input.id);
-      getDb().delete(policies).where(eq(policies.id, policy.id)).run();
+      getDb().update(policies).set({ deletedAt: new Date().toISOString() }).where(eq(policies.id, policy.id)).run();
       return { removed: policy.label };
     },
   }),
@@ -1222,12 +1246,12 @@ export const tools: DeskTool[] = [
   }),
   tool({
     name: "delete_invoice_draft",
-    description: "Delete an unnumbered draft invoice and its lines.",
+    description: "Delete an unnumbered draft invoice. It can be restored from the trash.",
     input: { invoiceId: z.number().int().positive() },
     run: (input) => {
       const loaded = requireInvoice(input.invoiceId);
       if (loaded.invoice.status !== "draft" || loaded.invoice.journalEntryId) throw new Error("Only a draft can be deleted.");
-      getDb().delete(invoices).where(eq(invoices.id, loaded.invoice.id)).run();
+      getDb().update(invoices).set({ deletedAt: new Date().toISOString() }).where(eq(invoices.id, loaded.invoice.id)).run();
       return { invoiceId: loaded.invoice.id, deleted: true };
     },
   }),
@@ -1461,10 +1485,19 @@ export const tools: DeskTool[] = [
         .from(salaryPeriods)
         .where(and(eq(salaryPeriods.employeeId, employee.id), eq(salaryPeriods.validFrom, validFrom)))
         .get();
-      if (existing) throw new Error("There is already a salary change on that date.");
+      if (existing && !existing.deletedAt) throw new Error("There is already a salary change on that date.");
+      const grossMonthlyCents = positiveCents(input.grossMonthly, "The monthly gross");
+      if (existing) {
+        getDb()
+          .update(salaryPeriods)
+          .set({ grossMonthlyCents, note: input.note ?? "", deletedAt: null })
+          .where(eq(salaryPeriods.id, existing.id))
+          .run();
+        return { id: existing.id, personId: employee.id, validFrom };
+      }
       const created = getDb()
         .insert(salaryPeriods)
-        .values({ employeeId: employee.id, validFrom, grossMonthlyCents: positiveCents(input.grossMonthly, "The monthly gross"), note: input.note ?? "" })
+        .values({ employeeId: employee.id, validFrom, grossMonthlyCents, note: input.note ?? "" })
         .run();
       return { id: Number(created.lastInsertRowid), personId: employee.id, validFrom };
     },
@@ -1481,10 +1514,10 @@ export const tools: DeskTool[] = [
       const row = getDb()
         .select()
         .from(salaryPeriods)
-        .where(and(eq(salaryPeriods.id, input.salaryChangeId), eq(salaryPeriods.employeeId, employee.id)))
+        .where(and(eq(salaryPeriods.id, input.salaryChangeId), eq(salaryPeriods.employeeId, employee.id), isNull(salaryPeriods.deletedAt)))
         .get();
       if (!row) throw new Error("Salary change not found.");
-      getDb().delete(salaryPeriods).where(eq(salaryPeriods.id, row.id)).run();
+      getDb().update(salaryPeriods).set({ deletedAt: new Date().toISOString() }).where(eq(salaryPeriods.id, row.id)).run();
       return { id: row.id, personId: employee.id, removed: true };
     },
   }),
@@ -1517,7 +1550,7 @@ export const tools: DeskTool[] = [
         const existing = db
           .select()
           .from(directorContracts)
-          .where(and(eq(directorContracts.id, input.contractId), eq(directorContracts.employeeId, employee.id)))
+          .where(and(eq(directorContracts.id, input.contractId), eq(directorContracts.employeeId, employee.id), isNull(directorContracts.deletedAt)))
           .get();
         if (!existing) throw new Error("Service contract not found.");
         db.update(directorContracts).set(values).where(eq(directorContracts.id, existing.id)).run();
@@ -1535,9 +1568,13 @@ export const tools: DeskTool[] = [
     description: "Remove a managing-director service contract record.",
     input: idInput,
     run: (input) => {
-      const row = getDb().select().from(directorContracts).where(and(eq(directorContracts.id, input.id), eq(directorContracts.companyId, requireCompany().id))).get();
+      const row = getDb()
+        .select()
+        .from(directorContracts)
+        .where(and(eq(directorContracts.id, input.id), eq(directorContracts.companyId, requireCompany().id), isNull(directorContracts.deletedAt)))
+        .get();
       if (!row) throw new Error("Service contract not found.");
-      getDb().delete(directorContracts).where(eq(directorContracts.id, row.id)).run();
+      getDb().update(directorContracts).set({ deletedAt: new Date().toISOString() }).where(eq(directorContracts.id, row.id)).run();
       return { id: row.id, removed: true };
     },
   }),
@@ -1578,7 +1615,7 @@ export const tools: DeskTool[] = [
         .where(and(eq(founderHealth.employeeId, employee.id), eq(founderHealth.companyId, company.id)))
         .get();
       if (existing) {
-        db.update(founderHealth).set(values).where(eq(founderHealth.id, existing.id)).run();
+        db.update(founderHealth).set({ ...values, deletedAt: null }).where(eq(founderHealth.id, existing.id)).run();
         return { id: existing.id, personId: employee.id, saved: true };
       }
       const created = db
@@ -1595,8 +1632,15 @@ export const tools: DeskTool[] = [
     run: (input) => {
       const employee = requireEmployee(input.personId);
       const db = getDb();
-      db.delete(founderHealth)
-        .where(and(eq(founderHealth.employeeId, employee.id), eq(founderHealth.companyId, requireCompany().id)))
+      db.update(founderHealth)
+        .set({ deletedAt: new Date().toISOString() })
+        .where(
+          and(
+            eq(founderHealth.employeeId, employee.id),
+            eq(founderHealth.companyId, requireCompany().id),
+            isNull(founderHealth.deletedAt),
+          ),
+        )
         .run();
       return { personId: employee.id, removed: true };
     },
@@ -1637,10 +1681,14 @@ export const tools: DeskTool[] = [
     input: idInput,
     run: (input) => {
       const db = getDb();
-      const absence = db.select().from(absences).where(eq(absences.id, input.id)).get();
+      const absence = db
+        .select()
+        .from(absences)
+        .where(and(eq(absences.id, input.id), isNull(absences.deletedAt)))
+        .get();
       if (!absence) throw new Error("Absence not found.");
       requireEmployee(absence.employeeId);
-      db.delete(absences).where(eq(absences.id, absence.id)).run();
+      db.update(absences).set({ deletedAt: new Date().toISOString() }).where(eq(absences.id, absence.id)).run();
       return { id: absence.id, removed: true };
     },
   }),
@@ -1776,9 +1824,13 @@ export const tools: DeskTool[] = [
     input: idInput,
     run: (input) => {
       const db = getDb();
-      const entry = db.select().from(timeEntries).where(and(eq(timeEntries.id, input.id), eq(timeEntries.companyId, requireCompany().id))).get();
+      const entry = db
+        .select()
+        .from(timeEntries)
+        .where(and(eq(timeEntries.id, input.id), eq(timeEntries.companyId, requireCompany().id), isNull(timeEntries.deletedAt)))
+        .get();
       if (!entry) throw new Error("Time entry not found.");
-      db.delete(timeEntries).where(eq(timeEntries.id, entry.id)).run();
+      db.update(timeEntries).set({ deletedAt: new Date().toISOString() }).where(eq(timeEntries.id, entry.id)).run();
       return { id: entry.id, removed: true };
     },
   }),
@@ -1811,7 +1863,11 @@ export const tools: DeskTool[] = [
         db.update(projects).set({ hourlyRateCents: value }).where(eq(projects.id, existing.id)).run();
         return { level: "project", id: existing.id, hourlyRateCents: value };
       }
-      const entry = db.select().from(timeEntries).where(and(eq(timeEntries.id, input.id), eq(timeEntries.companyId, company.id))).get();
+      const entry = db
+        .select()
+        .from(timeEntries)
+        .where(and(eq(timeEntries.id, input.id), eq(timeEntries.companyId, company.id), isNull(timeEntries.deletedAt)))
+        .get();
       if (!entry) throw new Error("Time entry not found.");
       db.update(timeEntries).set({ hourlyRateCents: value }).where(eq(timeEntries.id, entry.id)).run();
       return { level: "time", id: entry.id, hourlyRateCents: value };
@@ -1870,7 +1926,7 @@ export const tools: DeskTool[] = [
     input: idInput,
     run: (input) => {
       const project = requireProject(input.id);
-      getDb().delete(projects).where(eq(projects.id, project.id)).run();
+      getDb().update(projects).set({ deletedAt: new Date().toISOString() }).where(eq(projects.id, project.id)).run();
       return { id: project.id, removed: true };
     },
   }),
@@ -1924,7 +1980,7 @@ export const tools: DeskTool[] = [
     input: idInput,
     run: (input) => {
       const milestone = requireMilestone(input.id);
-      getDb().delete(milestones).where(eq(milestones.id, milestone.id)).run();
+      getDb().update(milestones).set({ deletedAt: new Date().toISOString() }).where(eq(milestones.id, milestone.id)).run();
       return { id: milestone.id, removed: true };
     },
   }),
@@ -1979,7 +2035,7 @@ export const tools: DeskTool[] = [
     input: idInput,
     run: (input) => {
       const task = requireTask(input.id);
-      getDb().delete(tasks).where(eq(tasks.id, task.id)).run();
+      getDb().update(tasks).set({ deletedAt: new Date().toISOString() }).where(eq(tasks.id, task.id)).run();
       return { id: task.id, removed: true };
     },
   }),
@@ -2050,7 +2106,7 @@ export const tools: DeskTool[] = [
     input: idInput,
     run: (input) => {
       const deadline = requireDeadline(input.id);
-      getDb().delete(customDeadlines).where(eq(customDeadlines.id, deadline.id)).run();
+      getDb().update(customDeadlines).set({ deletedAt: new Date().toISOString() }).where(eq(customDeadlines.id, deadline.id)).run();
       return { id: deadline.id, removed: true };
     },
   }),

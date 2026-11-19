@@ -1,6 +1,6 @@
-export type NavIcon = "desk" | "invoices" | "customers" | "time" | "dates" | "company" | "ledger" | "cashflow" | "bank" | "people" | "documents" | "legal" | "projects" | "analytics" | "milestones" | "sources" | "settings";
+export type NavIcon = "desk" | "invoices" | "customers" | "time" | "dates" | "company" | "ledger" | "cashflow" | "bank" | "people" | "documents" | "legal" | "projects" | "analytics" | "milestones" | "sources" | "settings" | "assistant" | "trash";
 
-export type NavItem = { href: string; labelKey: "nav.desk" | "nav.invoices" | "nav.customers" | "nav.time" | "nav.dates" | "nav.company" | "nav.ledger" | "nav.cashflow" | "nav.bank" | "nav.people" | "nav.documents" | "nav.legal" | "nav.projects" | "nav.analytics" | "nav.milestones" | "nav.sources" | "nav.settings"; icon: NavIcon };
+export type NavItem = { href: string; labelKey: "nav.desk" | "nav.invoices" | "nav.customers" | "nav.time" | "nav.dates" | "nav.company" | "nav.ledger" | "nav.cashflow" | "nav.bank" | "nav.people" | "nav.documents" | "nav.legal" | "nav.projects" | "nav.analytics" | "nav.milestones" | "nav.sources" | "nav.settings" | "nav.assistant" | "nav.trash"; icon: NavIcon };
 
 export const primaryNav: NavItem[] = [
   { href: "/", labelKey: "nav.desk", icon: "desk" },
@@ -11,6 +11,7 @@ export const primaryNav: NavItem[] = [
 ];
 
 export const moreNav: NavItem[] = [
+  { href: "/assistant", labelKey: "nav.assistant", icon: "assistant" },
   { href: "/company", labelKey: "nav.company", icon: "company" },
   { href: "/ledger", labelKey: "nav.ledger", icon: "ledger" },
   { href: "/cashflow", labelKey: "nav.cashflow", icon: "cashflow" },
@@ -22,5 +23,6 @@ export const moreNav: NavItem[] = [
   { href: "/documents", labelKey: "nav.documents", icon: "documents" },
   { href: "/legal", labelKey: "nav.legal", icon: "legal" },
   { href: "/sources", labelKey: "nav.sources", icon: "sources" },
+  { href: "/trash", labelKey: "nav.trash", icon: "trash" },
   { href: "/settings", labelKey: "nav.settings", icon: "settings" },
 ];

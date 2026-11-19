@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   absences,
@@ -79,7 +79,12 @@ export function readUiSettings(): UiSettings {
 }
 
 export function loadShareholders() {
-  return getDb().select().from(shareholders).where(eq(shareholders.companyId, loadCompany().id)).orderBy(asc(shareholders.name)).all();
+  return getDb()
+    .select()
+    .from(shareholders)
+    .where(and(eq(shareholders.companyId, loadCompany().id), isNull(shareholders.deletedAt)))
+    .orderBy(asc(shareholders.name))
+    .all();
 }
 
 export function listCustomers(companyId = loadCompany().id) {
@@ -101,7 +106,7 @@ export function listProjects(companyId = loadCompany().id) {
     })
     .from(projects)
     .leftJoin(customers, eq(customers.id, projects.customerId))
-    .where(eq(projects.companyId, companyId))
+    .where(and(eq(projects.companyId, companyId), isNull(projects.deletedAt)))
     .orderBy(asc(projects.status), asc(projects.name))
     .all();
 }
@@ -109,7 +114,12 @@ export function listProjects(companyId = loadCompany().id) {
 /** Cross-company goals with the companies they name. Not scoped to the active company. */
 export function listMilestones() {
   const db = getDb();
-  const rows = db.select().from(milestones).orderBy(asc(milestones.targetDate), asc(milestones.title)).all();
+  const rows = db
+    .select()
+    .from(milestones)
+    .where(isNull(milestones.deletedAt))
+    .orderBy(asc(milestones.targetDate), asc(milestones.title))
+    .all();
   const links = db.select().from(milestoneCompanies).all();
   return rows.map((row) => ({
     ...row,
@@ -124,13 +134,25 @@ export function listTimeInRange(from: string, to: string) {
   return getDb()
     .select()
     .from(timeEntries)
-    .where(and(eq(timeEntries.companyId, loadCompany().id), gte(timeEntries.entryDate, from), lte(timeEntries.entryDate, to)))
+    .where(
+      and(
+        eq(timeEntries.companyId, loadCompany().id),
+        gte(timeEntries.entryDate, from),
+        lte(timeEntries.entryDate, to),
+        isNull(timeEntries.deletedAt),
+      ),
+    )
     .orderBy(asc(timeEntries.entryDate), asc(timeEntries.startedAt))
     .all();
 }
 
 export function listPolicies() {
-  return getDb().select().from(policies).where(eq(policies.companyId, loadCompany().id)).orderBy(asc(policies.renewalDate)).all();
+  return getDb()
+    .select()
+    .from(policies)
+    .where(and(eq(policies.companyId, loadCompany().id), isNull(policies.deletedAt)))
+    .orderBy(asc(policies.renewalDate))
+    .all();
 }
 
 export function listReserveMovements() {
@@ -196,7 +218,7 @@ export function listInvoices() {
     })
     .from(invoices)
     .innerJoin(customers, eq(customers.id, invoices.customerId))
-    .where(eq(invoices.companyId, loadCompany().id))
+    .where(and(eq(invoices.companyId, loadCompany().id), isNull(invoices.deletedAt)))
     .orderBy(desc(invoices.issueDate), desc(invoices.id))
     .all();
   const lineRows = db.select().from(invoiceLines).all();
@@ -258,7 +280,11 @@ export function listCashMovements(from: string, to: string): CashMovement[] {
 
 export function loadInvoice(id: number) {
   const db = getDb();
-  const invoice = db.select().from(invoices).where(eq(invoices.id, id)).get();
+  const invoice = db
+    .select()
+    .from(invoices)
+    .where(and(eq(invoices.id, id), isNull(invoices.deletedAt)))
+    .get();
   if (!invoice) return null;
   const company = db.select().from(companies).where(eq(companies.id, invoice.companyId)).get();
   if (!company) return null;
@@ -316,14 +342,25 @@ export function listOrgMembers() {
 }
 
 export function listSalaryPeriods(employeeId: number) {
-  return getDb().select().from(salaryPeriods).where(eq(salaryPeriods.employeeId, employeeId)).orderBy(desc(salaryPeriods.validFrom)).all();
+  return getDb()
+    .select()
+    .from(salaryPeriods)
+    .where(and(eq(salaryPeriods.employeeId, employeeId), isNull(salaryPeriods.deletedAt)))
+    .orderBy(desc(salaryPeriods.validFrom))
+    .all();
 }
 
 export function getFounderHealth(employeeId: number) {
   return getDb()
     .select()
     .from(founderHealth)
-    .where(and(eq(founderHealth.employeeId, employeeId), eq(founderHealth.companyId, loadCompany().id)))
+    .where(
+      and(
+        eq(founderHealth.employeeId, employeeId),
+        eq(founderHealth.companyId, loadCompany().id),
+        isNull(founderHealth.deletedAt),
+      ),
+    )
     .get() ?? null;
 }
 
@@ -373,14 +410,25 @@ export function listDirectorContracts(employeeId: number) {
   return getDb()
     .select()
     .from(directorContracts)
-    .where(and(eq(directorContracts.employeeId, employeeId), eq(directorContracts.companyId, loadCompany().id)))
+    .where(
+      and(
+        eq(directorContracts.employeeId, employeeId),
+        eq(directorContracts.companyId, loadCompany().id),
+        isNull(directorContracts.deletedAt),
+      ),
+    )
     .orderBy(desc(directorContracts.validFrom), desc(directorContracts.id))
     .all();
 }
 
 /** Every salary change grouped by person, oldest first. Used for the current salary in lists. */
 export function salaryPeriodsByEmployee(): Map<number, SalaryPeriod[]> {
-  const rows = getDb().select().from(salaryPeriods).orderBy(asc(salaryPeriods.validFrom)).all();
+  const rows = getDb()
+    .select()
+    .from(salaryPeriods)
+    .where(isNull(salaryPeriods.deletedAt))
+    .orderBy(asc(salaryPeriods.validFrom))
+    .all();
   const map = new Map<number, SalaryPeriod[]>();
   for (const row of rows) {
     const list = map.get(row.employeeId) ?? [];
@@ -406,7 +454,12 @@ export function loadPerson(id: number) {
   const db = getDb();
   const employee = db.select().from(employees).where(and(eq(employees.id, id), eq(employees.companyId, company.id))).get();
   if (!employee) return null;
-  const absenceRows = db.select().from(absences).where(eq(absences.employeeId, id)).orderBy(desc(absences.startDate)).all();
+  const absenceRows = db
+    .select()
+    .from(absences)
+    .where(and(eq(absences.employeeId, id), isNull(absences.deletedAt)))
+    .orderBy(desc(absences.startDate))
+    .all();
   const periods = listSalaryPeriods(id);
   const currentSalaryCents = salaryForMonth(periods, employee.grossMonthlyCents, todayIso().slice(0, 7));
   let estimate: ContributionEstimate | null = null;
@@ -467,7 +520,12 @@ export function listObligations(year: number) {
 }
 
 export function listDeadlines() {
-  return getDb().select().from(customDeadlines).where(eq(customDeadlines.companyId, loadCompany().id)).orderBy(asc(customDeadlines.dueDate)).all();
+  return getDb()
+    .select()
+    .from(customDeadlines)
+    .where(and(eq(customDeadlines.companyId, loadCompany().id), isNull(customDeadlines.deletedAt)))
+    .orderBy(asc(customDeadlines.dueDate))
+    .all();
 }
 
 export function listTasks() {
@@ -475,7 +533,7 @@ export function listTasks() {
   return getDb()
     .select()
     .from(tasks)
-    .where(eq(tasks.companyId, loadCompany().id))
+    .where(and(eq(tasks.companyId, loadCompany().id), isNull(tasks.deletedAt)))
     .all()
     .sort((a, b) => rank(a.status) - rank(b.status) || (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || a.id - b.id);
 }
@@ -486,14 +544,26 @@ export function listTime(anchor: string) {
   const entries = getDb()
     .select()
     .from(timeEntries)
-    .where(and(eq(timeEntries.companyId, loadCompany().id), gte(timeEntries.entryDate, start), lte(timeEntries.entryDate, end)))
+    .where(
+      and(
+        eq(timeEntries.companyId, loadCompany().id),
+        gte(timeEntries.entryDate, start),
+        lte(timeEntries.entryDate, end),
+        isNull(timeEntries.deletedAt),
+      ),
+    )
     .orderBy(asc(timeEntries.entryDate), asc(timeEntries.startedAt))
     .all();
   return { start, end, entries };
 }
 
 export function listDocuments() {
-  return getDb().select().from(documents).where(eq(documents.companyId, loadCompany().id)).orderBy(desc(documents.uploadedAt)).all();
+  return getDb()
+    .select()
+    .from(documents)
+    .where(and(eq(documents.companyId, loadCompany().id), isNull(documents.deletedAt)))
+    .orderBy(desc(documents.uploadedAt))
+    .all();
 }
 
 export function listCompliance() {

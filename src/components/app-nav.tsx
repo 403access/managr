@@ -34,6 +34,8 @@ export function NavIconGlyph({ name }: { name: NavIcon }) {
       {name === "milestones" ? <path {...common} d="M6 3.5v17M6 4.5h11l-2 3.5 2 3.5H6" /> : null}
       {name === "sources" ? <path {...common} d="M4 5.5h6.5a1.5 1.5 0 0 1 1.5 1.5v13a1.5 1.5 0 0 0-1.5-1.5H4zM20 5.5h-6.5A1.5 1.5 0 0 0 12 7v13a1.5 1.5 0 0 1 1.5-1.5H20zM7 9h2.5M7 12h2.5M14.5 9H17M14.5 12H17" /> : null}
       {name === "settings" ? <path {...common} d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" /> : null}
+      {name === "assistant" ? <path {...common} d="M4 12a8 8 0 0 1 8-8h1a7 7 0 0 1 0 14H9l-4 3v-4.5A8 8 0 0 1 4 12Z" /> : null}
+      {name === "trash" ? <path {...common} d="M4 7.5h16M9.5 7.5V4.5h5v3M6.5 7.5l1 13h9l1-13M10 11v6M14 11v6" /> : null}
     </svg>
   );
 }

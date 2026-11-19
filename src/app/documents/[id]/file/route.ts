@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { documents } from "@/db/schema";
 import { loadCompany } from "@/server/queries";
@@ -13,7 +13,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   const numeric = Number(id);
   if (!Number.isInteger(numeric) || numeric < 1) return new NextResponse("Not found", { status: 404 });
-  const document = getDb().select().from(documents).where(and(eq(documents.id, numeric), eq(documents.companyId, loadCompany().id))).get();
+  const document = getDb()
+    .select()
+    .from(documents)
+    .where(and(eq(documents.id, numeric), eq(documents.companyId, loadCompany().id), isNull(documents.deletedAt)))
+    .get();
   if (!document) return new NextResponse("Not found", { status: 404 });
   try {
     const bytes = new Uint8Array(readFileSync(storedFilePath(document.storedName)));

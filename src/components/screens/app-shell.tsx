@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { dismissSample } from "@/server/actions";
 import type { shellView } from "@/server/views";
 import { queryKeys, viewPath } from "@/client/query-keys";
@@ -13,9 +14,12 @@ import { CommandBar } from "@/components/command-bar";
 import { InfoPanel, InfoProvider } from "@/components/info-sheet";
 import { useI18n } from "@/components/locale-provider";
 import { SettingsProvider } from "@/components/settings-provider";
+import { UndoToast } from "@/components/undo-toast";
 import { useView } from "@/components/use-view";
 
 type Shell = ReturnType<typeof shellView>;
+
+type LastDeletion = { kind: string; id: number; label: string; detail?: string };
 
 const SIDEBAR_STORAGE_KEY = "managr-sidebar-collapsed";
 
@@ -27,9 +31,10 @@ function readCollapsedPreference(): boolean {
   }
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, lastDeletion }: { children: ReactNode; lastDeletion?: LastDeletion | null }) {
   const query = useView<Shell>(queryKeys.shell, viewPath.shell);
   const { t } = useI18n();
+  const pathname = usePathname();
   const company = query.data;
   const [collapsed, setCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -145,7 +150,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <AppNav variant="bottom" />
         <CommandBar open={commandOpen} onOpen={openCommand} onClose={closeCommand} />
-        <Assistant />
+        {pathname === "/assistant" ? null : <Assistant />}
+        {lastDeletion ? <UndoToast deletion={lastDeletion} /> : null}
       </div>
         </AddSheetProvider>
       </SettingsProvider>

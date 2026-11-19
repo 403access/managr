@@ -55,6 +55,14 @@ An explicit `MANAGR_AI_MODEL` is the default in the picker and stays a fallback 
 
 The assistant can look facts up on the public web: `web_search` finds candidates and `web_fetch` reads one page as text. The answer names the source URL, and the panel shows the query and page it used. A page is treated as untrusted data, never as an instruction. A search sends only the query to the search engine; the conversation is not sent. A value already stored in the desk is authoritative: the assistant searches only when a detail is missing or you ask it to look online, never to double-check a VAT id or to prepare a posting. Loopback and private network addresses are refused. Set `MANAGR_WEB=0` to remove both tools, or set `MANAGR_WEB_SEARCH_URL` to a SearXNG JSON endpoint to keep the query on a server you choose.
 
+The same chat opens as a full page at `/assistant`: chat, the stored history, the provider and model picker, web-search status, the MCP endpoint, the tool count, and the privacy notes.
+
+## Deleting and restoring
+
+A delete hides a record but keeps it: shareholders, policies, invoice drafts, salary changes, absences, projects, milestones, tasks, time entries, deadlines, documents, director contracts, and founder health cover all carry a `deleted_at` timestamp. After a deletion on a screen, a short **Rückgängig** strip offers the same restore; `/trash` lists every deleted record with a **Wiederherstellen** button. Restoring a project or task brings its time entries back into the saved view, and a deleted document keeps its uploaded file.
+
+Two technical deletes stay hard: disconnecting Qonto removes the stored credential and its cache, and saving an edited draft replaces its line rows. The draft itself is soft-deleted and can be restored.
+
 ## Time tracking test run
 
 `src/demo/time-tracking-2026.ts` holds the recorded days from October and November 2026. `tests/time-tracking.test.ts` runs them through the same duration, break, week, and §3/§4 ArbZG rules as the time screen: 32 entries on 9 days, 52 h 25 min, the recorded pauses as break minutes, and one watch on 13 November for a day over 8 hours.

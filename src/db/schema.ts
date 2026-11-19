@@ -51,6 +51,7 @@ export const shareholders = sqliteTable("shareholders", {
   city: text("city").notNull().default(""),
   shareBps: integer("share_bps").notNull(),
   nominalCents: integer("nominal_cents").notNull(),
+  deletedAt: text("deleted_at"),
 });
 
 export const customers = sqliteTable("customers", {
@@ -113,6 +114,7 @@ export const invoices = sqliteTable("invoices", {
   buyerReference: text("buyer_reference").notNull().default(""),
   amountDisplay: text("amount_display").notNull().default("net"),
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
+  deletedAt: text("deleted_at"),
 }, (table) => [uniqueIndex("invoices_company_number_unique").on(table.companyId, table.number)]);
 
 export const invoiceLines = sqliteTable("invoice_lines", {
@@ -177,6 +179,7 @@ export const salaryPeriods = sqliteTable(
     validFrom: text("valid_from").notNull(),
     grossMonthlyCents: integer("gross_monthly_cents").notNull(),
     note: text("note").notNull().default(""),
+    deletedAt: text("deleted_at"),
   },
   (table) => [uniqueIndex("salary_periods_employee_from_unique").on(table.employeeId, table.validFrom)],
 );
@@ -191,6 +194,7 @@ export const directorContracts = sqliteTable("director_contracts", {
   grossMonthlyCents: integer("gross_monthly_cents").notNull(),
   notes: text("notes").notNull().default(""),
   createdAt: text("created_at").notNull(),
+  deletedAt: text("deleted_at"),
 });
 
 export const founderHealth = sqliteTable(
@@ -208,6 +212,7 @@ export const founderHealth = sqliteTable(
     statusOutcome: text("status_outcome").notNull().default("open"),
     notes: text("notes").notNull().default(""),
     createdAt: text("created_at").notNull(),
+    deletedAt: text("deleted_at"),
   },
   (table) => [uniqueIndex("founder_health_employee_unique").on(table.companyId, table.employeeId)],
 );
@@ -242,6 +247,7 @@ export const absences = sqliteTable("absences", {
   kind: text("kind").notNull(),
   status: text("status").notNull(),
   notes: text("notes").notNull().default(""),
+  deletedAt: text("deleted_at"),
 });
 
 export const projects = sqliteTable("projects", {
@@ -254,6 +260,7 @@ export const projects = sqliteTable("projects", {
   endedOn: text("ended_on"),
   notes: text("notes").notNull().default(""),
   hourlyRateCents: integer("hourly_rate_cents"),
+  deletedAt: text("deleted_at"),
 });
 
 export const tasks = sqliteTable("tasks", {
@@ -268,6 +275,7 @@ export const tasks = sqliteTable("tasks", {
   taskType: text("task_type").notNull().default("other"),
   deliverable: integer("deliverable", { mode: "boolean" }).notNull().default(false),
   completedAt: text("completed_at"),
+  deletedAt: text("deleted_at"),
 });
 
 export const timeEntries = sqliteTable("time_entries", {
@@ -284,6 +292,7 @@ export const timeEntries = sqliteTable("time_entries", {
   billable: integer("billable", { mode: "boolean" }).notNull().default(false),
   taskType: text("task_type").notNull().default("other"),
   hourlyRateCents: integer("hourly_rate_cents"),
+  deletedAt: text("deleted_at"),
 });
 
 export const documents = sqliteTable("documents", {
@@ -297,6 +306,7 @@ export const documents = sqliteTable("documents", {
   sizeBytes: integer("size_bytes").notNull(),
   notes: text("notes").notNull().default(""),
   uploadedAt: text("uploaded_at").notNull(),
+  deletedAt: text("deleted_at"),
 });
 
 export const obligationStates = sqliteTable(
@@ -320,6 +330,7 @@ export const customDeadlines = sqliteTable("custom_deadlines", {
   recurrence: text("recurrence").notNull(),
   status: text("status").notNull(),
   notes: text("notes").notNull().default(""),
+  deletedAt: text("deleted_at"),
 });
 
 export const resolutions = sqliteTable("resolutions", {
@@ -353,6 +364,7 @@ export const policies = sqliteTable("policies", {
   monthlyPremiumCents: integer("monthly_premium_cents").notNull().default(0),
   renewalDate: text("renewal_date"),
   notes: text("notes").notNull().default(""),
+  deletedAt: text("deleted_at"),
 });
 
 export const milestones = sqliteTable("milestones", {
@@ -364,6 +376,7 @@ export const milestones = sqliteTable("milestones", {
   targetDate: text("target_date").notNull(),
   progress: integer("progress").notNull().default(0),
   createdAt: text("created_at").notNull(),
+  deletedAt: text("deleted_at"),
 });
 
 /** A goal can span companies. No row means it applies to the group as a whole. */

@@ -39,6 +39,8 @@ Persisted money is integer cents. A euro input is parsed by `parseEuroToCents` (
 
 Every bookkeeping table carries `company_id`. The active company is the row with `companies.is_active = 1`; switching is a database write, so it applies to the whole local desk. `accounts` is one shared SKR03 chart, while journal entries, invoices, customers, people, time, documents, obligations, and legal records are filtered by the active company. Invoice numbers and posting source keys are unique per company. A printed or downloaded invoice uses the company stored on that invoice, not whichever company is active.
 
+User-facing deletes are soft. Shareholders, policies, invoice drafts, salary changes, absences, projects, milestones, tasks, time entries, deadlines, documents, director contracts, and founder health cover carry `deleted_at`; migrations `0017_soft_delete.sql` adds the columns, every list and lookup filters `isNull`, and `src/server/trash.ts` lists and restores the rows. A deletion on a screen stores the last record in a cookie; `src/server/deletions.ts` reads it for the **Rückgängig** strip. Disconnecting Qonto and replacing the lines of an edited draft stay hard deletes: one is a credential, the other is internal to the draft.
+
 The first launch of an empty database loads the sample company Atelier Nordlicht UG. Deleting `data/managr.db` restores it. User data lives only in that file and in `data/uploads`.
 
 Two saved copies, `data/managr.demo.db` and `data/managr.production.db`, can be swapped with the open `data/managr.db`. `bun run db:demo` and `bun run db:prod` load a copy; `bun run db:demo:set` and `bun run db:prod:set` save the open database into a copy. `bun run db:prod:init` creates a clean production database with the schema and chart of accounts but no sample books. Production only accepts `db:prod:set` without `--from` while it is already active, and the script refuses a demo or sample database, so production never starts from demo books. `data/managr.active` records which copy is open, and `bun run db:status` shows it. Switching copies the open database back to its saved copy first, so stop the desk before switching and start it again afterwards. Uploads are not copied and stay shared in `data/uploads`.
@@ -124,6 +126,8 @@ The repository's `.opencode/opencode.json` registers `managr-mcp` at `/api/mcp` 
 ## UI
 
 `(app)/layout.tsx` hydrates the shell. The shell is a client component: sidebar from 768px up, bottom navigation below that. The invoice print route sits outside the shell. Screens, the mobile menu, invoice lines, and journal lines are client components. The page files stay server components so they can prefetch the view.
+
+`/assistant` is the full-page form of the chat: the same client component as the floating panel with `variant="page"`, beside server-rendered status cards for the model picker, web search, the MCP endpoint, the tool count, and privacy. The shell hides the floating button on that route.
 
 The command bar opens from the sidebar, the mobile header, or `Cmd/Ctrl+K`. `commandView` in `src/server/views.ts` builds one index from the same list queries the screens use: navigation pages plus invoices, customers, people, projects and tasks, documents, deadlines, milestones, legal records, company records, and accounts. The browser caches `GET /api/views/command` with TanStack Query, filters page titles and entry text locally, and navigates to the record route or the tab that holds it.
 
