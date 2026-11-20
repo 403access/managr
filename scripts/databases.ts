@@ -98,26 +98,34 @@ function createCleanDatabase(destination: string, legalName: string): void {
 
   const sqlite = new Database(temporary);
   try {
-    sqlite.pragma("foreign_keys = OFF");
-    migrate(sqlite);
+    // Close the handle before a failed run deletes the temp file, or Windows keeps it locked.
+    try {
+      sqlite.pragma("foreign_keys = OFF");
+      migrate(sqlite);
 
-    const insertAccount = sqlite.prepare(
-      "INSERT INTO accounts (code, name, type, pnl, system) VALUES (?, ?, ?, ?, 1)",
-    );
-    sqlite.transaction(() => {
-      for (const account of CHART) {
-        insertAccount.run(account.code, account.name, account.type, account.pnl);
-      }
-    })();
+      // Some migrations already insert system accounts (1700, 7300), so skip codes that exist.
+      const insertAccount = sqlite.prepare(
+        "INSERT OR IGNORE INTO accounts (code, name, type, pnl, system) VALUES (?, ?, ?, ?, 1)",
+      );
+      sqlite.transaction(() => {
+        for (const account of CHART) {
+          insertAccount.run(account.code, account.name, account.type, account.pnl);
+        }
+      })();
 
-    sqlite
-      .prepare(
-        "INSERT INTO companies (legal_name, legal_form, share_capital_cents, founding_date, is_sample, is_active) VALUES (?, 'ug', 0, ?, 0, 1)",
-      )
-      .run(legalName, new Date().toISOString().slice(0, 10));
-    sqlite.pragma("foreign_keys = ON");
-  } finally {
-    sqlite.close();
+      sqlite
+        .prepare(
+          "INSERT INTO companies (legal_name, legal_form, share_capital_cents, founding_date, is_sample, is_active) VALUES (?, 'ug', 0, ?, 0, 1)",
+        )
+        .run(legalName, new Date().toISOString().slice(0, 10));
+      sqlite.pragma("foreign_keys = ON");
+    } finally {
+      sqlite.close();
+    }
+  } catch (error) {
+    removeSidecars(temporary);
+    fs.rmSync(temporary, { force: true });
+    throw error;
   }
 
   removeSidecars(temporary);
