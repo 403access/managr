@@ -87,6 +87,7 @@ export async function POST(request: Request) {
         model: settings.displayName,
         baseUrl: settings.baseUrl,
         local: settings.local,
+        protocol: settings.protocol,
         providerID: settings.providerID,
         modelID: settings.modelID,
       });

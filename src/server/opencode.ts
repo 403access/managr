@@ -17,7 +17,7 @@ export type OpencodeModel = {
   capabilities?: { tools?: boolean };
   status?: string;
   enabled?: boolean;
-  limit?: { context?: number };
+  limit?: { context?: number; output?: number };
 };
 
 /** The parts of `GET /api/provider` that the assistant needs. */
@@ -37,7 +37,19 @@ export type OpencodeCredential = {
   value?: { type?: string; key?: string; access?: string; expires?: number };
 };
 
-export type AssistantProvider = { id: string; name: string };
+/** How managr talks to a provider. Both protocols carry the same tool calls. */
+export type ChatProtocol = "openai" | "anthropic";
+
+export type AssistantProvider = {
+  id: string;
+  name: string;
+  /** The wire protocol the provider's endpoint speaks. */
+  protocol: ChatProtocol;
+  /** A loopback endpoint keeps the conversation on this computer. */
+  local: boolean;
+  /** How many offered models this provider has. */
+  modelCount: number;
+};
 
 export type AssistantModel = {
   id: string;
@@ -45,8 +57,11 @@ export type AssistantModel = {
   modelID: string;
   name: string;
   providerName: string;
+  protocol: ChatProtocol;
   local: boolean;
   context?: number;
+  /** Upper bound for one answer, used by the Anthropic protocol. */
+  maxOutput?: number;
 };
 
 export type AssistantSelection = { providerID: string; modelID: string };
@@ -64,14 +79,20 @@ export type ResolvedOpencodeModel = {
   modelID: string;
   name: string;
   providerName: string;
+  protocol: ChatProtocol;
   baseUrl: string;
   apiKey?: string;
   headers: Record<string, string>;
   local: boolean;
+  maxOutput?: number;
 };
 
 /** Provider packages that speak the OpenAI chat-completions protocol. */
 const OPENAI_PACKAGE = /(^|\/)(openai-compatible|openrouter|openai)$/;
+/** Provider packages that speak the Anthropic messages protocol. */
+const ANTHROPIC_PACKAGE = /(^|\/)(anthropic|anthropic-compatible)$/;
+
+const DEFAULT_ANTHROPIC_OUTPUT = 8192;
 
 export function isLocalBaseUrl(value: string): boolean {
   try {
@@ -82,11 +103,23 @@ export function isLocalBaseUrl(value: string): boolean {
   }
 }
 
-function providerChatBaseUrl(model: OpencodeModel, provider: OpencodeProvider): string | undefined {
-  const providerBase = provider.settings?.baseURL;
-  if (providerBase && OPENAI_PACKAGE.test(provider.package ?? "")) return providerBase;
-  if (OPENAI_PACKAGE.test(model.package ?? "")) return model.settings?.baseURL ?? providerBase;
+/**
+ * The protocol comes from the provider package that opencode resolved, not from
+ * the model: a user-defined provider in opencode.json names its protocol once
+ * and every model below it inherits that. The model package is only a fallback.
+ */
+export function chatProtocol(model: OpencodeModel, provider: OpencodeProvider): ChatProtocol | undefined {
+  for (const candidate of [provider.package, model.package]) {
+    if (!candidate) continue;
+    if (ANTHROPIC_PACKAGE.test(candidate)) return "anthropic";
+    if (OPENAI_PACKAGE.test(candidate)) return "openai";
+  }
   return undefined;
+}
+
+function providerChatBaseUrl(model: OpencodeModel, provider: OpencodeProvider): string | undefined {
+  // A provider-level endpoint wins: it is where the user pointed the provider.
+  return provider.settings?.baseURL || model.settings?.baseURL;
 }
 
 function isChatModel(model: OpencodeModel, provider: OpencodeProvider): boolean {
@@ -94,7 +127,7 @@ function isChatModel(model: OpencodeModel, provider: OpencodeProvider): boolean 
   if (model.type && model.type !== "chat") return false;
   if (model.enabled === false || model.status === "deprecated") return false;
   if (model.capabilities?.tools !== true) return false;
-  return Boolean(providerChatBaseUrl(model, provider));
+  return Boolean(chatProtocol(model, provider) && providerChatBaseUrl(model, provider));
 }
 
 export function credentialFor(provider: OpencodeProvider, credentials: OpencodeCredential[]): string | undefined {
@@ -123,6 +156,8 @@ export function buildOpencodeCatalog(
     const key = `${model.providerID}/${model.modelID}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    const protocol = chatProtocol(model, provider);
+    if (!protocol) continue;
     const baseUrl = providerChatBaseUrl(model, provider) ?? "";
     catalogModels.push({
       id: key,
@@ -130,16 +165,31 @@ export function buildOpencodeCatalog(
       modelID: model.modelID,
       name: model.name?.trim() || model.modelID,
       providerName: provider.name?.trim() || provider.id,
+      protocol,
       local: isLocalBaseUrl(baseUrl),
       context: model.limit?.context,
+      maxOutput: model.limit?.output,
     });
   }
 
   catalogModels.sort((left, right) => left.name.localeCompare(right.name) || left.providerName.localeCompare(right.providerName));
-  const usedProviders = new Set(catalogModels.map((model) => model.providerID));
-  const catalogProviders = providers
-    .filter((provider) => usedProviders.has(provider.id))
-    .map((provider) => ({ id: provider.id, name: provider.name?.trim() || provider.id }))
+
+  // A provider stays in the list even when none of its models is offered, so the
+  // panel can say why instead of silently dropping the entry the user configured.
+  const catalogProviders: AssistantProvider[] = providers
+    .filter((provider) => provider.id !== "env")
+    .map((provider) => {
+      const owned = catalogModels.filter((model) => model.providerID === provider.id);
+      const fallbackProtocol = chatProtocol({ modelID: "", providerID: provider.id }, provider) ?? "openai";
+      const local = owned.length > 0 ? owned[0].local : isLocalBaseUrl(provider.settings?.baseURL ?? "");
+      return {
+        id: provider.id,
+        name: provider.name?.trim() || provider.id,
+        protocol: owned[0]?.protocol ?? fallbackProtocol,
+        local,
+        modelCount: owned.length,
+      };
+    })
     .sort((left, right) => left.name.localeCompare(right.name));
 
   const defaultSelection =
@@ -152,7 +202,7 @@ export function buildOpencodeCatalog(
   return { available: true, providers: catalogProviders, models: catalogModels, default: defaultSelection };
 }
 
-/** Resolve a selection to an OpenAI-compatible endpoint and its credential. */
+/** Resolve a selection to a chat endpoint and its credential. */
 export function resolveOpencodeModel(
   models: OpencodeModel[],
   providers: OpencodeProvider[],
@@ -162,6 +212,8 @@ export function resolveOpencodeModel(
   const provider = providers.find((candidate) => candidate.id === selection.providerID);
   const model = models.find((candidate) => candidate.providerID === selection.providerID && candidate.modelID === selection.modelID);
   if (!provider || !model || !isChatModel(model, provider)) return null;
+  const protocol = chatProtocol(model, provider);
+  if (!protocol) return null;
   const baseUrl = providerChatBaseUrl(model, provider);
   if (!baseUrl) return null;
   return {
@@ -169,11 +221,19 @@ export function resolveOpencodeModel(
     modelID: model.modelID,
     name: model.name?.trim() || model.modelID,
     providerName: provider.name?.trim() || provider.id,
+    protocol,
     baseUrl: baseUrl.replace(/\/+$/, ""),
     apiKey: credentialFor(provider, credentials) ?? provider.settings?.apiKey ?? model.settings?.apiKey,
     headers: { ...(provider.headers ?? {}), ...(model.headers ?? {}) },
     local: isLocalBaseUrl(baseUrl),
+    maxOutput: model.limit?.output,
   };
+}
+
+/** Anthropic requires a positive max_tokens; a provider may not publish a limit. */
+export function anthropicMaxTokens(model: { maxOutput?: number }): number {
+  const published = model.maxOutput ?? 0;
+  return published > 0 ? published : DEFAULT_ANTHROPIC_OUTPUT;
 }
 
 type Snapshot = {

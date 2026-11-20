@@ -77,9 +77,11 @@ describe("assistant model choice", () => {
   it("offers the environment model when opencode is turned off", async () => {
     vi.stubEnv("MANAGR_AI_MODEL", "test-model");
     const catalog = await assistantCatalog();
-    expect(catalog.providers).toEqual([{ id: "env", name: "MANAGR_AI_*" }]);
+    expect(catalog.providers).toEqual([
+      expect.objectContaining({ id: "env", name: "MANAGR_AI_*", protocol: "openai" }),
+    ]);
     expect(catalog.models).toEqual([
-      expect.objectContaining({ providerID: "env", modelID: "test-model", name: "test-model", local: true }),
+      expect.objectContaining({ providerID: "env", modelID: "test-model", name: "test-model", local: true, protocol: "openai" }),
     ]);
     expect(catalog.default).toEqual({ providerID: "env", modelID: "test-model" });
   });
@@ -101,6 +103,160 @@ describe("assistant loop", () => {
   it("refuses to answer without a configured model", async () => {
     vi.stubEnv("MANAGR_AI_MODEL", "");
     await expect(runAssistant([{ role: "user", content: "Hallo" }])).rejects.toBeInstanceOf(AssistantNotConfigured);
+  });
+
+  it("answers through the Anthropic protocol when the provider speaks it", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const authHeaders: Record<string, string>[] = [];
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+      authHeaders.push(init.headers as Record<string, string>);
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            content: [
+              { type: "text", text: "Die Bank steht im Briefing." },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const settings = {
+      baseUrl: "https://token-plan.example/anthropic/v1",
+      model: "deepseek-v4.1-flash",
+      hasKey: true,
+      local: false,
+      displayName: "DeepSeek V4.1 Flash",
+      source: "opencode" as const,
+      providerID: "qwencloud",
+      modelID: "deepseek-v4.1-flash",
+      protocol: "anthropic" as const,
+      maxOutput: 65_536,
+      apiKey: "qwen-secret",
+    };
+
+    const events: AssistantEvent[] = [];
+    for await (const event of streamAssistant([{ role: "user", content: "Wie hoch ist die Bank?" }], undefined, settings)) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([{ type: "reply", text: "Die Bank steht im Briefing." }]);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://token-plan.example/anthropic/v1/messages");
+    expect(authHeaders[0]).toMatchObject({ "x-api-key": "qwen-secret", "anthropic-version": "2023-06-01" });
+    expect(authHeaders[0].authorization).toBeUndefined();
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.system).toContain("assistant inside managr");
+    expect(body.max_tokens).toBe(65_536);
+    expect(body.messages[0]).toEqual({ role: "user", content: [{ type: "text", text: "Wie hoch ist die Bank?" }] });
+    expect(body.tools.some((tool: { name: string; input_schema?: unknown }) => tool.name === "read_desk" && tool.input_schema)).toBe(true);
+  });
+
+  it("replays an Anthropic tool use and its result as content blocks", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            content: [{ type: "tool_use", id: "toolu_1", name: "read_desk", input: {} }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ content: [{ type: "text", text: "Fertig." }] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const settings = {
+      baseUrl: "https://token-plan.example/anthropic/v1",
+      model: "deepseek-v4.1-flash",
+      hasKey: true,
+      local: false,
+      displayName: "DeepSeek V4.1 Flash",
+      source: "opencode" as const,
+      providerID: "qwencloud",
+      modelID: "deepseek-v4.1-flash",
+      protocol: "anthropic" as const,
+      apiKey: "qwen-secret",
+    };
+
+    const events: AssistantEvent[] = [];
+    for await (const event of streamAssistant([{ role: "user", content: "Wie hoch ist die Bank?" }], undefined, settings)) {
+      events.push(event);
+    }
+
+    expect(events.some((event) => event.type === "tool_result" && event.name === "read_desk" && event.ok)).toBe(true);
+    expect(events.at(-1)).toEqual({ type: "reply", text: "Fertig." });
+    const second = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const assistantTurn = second.messages.find((message: { role: string }) => message.role === "assistant");
+    const toolTurn = second.messages.at(-1);
+    expect(assistantTurn.content).toEqual([{ type: "tool_use", id: "toolu_1", name: "read_desk", input: {} }]);
+    expect(toolTurn.role).toBe("user");
+    expect(toolTurn.content[0]).toMatchObject({ type: "tool_result", tool_use_id: "toolu_1" });
+  });
+
+  it("puts every Anthropic tool result of one turn into a single user message", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            content: [
+              { type: "tool_use", id: "toolu_a", name: "read_desk", input: {} },
+              { type: "tool_use", id: "toolu_b", name: "read_companies", input: {} },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ content: [{ type: "text", text: "Fertig." }] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const settings = {
+      baseUrl: "https://token-plan.example/anthropic/v1",
+      model: "deepseek-v4.1-flash",
+      hasKey: true,
+      local: false,
+      displayName: "DeepSeek V4.1 Flash",
+      source: "opencode" as const,
+      providerID: "qwencloud",
+      modelID: "deepseek-v4.1-flash",
+      protocol: "anthropic" as const,
+      apiKey: "qwen-secret",
+    };
+
+    for await (const _event of streamAssistant([{ role: "user", content: "Lies Schreibtisch und Firmen." }], undefined, settings)) {
+      // Drain the stream; the request body is the assertion.
+    }
+
+    const second = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const last = second.messages.at(-1);
+    expect(last.role).toBe("user");
+    expect(last.content.map((block: { type: string }) => block.type)).toEqual(["tool_result", "tool_result"]);
+    expect(last.content.map((block: { tool_use_id: string }) => block.tool_use_id)).toEqual(["toolu_a", "toolu_b"]);
+  });
+
+  it("answers through the OpenAI protocol by default", async () => {
+    vi.stubEnv("MANAGR_AI_MODEL", "test-model");
+    const fetchMock = vi.fn().mockResolvedValueOnce(completion({ role: "assistant", content: "Alles klar." }));
+    vi.stubGlobal("fetch", fetchMock);
+    await runAssistant([{ role: "user", content: "Hallo" }]);
+    expect(fetchMock.mock.calls[0][0]).toBe("http://127.0.0.1:11434/v1/chat/completions");
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.messages[0].role).toBe("system");
+    expect(body.max_tokens).toBeUndefined();
   });
 
   it("skips an empty assistant turn and keeps only the recent turns", async () => {

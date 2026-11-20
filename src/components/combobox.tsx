@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 
-export type ComboboxOption = { value: string; label: string; hint?: string };
+export type ComboboxOption = {
+  value: string;
+  label: string;
+  hint?: string;
+  /** A short chip shown beside the label, such as a protocol name. */
+  tag?: string;
+  /** A second, quieter line under the label in the list. */
+  description?: string;
+  disabled?: boolean;
+};
 
 type Props = {
   label: string;
@@ -74,7 +83,8 @@ export function Combobox({
     if (disabled) return;
     setOpen(true);
     setQuery("");
-    setActive(Math.max(0, options.findIndex((option) => option.value === value)));
+    const selectedIndex = options.findIndex((option) => option.value === value && !option.disabled);
+    setActive(selectedIndex >= 0 ? selectedIndex : Math.max(0, options.findIndex((option) => !option.disabled)));
   }
 
   function closeAndFocus() {
@@ -114,8 +124,12 @@ export function Combobox({
 
   useEffect(() => {
     if (!open) return;
-    setActive((current) => (current < filtered.length ? current : Math.max(0, filtered.length - 1)));
-  }, [filtered.length, open, query]);
+    setActive((current) => {
+      if (current < filtered.length && !filtered[current]?.disabled) return current;
+      const firstEnabled = filtered.findIndex((option) => !option.disabled);
+      return firstEnabled >= 0 ? firstEnabled : 0;
+    });
+  }, [filtered, open, query]);
 
   function onSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown") {
@@ -127,7 +141,7 @@ export function Combobox({
     } else if (event.key === "Enter") {
       event.preventDefault();
       const option = filtered[active];
-      if (option) choose(option.value);
+      if (option && !option.disabled) choose(option.value);
     } else if (event.key === "Escape") {
       event.preventDefault();
       closeAndFocus();
@@ -205,16 +219,29 @@ export function Combobox({
                       id={`${id}-option-${index}`}
                       role="option"
                       aria-selected={option.value === value}
+                      aria-disabled={option.disabled || undefined}
                       onMouseEnter={() => setActive(index)}
-                      onClick={() => choose(option.value)}
-                      className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-2 text-left text-sm ${
-                        index === active ? "bg-pine/10" : ""
-                      }`}
+                      onClick={() => {
+                        if (!option.disabled) choose(option.value);
+                      }}
+                      className={`flex min-h-11 items-start gap-2 rounded-lg px-2 py-1.5 text-left text-sm ${
+                        option.disabled ? "cursor-not-allowed text-muted/60" : "cursor-pointer"
+                      } ${index === active && !option.disabled ? "bg-pine/10" : ""}`}
                     >
-                      <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                      {option.hint ? <span className="shrink-0 font-mono text-[10px] text-muted">{option.hint}</span> : null}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">{option.label}</span>
+                        {option.description ? (
+                          <span className="mt-0.5 block truncate text-[10px] text-muted">{option.description}</span>
+                        ) : null}
+                      </span>
+                      {option.tag ? (
+                        <span className="mt-0.5 shrink-0 rounded-full bg-pine/10 px-1.5 py-0.5 text-[10px] font-medium text-pine">
+                          {option.tag}
+                        </span>
+                      ) : null}
+                      {option.hint ? <span className="mt-0.5 shrink-0 font-mono text-[10px] text-muted">{option.hint}</span> : null}
                       {option.value === value ? (
-                        <span className="shrink-0 text-pine" aria-hidden="true">
+                        <span className="mt-0.5 shrink-0 text-pine" aria-hidden="true">
                           ✓
                         </span>
                       ) : null}

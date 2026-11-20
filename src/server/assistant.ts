@@ -1,18 +1,20 @@
 import "server-only";
 import { todayIso } from "@/domain/calendar";
 import {
+  anthropicMaxTokens,
   isLocalBaseUrl,
   opencodeSnapshot,
   resolveOpencodeModel,
   type AssistantCatalog,
   type AssistantSelection,
+  type ChatProtocol,
   type ResolvedOpencodeModel,
 } from "./opencode";
 import { loadCompany } from "./queries";
 import { changeAction, type ApprovalGate, type ProposedChange } from "./approvals";
 import { changeLabels } from "./change-labels";
 import type { PlanStep } from "@/domain/assistant-plan";
-import { needsApproval, openAiTools, runTool, findTool } from "./tools";
+import { needsApproval, openAiTools, anthropicTools, runTool, findTool } from "./tools";
 import { webEnabled } from "./web";
 
 export type { AssistantCatalog, AssistantSelection } from "./opencode";
@@ -30,6 +32,10 @@ export type ResolvedAssistantSettings = AssistantSettings & {
   source: "env" | "opencode";
   providerID?: string;
   modelID?: string;
+  /** The wire protocol of the endpoint. The environment setting is OpenAI-only. */
+  protocol: ChatProtocol;
+  /** The most tokens one answer may use; required by the Anthropic protocol. */
+  maxOutput?: number;
   apiKey?: string;
   headers?: Record<string, string>;
 };
@@ -70,6 +76,7 @@ function envResolved(): ResolvedAssistantSettings | null {
     source: "env",
     providerID: "env",
     modelID: settings.model,
+    protocol: "openai",
     apiKey: process.env.MANAGR_AI_API_KEY?.trim() || undefined,
   };
 }
@@ -84,6 +91,8 @@ function fromOpencode(model: ResolvedOpencodeModel): ResolvedAssistantSettings {
     source: "opencode",
     providerID: model.providerID,
     modelID: model.modelID,
+    protocol: model.protocol,
+    maxOutput: model.maxOutput,
     apiKey: model.apiKey,
     headers: model.headers,
   };
@@ -127,16 +136,17 @@ export async function resolveAssistantSettings(selection?: AssistantSelection): 
 export async function assistantCatalog(): Promise<AssistantCatalog> {
   const snapshot = await opencodeSnapshot();
   const env = envResolved();
-  const providers = [...snapshot.catalog.providers];
+  const providers = snapshot.catalog.providers.filter((provider) => provider.id !== "env");
   const models = [...snapshot.catalog.models];
   if (env) {
-    providers.unshift({ id: "env", name: "MANAGR_AI_*" });
+    providers.unshift({ id: "env", name: "MANAGR_AI_*", protocol: "openai", local: env.local, modelCount: 1 });
     models.unshift({
       id: `env/${env.model}`,
       providerID: "env",
       modelID: env.model,
       name: env.model,
       providerName: "MANAGR_AI_*",
+      protocol: "openai",
       local: env.local,
     });
   }
@@ -225,12 +235,175 @@ type Completion = {
   streamed: boolean;
 };
 
+/** One tool result, addressed to the call that produced it. */
+type ToolResultTurn = { id: string; name: string; content: string };
+
+/**
+ * The conversation in a protocol-neutral shape. The endpoint adapter turns this
+ * into an OpenAI `messages` array or an Anthropic `messages` array, so the tool
+ * loop below does not care which provider is answering.
+ */
+type HistoryTurn =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string; calls: PendingCall[] }
+  | { role: "tool"; results: ToolResultTurn[] };
+
+function openAiMessages(system: string, turns: HistoryTurn[]) {
+  const messages: Record<string, unknown>[] = [{ role: "system", content: system }];
+  for (const turn of turns) {
+    if (turn.role === "user") {
+      messages.push({ role: "user", content: turn.content });
+    } else if (turn.role === "assistant") {
+      messages.push({
+        role: "assistant",
+        content: turn.content,
+        ...(turn.calls.length > 0
+          ? {
+              tool_calls: turn.calls.map((call) => ({
+                id: call.id,
+                type: "function" as const,
+                function: { name: call.name, arguments: call.arguments || "{}" },
+              })),
+            }
+          : {}),
+      });
+    } else {
+      for (const result of turn.results) {
+        messages.push({ role: "tool", tool_call_id: result.id, content: result.content });
+      }
+    }
+  }
+  return messages;
+}
+
+/**
+ * The Anthropic protocol keeps the system prompt outside the message list, wants
+ * `tool_use` / `tool_result` content blocks, and needs every result of one
+ * assistant turn inside the following user message.
+ */
+function anthropicMessages(system: string, turns: HistoryTurn[]) {
+  const messages: { role: "user" | "assistant"; content: Record<string, unknown>[] }[] = [];
+  for (const turn of turns) {
+    if (turn.role === "user") {
+      messages.push({ role: "user", content: [{ type: "text", text: turn.content }] });
+    } else if (turn.role === "assistant") {
+      const blocks: Record<string, unknown>[] = [];
+      if (turn.content) blocks.push({ type: "text", text: turn.content });
+      for (const call of turn.calls) {
+        blocks.push({ type: "tool_use", id: call.id, name: call.name, input: parseArguments(call.arguments) });
+      }
+      messages.push({ role: "assistant", content: blocks });
+    } else {
+      const results = turn.results.map((result) => ({
+        type: "tool_result",
+        tool_use_id: result.id,
+        content: result.content,
+      }));
+      if (results.length === 0) continue;
+      // The protocol wants all results of one assistant turn in a single user
+      // message, so a second result turn joins the previous result blocks.
+      const previous = messages.at(-1);
+      const previousIsResults =
+        previous?.role === "user" && previous.content.every((block) => block.type === "tool_result");
+      if (previous && previousIsResults) previous.content.push(...results);
+      else messages.push({ role: "user", content: results });
+    }
+  }
+  return { system, messages };
+}
+
+/** Reads an OpenAI chat-completions stream. */
+function openAiStream(buffer: string): { text?: string; calls?: { index: number; id?: string; name?: string; arguments?: string }[] } | null {
+  if (!buffer.startsWith("data:")) return null;
+  const data = buffer.slice(5).trim();
+  if (!data || data === "[DONE]") return null;
+  let chunk: {
+    choices?: { delta?: { content?: string | null; tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[] } }[];
+  };
+  try {
+    chunk = JSON.parse(data);
+  } catch {
+    return null;
+  }
+  const delta = chunk.choices?.[0]?.delta;
+  if (!delta) return null;
+  const calls = (delta.tool_calls ?? []).map((call, position) => ({
+    index: typeof call.index === "number" ? call.index : position,
+    id: call.id,
+    name: call.function?.name,
+    arguments: call.function?.arguments,
+  }));
+  return {
+    ...(typeof delta.content === "string" && delta.content ? { text: delta.content } : {}),
+    ...(calls.length > 0 ? { calls } : {}),
+  };
+}
+
+type AnthropicEvent = { index: number; text?: string; callId?: string; callName?: string; callArguments?: string };
+
+/** Reads one Anthropic streaming event. `event:` lines are ignored; `data:` carries the type. */
+function anthropicStream(buffer: string): AnthropicEvent | null {
+  if (!buffer.startsWith("data:")) return null;
+  const data = buffer.slice(5).trim();
+  if (!data) return null;
+  let payload: { type?: string; index?: number; content_block?: { id?: string; name?: string }; delta?: { type?: string; text?: string; partial_json?: string } };
+  try {
+    payload = JSON.parse(data);
+  } catch {
+    return null;
+  }
+  const index = typeof payload.index === "number" ? payload.index : 0;
+  if (payload.type === "content_block_start" && payload.content_block?.name) {
+    return { index, callId: payload.content_block.id, callName: payload.content_block.name };
+  }
+  const delta = payload.delta;
+  if (!delta) return null;
+  if (delta.type === "text_delta" && delta.text) return { index, text: delta.text };
+  if (delta.type === "input_json_delta" && typeof delta.partial_json === "string") {
+    return { index, callArguments: delta.partial_json };
+  }
+  return null;
+}
+
+/** The whole message of an Anthropic JSON answer, in stream shapes. */
+function anthropicBodyEvents(payload: unknown): AnthropicEvent[] {
+  const content = (payload as { content?: { type?: string; id?: string; name?: string; text?: string; input?: unknown }[] })?.content;
+  if (!Array.isArray(content)) throw new Error("The model returned no message.");
+  const events: AnthropicEvent[] = [];
+  content.forEach((block, index) => {
+    if (block.type === "text" && block.text) events.push({ index, text: block.text });
+    if (block.type === "tool_use" && block.name) {
+      events.push({ index, callId: block.id, callName: block.name, callArguments: JSON.stringify(block.input ?? {}) });
+    }
+  });
+  return events;
+}
+
 async function* readStream(
   response: Response,
+  protocol: ChatProtocol,
   emit: (chunk: string) => AssistantEvent | null,
 ): AsyncGenerator<AssistantEvent, Completion> {
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
+    if (protocol === "anthropic") {
+      let content = "";
+      let streamed = false;
+      const calls: PendingCall[] = [];
+      for (const event of anthropicBodyEvents(await response.json())) {
+        if (event.text) {
+          content += event.text;
+          if (calls.length === 0) {
+            streamed = true;
+            emit(event.text);
+          }
+        }
+        if (event.callName) {
+          calls.push({ id: event.callId ?? "", name: event.callName, arguments: event.callArguments ?? "{}" });
+        }
+      }
+      return { content, calls: calls.filter((call) => call.name), streamed };
+    }
     const payload = (await response.json()) as { choices?: { message?: { content?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[] };
     const message = payload.choices?.[0]?.message;
     if (!message) throw new Error("The model returned no message.");
@@ -261,32 +434,46 @@ async function* readStream(
         const line = buffer.slice(0, newline).replace(/\r$/, "").trim();
         buffer = buffer.slice(newline + 1);
         newline = buffer.indexOf("\n");
-        if (!line.startsWith("data:")) continue;
-        const data = line.slice(5).trim();
-        if (!data || data === "[DONE]") continue;
-        let chunk: {
-          choices?: { delta?: { content?: string | null; tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[] } }[];
-        };
-        try {
-          chunk = JSON.parse(data);
-        } catch {
+        // Anthropic sends `event:` lines too; only the `data:` payload matters.
+        if (protocol === "anthropic") {
+          const event = anthropicStream(line);
+          if (!event) continue;
+          if (event.text) {
+            content += event.text;
+            if (calls.length === 0) {
+              streamed = true;
+              yield { type: "delta", text: event.text };
+            }
+          }
+          if (event.callName) {
+            calls[event.index] ??= { id: "", name: "", arguments: "" };
+            calls[event.index].id = event.callId ?? calls[event.index].id;
+            calls[event.index].name = event.callName;
+            if (calls.length > 0 && streamed) {
+              streamed = false;
+              yield { type: "reset" };
+            }
+          } else if (event.callArguments !== undefined) {
+            calls[event.index] ??= { id: "", name: "", arguments: "" };
+            calls[event.index].arguments += event.callArguments;
+          }
           continue;
         }
-        const delta = chunk.choices?.[0]?.delta;
-        if (!delta) continue;
-        if (typeof delta.content === "string" && delta.content) {
-          content += delta.content;
+        const chunk = openAiStream(line);
+        if (!chunk) continue;
+        if (chunk.text) {
+          content += chunk.text;
           if (calls.length === 0) {
             streamed = true;
-            yield { type: "delta", text: delta.content };
+            yield { type: "delta", text: chunk.text };
           }
         }
-        for (const part of delta.tool_calls ?? []) {
+        for (const part of chunk.calls ?? []) {
           const index = typeof part.index === "number" ? part.index : calls.length;
           calls[index] ??= { id: "", name: "", arguments: "" };
           if (part.id) calls[index].id = part.id;
-          if (part.function?.name) calls[index].name += part.function.name;
-          if (typeof part.function?.arguments === "string") calls[index].arguments += part.function.arguments;
+          if (part.name) calls[index].name += part.name;
+          if (typeof part.arguments === "string") calls[index].arguments += part.arguments;
           if (calls.length > 0 && streamed) {
             streamed = false;
             yield { type: "reset" };
@@ -314,50 +501,75 @@ export async function* streamAssistant(
   if (!settings.model) {
     throw new AssistantNotConfigured("No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.");
   }
-  const chat: Record<string, unknown>[] = [
-    { role: "system", content: systemPrompt() },
-    ...turns
-      .slice(-MAX_MESSAGES)
-      .filter((turn) => turn.role === "user" || turn.content.trim().length > 0)
-      .map((turn) => ({ role: turn.role, content: turn.content })),
-  ];
+  const history: HistoryTurn[] = turns
+    .slice(-MAX_MESSAGES)
+    .filter((turn) => turn.role === "user" || turn.content.trim().length > 0)
+    .map((turn) =>
+      turn.role === "user"
+        ? { role: "user" as const, content: turn.content }
+        : { role: "assistant" as const, content: turn.content, calls: [] },
+    );
 
-  for (let step = 0; step < MAX_STEPS; step += 1) {
-    chat[0] = { role: "system", content: systemPrompt() };
-    const response = await fetch(`${settings.baseUrl}/chat/completions`, {
+  async function request(): Promise<Response> {
+    const system = systemPrompt();
+    const headers = {
+      "content-type": "application/json",
+      ...(settings.headers ?? {}),
+    };
+    const url = `${settings.baseUrl}/${settings.protocol === "anthropic" ? "messages" : "chat/completions"}`;
+    const body =
+      settings.protocol === "anthropic"
+        ? {
+            ...anthropicMessages(system, history),
+            model: settings.model,
+            max_tokens: anthropicMaxTokens(settings),
+            tools: anthropicTools(),
+            stream: true,
+          }
+        : {
+            model: settings.model,
+            messages: openAiMessages(system, history),
+            tools: openAiTools(),
+            tool_choice: "auto",
+            temperature: 0.2,
+            stream: true,
+          };
+    const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(settings.apiKey ? { authorization: `Bearer ${settings.apiKey}` } : {}),
-        ...(settings.headers ?? {}),
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages: chat,
-        tools: openAiTools(),
-        tool_choice: "auto",
-        temperature: 0.2,
-        stream: true,
-      }),
+      headers:
+        settings.protocol === "anthropic"
+          ? {
+              ...headers,
+              "anthropic-version": "2023-06-01",
+              ...(settings.apiKey ? { "x-api-key": settings.apiKey } : {}),
+            }
+          : {
+              ...headers,
+              ...(settings.apiKey ? { authorization: `Bearer ${settings.apiKey}` } : {}),
+            },
+      body: JSON.stringify(body),
       signal: combinedSignal(signal),
     });
     if (!response.ok) {
       const detail = (await response.text().catch(() => "")).slice(0, 400);
       throw new Error(`The model endpoint answered ${response.status}. ${detail}`.trim());
     }
+    return response;
+  }
 
-    const completion = yield* readStream(response, (chunk) => ({ type: "delta", text: chunk }));
+  for (let step = 0; step < MAX_STEPS; step += 1) {
+    const response = await request();
+    const completion = yield* readStream(response, settings.protocol, (chunk) => ({ type: "delta", text: chunk }));
     const named = completion.calls.filter((call) => call.name);
     if (completion.streamed && named.length > 0) {
       yield { type: "reset" };
     }
     if (named.length > 0) {
       const calls = named.map((call, index) => ({
+        ...call,
         id: call.id || `call_${step}_${index}`,
-        type: "function" as const,
-        function: { name: call.name, arguments: call.arguments || "{}" },
       }));
-      chat.push({ role: "assistant", content: "", tool_calls: calls });
+      history.push({ role: "assistant", content: completion.content, calls });
       const items = named.map((call, index) => {
         const input = parseArguments(call.arguments);
         const found = findTool(call.name);
@@ -375,6 +587,7 @@ export async function* streamAssistant(
         .filter((item) => !item.write)
         .sort((left, right) => (left.name === "update_plan" ? -1 : right.name === "update_plan" ? 1 : 0));
       const writes = items.filter((item) => item.write);
+      const results: ToolResultTurn[] = [];
 
       for (const item of reads) {
         if (item.name === "update_plan") {
@@ -383,14 +596,14 @@ export async function* streamAssistant(
             const steps = (result.data as { steps: PlanStep[] }).steps;
             yield { type: "plan", steps };
           }
-          chat.push({ role: "tool", tool_call_id: item.id, content: toolContent(result) });
+          results.push({ id: item.id, name: item.name, content: toolContent(result) });
           continue;
         }
         yield { type: "tool", name: item.name, input: item.input };
         const result = await runTool(item.name, item.input);
         const summary = result.ok ? "ok" : result.error;
         yield { type: "tool_result", name: item.name, input: item.input, ok: result.ok, summary, data: uiData(result) };
-        chat.push({ role: "tool", tool_call_id: item.id, content: toolContent(result) });
+        results.push({ id: item.id, name: item.name, content: toolContent(result) });
       }
 
       if (writes.length > 0) {
@@ -415,15 +628,16 @@ export async function* streamAssistant(
           if (!approved.has(item.id)) {
             const summary = "The user rejected this change.";
             yield { type: "tool_result", name: item.name, input: item.input, ok: false, summary };
-            chat.push({ role: "tool", tool_call_id: item.id, content: JSON.stringify({ rejected: true, error: summary }) });
+            results.push({ id: item.id, name: item.name, content: JSON.stringify({ rejected: true, error: summary }) });
             continue;
           }
           const result = await runTool(item.name, item.input);
           const summary = result.ok ? "ok" : result.error;
           yield { type: "tool_result", name: item.name, input: item.input, ok: result.ok, summary, data: uiData(result) };
-          chat.push({ role: "tool", tool_call_id: item.id, content: toolContent(result) });
+          results.push({ id: item.id, name: item.name, content: toolContent(result) });
         }
       }
+      if (results.length > 0) history.push({ role: "tool", results });
       continue;
     }
     const reply = completion.content.trim();

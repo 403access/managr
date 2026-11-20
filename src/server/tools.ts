@@ -2750,9 +2750,27 @@ export function toolJsonSchema(item: DeskTool): Record<string, unknown> {
   return schema;
 }
 
-export function openAiTools() {
+/** The protocol-neutral shape both request bodies are built from. */
+function toolSpecs() {
   return enabledTools().map((item) => ({
+    name: item.name,
+    description: item.description,
+    parameters: toolJsonSchema(item),
+  }));
+}
+
+export function openAiTools() {
+  return toolSpecs().map((tool) => ({
     type: "function" as const,
-    function: { name: item.name, description: item.description, parameters: toolJsonSchema(item) },
+    function: { name: tool.name, description: tool.description, parameters: tool.parameters },
+  }));
+}
+
+/** The Anthropic protocol names the schema `input_schema` and has no `function` wrapper. */
+export function anthropicTools() {
+  return toolSpecs().map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.parameters,
   }));
 }

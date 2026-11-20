@@ -9,7 +9,16 @@ export type Settings = { configured: boolean; model: string; baseUrl: string; lo
 
 export type Selection = { providerID: string; modelID: string };
 
-export type CatalogProvider = { id: string; name: string };
+/** How managr talks to a provider. */
+export type ChatProtocol = "openai" | "anthropic";
+
+export type CatalogProvider = {
+  id: string;
+  name: string;
+  protocol: ChatProtocol;
+  local: boolean;
+  modelCount: number;
+};
 
 export type CatalogModel = {
   id: string;
@@ -17,8 +26,10 @@ export type CatalogModel = {
   modelID: string;
   name: string;
   providerName: string;
+  protocol: ChatProtocol;
   local: boolean;
   context?: number;
+  maxOutput?: number;
 };
 
 export type Catalog = {
@@ -40,7 +51,7 @@ export type ProposalChange = {
 export type Proposal = { id: string; changes: ProposalChange[] };
 
 export type StreamEvent =
-  | { type: "model"; model: string; baseUrl: string; local: boolean; providerID?: string; modelID?: string }
+  | { type: "model"; model: string; baseUrl: string; local: boolean; providerID?: string; modelID?: string; protocol?: ChatProtocol }
   | { type: "delta"; text: string }
   | { type: "reset" }
   | { type: "tool"; name: string; input: unknown }

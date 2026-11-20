@@ -145,9 +145,44 @@ describe("opencode catalog", () => {
 
     expect(catalog.available).toBe(true);
     expect(catalog.models.map((model) => model.modelID)).toEqual(["claude-haiku", "qwen2.5-coder-32k", "qwen-max"]);
-    expect(catalog.providers.map((provider) => provider.id)).toEqual(["ollama", "go", "qwen"]);
+    // Google speaks its own protocol, so it stays listed with no usable model.
+    expect(catalog.providers.map((provider) => provider.id)).toEqual(["google", "ollama", "go", "qwen"]);
+    expect(catalog.providers.find((provider) => provider.id === "google")).toMatchObject({ modelCount: 0 });
     expect(catalog.default).toEqual({ providerID: "qwen", modelID: "qwen-max" });
     expect(catalog.models.find((model) => model.modelID === "qwen2.5-coder-32k")?.context).toBe(32768);
+  });
+
+  it("offers a provider that speaks the Anthropic protocol", () => {
+    const anthropicProvider: OpencodeProvider = {
+      id: "qwencloud",
+      name: "QwenCloud",
+      package: "@opencode/ai/providers/anthropic",
+      settings: { baseURL: "https://token-plan.example/anthropic/v1" },
+    };
+    const anthropicModel: OpencodeModel = {
+      modelID: "deepseek-v4.1-flash",
+      providerID: "qwencloud",
+      name: "DeepSeek V4.1 Flash",
+      package: "@opencode/ai/providers/anthropic",
+      capabilities: { tools: true },
+      status: "active",
+      enabled: true,
+      limit: { context: 1_000_000, output: 65_536 },
+    };
+
+    const catalog = buildOpencodeCatalog([anthropicModel], [anthropicProvider]);
+    expect(catalog.models).toEqual([
+      expect.objectContaining({
+        providerID: "qwencloud",
+        modelID: "deepseek-v4.1-flash",
+        protocol: "anthropic",
+        local: false,
+        maxOutput: 65_536,
+      }),
+    ]);
+    expect(catalog.providers).toEqual([
+      expect.objectContaining({ id: "qwencloud", protocol: "anthropic", modelCount: 1, local: false }),
+    ]);
   });
 
   it("falls back to the first runnable model when opencode has a different default", () => {
@@ -165,7 +200,13 @@ describe("opencode catalog", () => {
 describe("opencode model resolution", () => {
   it("uses the provider base URL and its API key", () => {
     const resolved = resolveOpencodeModel(models, providers, credentials, { providerID: "qwen", modelID: "qwen-max" });
-    expect(resolved).toMatchObject({ modelID: "qwen-max", baseUrl: "https://token-plan.example/v1", apiKey: "qwen-secret", local: false });
+    expect(resolved).toMatchObject({
+      modelID: "qwen-max",
+      protocol: "openai",
+      baseUrl: "https://token-plan.example/v1",
+      apiKey: "qwen-secret",
+      local: false,
+    });
   });
 
   it("uses the OpenAI-compatible provider route for a native-package model", () => {
@@ -183,7 +224,7 @@ describe("opencode model resolution", () => {
     expect(resolved?.local).toBe(true);
   });
 
-  it("refuses a provider that has no OpenAI-compatible route", () => {
+  it("refuses a provider that has no supported protocol", () => {
     expect(resolveOpencodeModel(models, providers, credentials, { providerID: "google", modelID: "gemini-4" })).toBeNull();
     expect(resolveOpencodeModel(models, providers, credentials, { providerID: "qwen", modelID: "missing" })).toBeNull();
   });

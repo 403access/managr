@@ -17,6 +17,8 @@ export type ChatMessageDetails = {
   durationMs?: number;
   model?: string;
   provider?: string;
+  /** The wire protocol the endpoint spoke. */
+  protocol?: "openai" | "anthropic";
   baseUrl?: string;
   local?: boolean;
   mcpServer?: string;
@@ -62,6 +64,7 @@ function isDetails(value: unknown): value is ChatMessageDetails {
   if (value.durationMs !== undefined && typeof value.durationMs !== "number") return false;
   if (value.model !== undefined && typeof value.model !== "string") return false;
   if (value.provider !== undefined && typeof value.provider !== "string") return false;
+  if (value.protocol !== undefined && value.protocol !== "openai" && value.protocol !== "anthropic") return false;
   if (value.baseUrl !== undefined && typeof value.baseUrl !== "string") return false;
   if (value.local !== undefined && typeof value.local !== "boolean") return false;
   if (value.mcpServer !== undefined && typeof value.mcpServer !== "string") return false;

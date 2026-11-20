@@ -277,6 +277,11 @@ function contextHint(tokens?: number): string | undefined {
   return `${Math.round(tokens / 1_000)}k`;
 }
 
+/** The protocol is a property of the provider, so the panel can name it plainly. */
+function protocolLabel(protocol: "openai" | "anthropic", t: Translate): string {
+  return protocol === "anthropic" ? t("assistant.protocolAnthropic") : t("assistant.protocolOpenai");
+}
+
 export function Assistant({ variant = "popover" }: { variant?: "popover" | "page" } = {}) {
   const { t } = useI18n();
   const {
@@ -334,22 +339,43 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
   const providerModels = (catalog?.models ?? []).filter((model) => model.providerID === providerID);
   const hasChoices = Boolean(catalog && catalog.providers.length > 0 && catalog.models.length > 0);
   const showConfig = settings !== null && !settings.configured && !hasChoices;
-  const providerOptions = (catalog?.providers ?? []).map((provider) => ({
-    value: provider.id,
-    label: provider.id === "env" ? t("assistant.envProvider") : provider.name,
-  }));
+  const selectedProvider = (catalog?.providers ?? []).find((provider) => provider.id === providerID) ?? null;
+  const providerOptions = (catalog?.providers ?? []).map((provider) => {
+    const label = provider.id === "env" ? t("assistant.envProvider") : provider.name;
+    return {
+      value: provider.id,
+      label,
+      tag: protocolLabel(provider.protocol, t),
+      description: [
+        provider.local ? t("assistant.providerLocal") : t("assistant.providerRemote"),
+        provider.modelCount > 0 ? t("assistant.providerModelCount", { count: provider.modelCount }) : t("assistant.providerNoModels"),
+        provider.id === "env" ? t("assistant.providerFromEnv") : provider.id,
+      ].join(" · "),
+      disabled: provider.modelCount === 0,
+    };
+  });
   const modelOptions = providerModels.map((model) => ({
     value: model.modelID,
     label: model.name,
     hint: contextHint(model.context),
   }));
   const modelStatus = selectedModel
-    ? `${selectedModel.local ? t("assistant.local") : t("assistant.remote")} · ${
-        selectedModel.providerID === "env" ? t("assistant.envProvider") : t("assistant.opencode")
+    ? `${selectedModel.local ? t("assistant.local") : t("assistant.remote")} · ${protocolLabel(selectedModel.protocol, t)}${
+        selectedModel.providerID === "env" ? ` · ${t("assistant.envProvider")}` : ""
       }`
     : settings?.configured
       ? `${settings.model} · ${settings.local ? t("assistant.local") : t("assistant.remote")}`
       : t("assistant.subtitle");
+  const unusableProvider =
+    selectedProvider && selectedProvider.modelCount === 0
+      ? t("assistant.providerUnusable", { provider: selectedProvider.name })
+      : null;
+  // opencode found providers but none of them can be driven: say which ones, so
+  // the entry the user added is not silently missing from the panel.
+  const unusableProviders =
+    catalog && catalog.providers.length > 0 && catalog.models.length === 0
+      ? catalog.providers.map((provider) => provider.name).join(", ")
+      : null;
 
   function chooseProvider(nextProviderID: string) {
     if (nextProviderID === providerID) return;
@@ -439,6 +465,27 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
                   disabled={pending || !providerID}
                 />
               </div>
+            ) : null}
+            {selectedProvider && selectedProvider.id !== "env" ? (
+              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-muted">
+                <span
+                  className={`rounded-full px-1.5 py-0.5 font-medium ${
+                    selectedProvider.local ? "bg-moss/15 text-moss" : "bg-amber/15 text-amber"
+                  }`}
+                >
+                  {selectedProvider.local ? t("assistant.providerLocal") : t("assistant.providerRemote")}
+                </span>
+                <span className="rounded-full bg-pine/10 px-1.5 py-0.5 font-medium text-pine">
+                  {protocolLabel(selectedProvider.protocol, t)}
+                </span>
+                <span className="truncate font-mono normal-case">{selectedProvider.id}</span>
+              </p>
+            ) : null}
+            {unusableProvider ? <p className="mt-2 text-[11px] leading-relaxed text-clay">{unusableProvider}</p> : null}
+            {unusableProviders ? (
+              <p className="mt-2 text-[11px] leading-relaxed text-clay">
+                {t("assistant.providerUnusableAll", { providers: unusableProviders })} {t("assistant.providerUnusableHint")}
+              </p>
             ) : null}
           </header>
 
@@ -612,6 +659,7 @@ function MessageDetails({ details, role }: { details: ChatMessageDetails; role: 
   const rows: { label: string; value: string; title?: string }[] = [];
   if (details.model) rows.push({ label: t("assistant.details.model"), value: details.model });
   if (details.provider) rows.push({ label: t("assistant.details.provider"), value: details.provider });
+  if (details.protocol) rows.push({ label: t("assistant.details.protocol"), value: protocolLabel(details.protocol, t) });
   if (details.baseUrl) {
     rows.push({
       label: t("assistant.details.endpoint"),

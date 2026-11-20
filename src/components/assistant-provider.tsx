@@ -227,6 +227,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           at: nowIso,
           model: promptModel?.name ?? (settings?.model || undefined),
           provider: promptModel?.providerName,
+          protocol: promptModel?.protocol,
           local: promptModel?.local ?? settings?.local,
           mcpServer: MCP_SERVER,
         },
@@ -240,7 +241,8 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     let steps: Step[] = [];
     let stepSeq = 0;
     let errorText = "";
-    let modelInfo: { name: string; providerID?: string; modelID?: string; baseUrl: string; local: boolean } | null = null;
+    let modelInfo: { name: string; providerID?: string; modelID?: string; baseUrl: string; local: boolean; protocol?: "openai" | "anthropic" } | null =
+      null;
     let proposal: Proposal | null = null;
     let plan: PlanStepView[] = [];
     setStreaming({ content: "", steps: [] });
@@ -320,6 +322,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
                 modelID: event.modelID,
                 baseUrl: event.baseUrl,
                 local: Boolean(event.local),
+                protocol: event.protocol,
               };
               setSettings({ configured: true, model: event.model, baseUrl: event.baseUrl, local: Boolean(event.local) });
             } else if (event.type === "delta") {
@@ -371,6 +374,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           durationMs: Date.now() - startedAt,
           model: modelInfo?.name ?? promptModel?.name ?? (settings?.model || undefined),
           provider: providerName,
+          protocol: modelInfo?.protocol ?? promptModel?.protocol,
           baseUrl: modelInfo?.baseUrl,
           local: modelInfo?.local ?? promptModel?.local ?? settings?.local,
           mcpServer: MCP_SERVER,
