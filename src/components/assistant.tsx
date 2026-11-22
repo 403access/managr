@@ -11,9 +11,11 @@ import { formatEuro } from "@/domain/money";
 import type { ChatMessageDetails } from "@/client/chat-history";
 import {
   MCP_SERVER,
+  type Message,
   type Proposal,
   type ProposalChange,
   type Step,
+  type StreamingState,
 } from "@/client/assistant-types";
 import { queryKeys, viewPath } from "@/client/query-keys";
 import type { MessageKey } from "@/i18n";
@@ -520,46 +522,15 @@ MANAGR_AI_API_KEY=…`}</pre>
             ) : (
               <ol className="grid gap-3">
                 {messages.map((message) => (
-                  <li key={message.id} className={message.role === "user" ? "justify-self-end" : ""}>
-                    {message.role === "user" ? (
-                      <>
-                        <div className="max-w-[95%] rounded-2xl bg-pine px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-paper">{message.content}</div>
-                        {message.details || (!pending && message.id === lastUserMessageId) ? (
-                          <div className="mt-1 flex flex-col items-end gap-1">
-                            {message.details ? <MessageDetails details={message.details} role="user" /> : null}
-                            {!pending && message.id === lastUserMessageId ? (
-                              <button type="button" onClick={() => void send("", message.id)} className="text-[11px] font-medium text-pine hover:underline">
-                                {t("assistant.retry")}
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </>
-                    ) : (
-                      <>
-                        <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
-                          {message.plan?.length ? <PlanBar plan={message.plan} className="mb-2" /> : null}
-                          {message.steps.length > 0 ? <Steps steps={message.steps} /> : null}
-                          {message.content ? <Markdown text={message.content} className="mt-2" /> : null}
-                        </div>
-                        {message.details ? <MessageDetails details={message.details} role="assistant" /> : null}
-                      </>
-                    )}
-                  </li>
+                  <AssistantTurn
+                    key={message.id}
+                    message={message}
+                    pending={pending}
+                    lastUserMessageId={lastUserMessageId}
+                    onRetry={(id) => void send("", id)}
+                  />
                 ))}
-                {streaming ? (
-                  <li>
-                    <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
-                      {streaming.plan?.length ? <PlanBar plan={streaming.plan} className="mb-2" /> : null}
-                      {streaming.steps.length > 0 ? <Steps steps={streaming.steps} /> : null}
-                      {streaming.proposal ? <ProposalCard key={streaming.proposal.id} proposal={streaming.proposal} /> : null}
-                      {streaming.steps.length === 0 && !streaming.plan?.length && !streaming.proposal && !streaming.content ? (
-                        <p className="text-muted">{t("assistant.thinking")}</p>
-                      ) : null}
-                      {streaming.content ? <Markdown text={streaming.content} className="mt-2" /> : null}
-                    </div>
-                  </li>
-                ) : null}
+                {streaming ? <AssistantStreamingTurn state={streaming} /> : null}
               </ol>
             )}
             {error ? <p className="mt-3 text-sm text-clay">{error}</p> : null}
@@ -607,35 +578,241 @@ MANAGR_AI_API_KEY=…`}</pre>
   );
 }
 
+/**
+ * One stored turn in the transcript. The mock page renders the same component,
+ * so a preview and the live panel cannot drift apart.
+ */
+export function AssistantTurn({
+  message,
+  pending,
+  lastUserMessageId,
+  onRetry,
+}: {
+  message: Message;
+  pending: boolean;
+  lastUserMessageId: number | null;
+  onRetry?: (id: number) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <li className={message.role === "user" ? "justify-self-end" : ""}>
+      {message.role === "user" ? (
+        <>
+          <div className="max-w-[95%] rounded-2xl bg-pine px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-paper">{message.content}</div>
+          {message.details || (!pending && message.id === lastUserMessageId) ? (
+            <div className="mt-1 flex flex-col items-end gap-1">
+              {message.details ? <MessageDetails details={message.details} role="user" /> : null}
+              {!pending && message.id === lastUserMessageId && onRetry ? (
+                <button type="button" onClick={() => onRetry(message.id)} className="text-[11px] font-medium text-pine hover:underline">
+                  {t("assistant.retry")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
+            {message.plan?.length ? <PlanBar plan={message.plan} className="mb-2" /> : null}
+            {message.steps.length > 0 ? <Steps steps={message.steps} /> : null}
+            {message.content ? <Markdown text={message.content} className="mt-2" /> : null}
+          </div>
+          {message.details ? <MessageDetails details={message.details} role="assistant" /> : null}
+        </>
+      )}
+    </li>
+  );
+}
+
+/** The open turn, before it is committed to the transcript. */
+export function AssistantStreamingTurn({
+  state,
+  onApprove,
+}: {
+  state: StreamingState;
+  /** Replaces the real approval request, so the mock page stays offline. */
+  onApprove?: (approved: string[]) => void | Promise<void>;
+}) {
+  const { t } = useI18n();
+  return (
+    <li>
+      <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
+        {state.plan?.length ? <PlanBar plan={state.plan} className="mb-2" /> : null}
+        {state.steps.length > 0 ? <Steps steps={state.steps} /> : null}
+        {state.proposal ? <ProposalCard key={state.proposal.id} proposal={state.proposal} onSubmit={onApprove} /> : null}
+        {state.steps.length === 0 && !state.plan?.length && !state.proposal && !state.content ? (
+          <p className="text-muted">{t("assistant.thinking")}</p>
+        ) : null}
+        {state.content ? <Markdown text={state.content} className="mt-2" /> : null}
+      </div>
+    </li>
+  );
+}
+
+type StepGroup = { key: string; name: string; steps: Step[] };
+
+/** Calls of the same tool share one row; their order stays the order they ran in. */
+function groupSteps(steps: Step[]): StepGroup[] {
+  const groups: StepGroup[] = [];
+  const byName = new Map<string, StepGroup>();
+  for (const step of steps) {
+    const existing = byName.get(step.name);
+    if (existing) {
+      existing.steps.push(step);
+      continue;
+    }
+    const group: StepGroup = { key: step.key, name: step.name, steps: [step] };
+    byName.set(step.name, group);
+    groups.push(group);
+  }
+  return groups;
+}
+
+function groupStatus(steps: Step[]): Step["status"] {
+  if (steps.some((step) => step.status === "running")) return "running";
+  if (steps.some((step) => step.status === "error")) return "error";
+  return "ok";
+}
+
+function StepStatusIcon({ status }: { status: Step["status"] }) {
+  if (status === "running") {
+    return <span className="mt-1 size-3.5 shrink-0 animate-spin rounded-full border-2 border-line border-t-pine" aria-hidden="true" />;
+  }
+  return (
+    <span className={`mt-0.5 shrink-0 ${status === "ok" ? "text-moss" : "text-clay"}`} aria-hidden="true">
+      {status === "ok" ? "✓" : "✕"}
+    </span>
+  );
+}
+
 function Steps({ steps }: { steps: Step[] }) {
   const { t, tx } = useI18n();
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [pages, setPages] = useState<Record<string, number>>({});
   return (
     <ol className="grid gap-2">
-      {steps.map((step) => {
+      {groupSteps(steps).map((group) => {
+        const active = Math.min(pages[group.key] ?? 0, group.steps.length - 1);
+        const step = group.steps[active];
         const action = needsApproval(step.name) ? changeAction(step.name, step.input) : null;
+        const open = openKey === group.key;
+        const panelId = `assistant-step-${group.key}`;
         return (
-          <li key={step.key}>
+          <li key={group.key}>
             <div className="flex items-start gap-2">
-              {step.status === "running" ? (
-                <span className="mt-1 size-3.5 shrink-0 animate-spin rounded-full border-2 border-line border-t-pine" aria-hidden="true" />
-              ) : step.status === "ok" ? (
-                <span className="mt-0.5 shrink-0 text-moss" aria-hidden="true">✓</span>
-              ) : (
-                <span className="mt-0.5 shrink-0 text-clay" aria-hidden="true">✕</span>
-              )}
+              <StepStatusIcon status={groupStatus(group.steps)} />
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <p className={`text-[12px] font-medium ${step.status === "error" ? "text-clay" : ""}`}>{toolLabelFor(step.name, t)}</p>
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    title={open ? t("assistant.step.hide") : t("assistant.step.show")}
+                    onClick={() => setOpenKey(open ? null : group.key)}
+                    className="group inline-flex min-w-0 items-center gap-1 rounded text-left"
+                  >
+                    <span className={`text-[12px] font-medium group-hover:text-pine ${step.status === "error" ? "text-clay" : ""}`}>
+                      {toolLabelFor(group.name, t)}
+                    </span>
+                    <svg
+                      viewBox="0 0 16 16"
+                      className={`size-3 shrink-0 text-muted transition-transform ${open ? "rotate-90" : ""}`}
+                      aria-hidden="true"
+                    >
+                      <path d="m6 4 4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
                   {action ? <ActionBadge action={action} /> : null}
+                  {group.steps.length > 1 ? (
+                    <span
+                      role="group"
+                      aria-label={t("assistant.step.calls", { count: group.steps.length })}
+                      className="inline-flex items-center gap-0.5"
+                    >
+                      {group.steps.map((entry, index) => (
+                        <button
+                          key={entry.key}
+                          type="button"
+                          aria-label={t("assistant.step.call", { index: index + 1, total: group.steps.length })}
+                          aria-current={index === active ? "true" : undefined}
+                          onClick={() => {
+                            setPages((current) => ({ ...current, [group.key]: index }));
+                            setOpenKey(group.key);
+                          }}
+                          className="grid size-4 place-items-center rounded-full hover:bg-ink/5"
+                        >
+                          <span
+                            className={`size-1.5 rounded-full transition ${
+                              index === active
+                                ? "bg-pine"
+                                : entry.status === "error"
+                                  ? "bg-clay/60"
+                                  : "bg-line"
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </span>
+                  ) : null}
                 </div>
-                {step.status === "error" ? <p className="mt-0.5 text-[11px] text-clay">{tx(step.summary)}</p> : null}
+                {step.status === "error" ? <p className="mt-0.5 text-[11px] text-clay">{step.summary ? tx(step.summary) : t("assistant.step.failed")}</p> : null}
                 {step.status === "ok" ? <StepCard step={step} /> : null}
+                {open ? (
+                  <StepDetails id={panelId} step={step} page={active} total={group.steps.length} />
+                ) : null}
               </div>
             </div>
           </li>
         );
       })}
     </ol>
+  );
+}
+
+const stepSectionClass = "text-[10px] font-semibold tracking-[0.12em] text-muted uppercase";
+
+/** What the assistant called, with which arguments, and what came back. */
+function StepDetails({ id, step, page, total }: { id: string; step: Step; page: number; total: number }) {
+  const { t, tx } = useI18n();
+  const input = step.input;
+  const write = needsApproval(step.name);
+  const hasInput =
+    input !== undefined &&
+    input !== null &&
+    (typeof input !== "object" || Array.isArray(input) || Object.keys(input as Record<string, unknown>).length > 0);
+  const truncated =
+    typeof step.data === "object" && step.data !== null && (step.data as { truncated?: unknown }).truncated === true;
+  return (
+    <div id={id} className="mt-1.5 grid gap-2 rounded-lg border border-line bg-card p-2 text-[11px]">
+      {total > 1 ? <p className="text-[10px] text-muted">{t("assistant.step.call", { index: page + 1, total })}</p> : null}
+      <section>
+        <p className={stepSectionClass}>{t("assistant.step.executed")}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <code className="rounded bg-ink/5 px-1 py-0.5 font-mono text-[10px]">{step.name}</code>
+          {step.status === "running" ? <span className="text-[10px] text-muted">{t("assistant.step.running")}</span> : null}
+        </div>
+        {hasInput ? (
+          <pre className="mt-1 max-h-40 overflow-y-auto rounded bg-ink/5 p-1.5 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap">
+            {JSON.stringify(input, null, 2)}
+          </pre>
+        ) : (
+          <p className="mt-1 text-[10px] text-muted">{t("assistant.step.noInput")}</p>
+        )}
+      </section>
+      <section className="border-t border-line pt-2">
+        <p className={stepSectionClass}>{write ? t("assistant.step.result") : t("assistant.step.read")}</p>
+        {step.status === "error" ? (
+          <p className="mt-1 text-[10px] text-clay">{step.summary ? tx(step.summary) : t("assistant.step.failed")}</p>
+        ) : step.data === undefined ? (
+          <p className="mt-1 text-[10px] text-muted">{step.status === "running" ? t("assistant.step.running") : t("assistant.step.noResult")}</p>
+        ) : truncated ? (
+          <p className="mt-1 text-[10px] text-muted">{t("assistant.step.truncated")}</p>
+        ) : (
+          <pre className="mt-1 max-h-64 overflow-y-auto rounded bg-ink/5 p-1.5 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap">
+            {JSON.stringify(step.data, null, 2)}
+          </pre>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -814,7 +991,7 @@ function changeFields(input: unknown): { key: string; value: unknown }[] {
 }
 
 /** Confirmation card for the write tools an assistant turn wants to run. */
-function ProposalCard({ proposal }: { proposal: Proposal }) {
+function ProposalCard({ proposal, onSubmit }: { proposal: Proposal; onSubmit?: (approved: string[]) => void | Promise<void> }) {
   const { t, locale } = useI18n();
   const [selected, setSelected] = useState<Set<string>>(() => new Set(proposal.changes.map((change) => change.callId)));
   const [busy, setBusy] = useState(false);
@@ -834,6 +1011,14 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
     if (busy) return;
     setBusy(true);
     setError("");
+    if (onSubmit) {
+      try {
+        await onSubmit(approved);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     try {
       const response = await fetch("/api/assistant/approve", {
         method: "POST",

@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { nextMessageId, readChat, readDraft, writeChat, writeDraft, type ChatMessageDetails } from "@/client/chat-history";
-import { mergePlan, type PlanStepView } from "@/domain/assistant-plan";
+import { applyStreamEvent, emptyReplay, streamingState } from "@/client/assistant-stream";
 import { needsApproval } from "@/domain/assistant-writes";
 import {
   MCP_SERVER,
@@ -13,8 +13,6 @@ import {
   type Settings,
   type StreamEvent,
   type StreamingState,
-  type Proposal,
-  type Step,
 } from "@/client/assistant-types";
 import { useI18n } from "./locale-provider";
 
@@ -237,27 +235,10 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       setDraft("");
     }
     setError("");
-    let answer = "";
-    let steps: Step[] = [];
-    let stepSeq = 0;
-    let errorText = "";
-    let modelInfo: { name: string; providerID?: string; modelID?: string; baseUrl: string; local: boolean; protocol?: "openai" | "anthropic" } | null =
-      null;
-    let proposal: Proposal | null = null;
-    let plan: PlanStepView[] = [];
-    setStreaming({ content: "", steps: [] });
-    const sync = () =>
-      setStreaming({
-        content: answer,
-        steps,
-        ...(proposal ? { proposal } : {}),
-        ...(plan.length > 0 ? { plan } : {}),
-      });
-    const clearProposal = () => {
-      if (!proposal) return;
-      proposal = null;
-      sync();
-    };
+    let requestError = "";
+    let replay = emptyReplay();
+    setStreaming(streamingState(replay));
+    const sync = () => setStreaming(streamingState(replay));
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -288,14 +269,13 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             web: current?.web,
           }));
         }
-        errorText = typeof data.error === "string" ? data.error : t("assistant.failed");
+        requestError = typeof data.error === "string" ? data.error : t("assistant.failed");
       } else if (!response.body) {
-        errorText = t("assistant.failed");
+        requestError = t("assistant.failed");
       } else {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let sawReply = false;
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -312,57 +292,28 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             } catch {
               continue;
             }
-            if (proposal && event.type !== "model" && event.type !== "proposal") {
-              clearProposal();
-            }
             if (event.type === "model") {
-              modelInfo = {
-                name: event.model,
-                providerID: event.providerID,
-                modelID: event.modelID,
-                baseUrl: event.baseUrl,
-                local: Boolean(event.local),
-                protocol: event.protocol,
-              };
+              replay = applyStreamEvent(replay, event);
               setSettings({ configured: true, model: event.model, baseUrl: event.baseUrl, local: Boolean(event.local) });
-            } else if (event.type === "delta") {
-              answer += event.text;
-              sync();
-            } else if (event.type === "reset") {
-              answer = "";
-              sync();
-            } else if (event.type === "tool") {
-              steps = [...steps, { key: `${stepSeq++}`, name: event.name, input: event.input, status: "running", summary: "" }];
-              sync();
-            } else if (event.type === "tool_result") {
-              steps = steps.map((step, index) =>
-                index === steps.length - 1 ? { ...step, status: event.ok ? "ok" : "error", summary: event.summary, data: event.data } : step,
-              );
-              sync();
-              if (event.ok && needsApproval(event.name)) {
-                void queryClient.invalidateQueries({ queryKey: ["view"] });
-              }
-            } else if (event.type === "reply") {
-              answer = event.text;
-              sawReply = true;
-              sync();
-            } else if (event.type === "proposal") {
-              proposal = { id: event.id, changes: event.changes };
-              sync();
-            } else if (event.type === "plan") {
-              plan = mergePlan(plan, event.steps);
-              sync();
-            } else if (event.type === "error") {
-              errorText = event.message;
+            } else if (event.type === "tool_result" && event.ok && needsApproval(event.name)) {
+              replay = applyStreamEvent(replay, event);
+              void queryClient.invalidateQueries({ queryKey: ["view"] });
+            } else {
+              replay = applyStreamEvent(replay, event);
             }
+            sync();
           }
         }
-        if (!sawReply && !answer && steps.length === 0 && !errorText) errorText = t("assistant.failed");
+        if (!replay.sawReply && !replay.content && replay.steps.length === 0 && !replay.error && !requestError) {
+          requestError = t("assistant.failed");
+        }
       }
     } catch (caught) {
-      if (!controller.signal.aborted) errorText = t("assistant.failed");
+      if (!controller.signal.aborted) requestError = t("assistant.failed");
     } finally {
       abortRef.current = null;
+      const { content: answer, steps, plan, model: modelInfo } = replay;
+      const errorText = replay.error || requestError;
       if (answer || steps.length > 0) {
         const providerName = modelInfo?.providerID
           ? (catalog?.models.find(
@@ -372,7 +323,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         const details: ChatMessageDetails = {
           at: new Date().toISOString(),
           durationMs: Date.now() - startedAt,
-          model: modelInfo?.name ?? promptModel?.name ?? (settings?.model || undefined),
+          model: modelInfo?.model ?? promptModel?.name ?? (settings?.model || undefined),
           provider: providerName,
           protocol: modelInfo?.protocol ?? promptModel?.protocol,
           baseUrl: modelInfo?.baseUrl,

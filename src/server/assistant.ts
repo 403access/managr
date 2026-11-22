@@ -55,7 +55,8 @@ export type AssistantEvent =
 
 const MAX_STEPS = 8;
 const MAX_TOOL_CHARS = 12_000;
-const MAX_UI_CHARS = 4_000;
+/** A snapshot the panel can show per call; the model itself gets more. */
+const MAX_UI_CHARS = 12_000;
 const MAX_MESSAGES = 24;
 
 type PendingCall = { id: string; name: string; arguments: string };
@@ -168,7 +169,7 @@ function systemPrompt(): string {
     "",
     "Rules:",
     "- Use the tools for every figure, date, and status. Never invent an amount, a deadline, a tax rate, a wage-tax figure, or a social-insurance status.",
-    "- Your first tool call must be update_plan: list every step you intend to take, in order. Call it again as you work to mark steps doing or done, and whenever the plan changes. Keep each step id stable. When you add, change, or drop a step, put the reason in that step's note; keep a dropped step with status skipped and its reason. The user sees this roadmap.",
+    "- Every turn starts with update_plan, even a short follow-up or a single check: list every step you intend to take, in order. Call it again as you work to mark steps doing or done, and whenever the plan changes. Keep each step id stable. When you add, change, or drop a step, put the reason in that step's note; keep a dropped step with status skipped and its reason. The user sees this roadmap.",
     "- Read before you write: list or get the record, then act. Do not ask for permission in chat; the panel confirms every write. Ask only when the record or the intent is ambiguous.",
     "- To change an existing record, use its update tool or its save_* tool with the record id. Never delete and recreate a record just to change a field. Delete only when the user asks to remove it.",
     "- Call write tools as usual: the panel pauses each write and asks the user to confirm it, then the tool result reports whether it was approved or rejected. Never claim a change happened before that result arrives, and never retry a rejected change.",
