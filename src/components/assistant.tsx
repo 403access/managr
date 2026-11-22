@@ -722,7 +722,6 @@ function Steps({ steps }: { steps: Step[] }) {
   const groups = groupSteps(steps);
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
   const listRef = useRef<HTMLOListElement | null>(null);
-  const detailRef = useRef<HTMLDivElement | null>(null);
   // Without a manual pick the pane follows the newest call, so it changes with
   // the progress and comes to rest on the last action of the turn.
   const newest = steps[steps.length - 1];
@@ -742,11 +741,6 @@ function Steps({ steps }: { steps: Step[] }) {
     const box = current.getBoundingClientRect();
     if (box.top < listBox.top) list.scrollTop += box.top - listBox.top;
     else if (box.bottom > listBox.bottom) list.scrollTop += box.bottom - listBox.bottom;
-  }, [selectedKey]);
-
-  // A new call starts at the top of its own output.
-  useEffect(() => {
-    if (detailRef.current) detailRef.current.scrollTop = 0;
   }, [selectedKey]);
 
   function selectGroup(group: StepGroup) {
@@ -813,23 +807,25 @@ function Steps({ steps }: { steps: Step[] }) {
         </ol>
         {selected ? (
           <div className="flex h-64 min-w-0 flex-col rounded-xl border border-line bg-card p-2">
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-              <StepStatusIcon status={selected.status} />
-              <p className={`text-[12px] leading-tight font-medium ${selected.status === "error" ? "text-clay" : ""}`}>
-                {toolLabelFor(selected.name, t)}
-              </p>
-              {selectedAction ? <ActionBadge action={selectedAction} /> : null}
-              {selectedGroup && selectedGroup.steps.length > 1 ? (
-                <span className="ml-auto text-[10px] text-muted">
-                  {t("assistant.step.call", { index: selectedIndex + 1, total: selectedGroup.steps.length })}
-                </span>
-              ) : null}
-            </div>
-            {/* A fixed height keeps the bubble still while the selected call
-                changes or its result arrives. */}
-            <div ref={detailRef} className="mt-1.5 min-h-0 flex-1 overflow-y-auto">
-              <StepDetails step={selected} />
-              {selected.status === "ok" ? <StepCard step={selected} /> : null}
+            {/* Keyed by the call and its state, so a swap fades in instead of
+                flashing; the fixed height keeps the bubble still meanwhile. */}
+            <div key={`${selected.key}-${selected.status}`} className="flex h-full min-h-0 animate-detail-in flex-col motion-reduce:animate-none">
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                <StepStatusIcon status={selected.status} />
+                <p className={`text-[12px] leading-tight font-medium ${selected.status === "error" ? "text-clay" : ""}`}>
+                  {toolLabelFor(selected.name, t)}
+                </p>
+                {selectedAction ? <ActionBadge action={selectedAction} /> : null}
+                {selectedGroup && selectedGroup.steps.length > 1 ? (
+                  <span className="ml-auto text-[10px] text-muted">
+                    {t("assistant.step.call", { index: selectedIndex + 1, total: selectedGroup.steps.length })}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto">
+                <StepDetails step={selected} />
+                {selected.status === "ok" ? <StepCard step={selected} /> : null}
+              </div>
             </div>
           </div>
         ) : null}
