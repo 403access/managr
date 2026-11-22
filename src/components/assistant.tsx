@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDate } from "@/domain/calendar";
 import { changeAction, type ChangeAction } from "@/domain/assistant-actions";
@@ -612,15 +612,45 @@ export function AssistantTurn({
         </>
       ) : (
         <>
-          <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
-            {message.plan?.length ? <PlanBar plan={message.plan} className="mb-2" /> : null}
-            {message.steps.length > 0 ? <Steps steps={message.steps} /> : null}
-            {message.content ? <Markdown text={message.content} className="mt-2" /> : null}
+          <div className="@container max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
+            <TurnParts plan={message.plan} steps={message.steps} content={message.content} />
           </div>
           {message.details ? <MessageDetails details={message.details} role="assistant" /> : null}
         </>
       )}
     </li>
+  );
+}
+
+/**
+ * Roadmap and calls side by side once the bubble is wide enough, with the
+ * answer below both. The container query measures the bubble, not the window,
+ * so the narrow popover stays stacked while the page view uses two columns.
+ */
+function TurnParts({
+  plan,
+  steps,
+  content,
+  aside,
+}: {
+  plan?: PlanStepView[];
+  steps: Step[];
+  content: string;
+  aside?: ReactNode;
+}) {
+  const hasPlan = Boolean(plan?.length);
+  const hasSteps = steps.length > 0;
+  return (
+    <>
+      {hasPlan || hasSteps ? (
+        <div className={`grid gap-2 ${hasPlan && hasSteps ? "@xl:grid-cols-2 @xl:items-start" : ""}`}>
+          {plan && plan.length > 0 ? <PlanBar plan={plan} /> : null}
+          {hasSteps ? <Steps steps={steps} /> : null}
+        </div>
+      ) : null}
+      {aside}
+      {content ? <Markdown text={content} className={hasPlan || hasSteps || aside ? "mt-2" : ""} /> : null}
+    </>
   );
 }
 
@@ -636,14 +666,16 @@ export function AssistantStreamingTurn({
   const { t } = useI18n();
   return (
     <li>
-      <div className="max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
-        {state.plan?.length ? <PlanBar plan={state.plan} className="mb-2" /> : null}
-        {state.steps.length > 0 ? <Steps steps={state.steps} /> : null}
-        {state.proposal ? <ProposalCard key={state.proposal.id} proposal={state.proposal} onSubmit={onApprove} /> : null}
+      <div className="@container max-w-[95%] rounded-2xl border border-line bg-white px-3 py-2 text-sm">
+        <TurnParts
+          plan={state.plan}
+          steps={state.steps}
+          content={state.content}
+          aside={state.proposal ? <ProposalCard key={state.proposal.id} proposal={state.proposal} onSubmit={onApprove} /> : null}
+        />
         {state.steps.length === 0 && !state.plan?.length && !state.proposal && !state.content ? (
           <p className="text-muted">{t("assistant.thinking")}</p>
         ) : null}
-        {state.content ? <Markdown text={state.content} className="mt-2" /> : null}
       </div>
     </li>
   );
