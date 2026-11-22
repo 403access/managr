@@ -640,13 +640,12 @@ function TurnParts({
 }) {
   const hasPlan = Boolean(plan?.length);
   const hasSteps = steps.length > 0;
-  const twoColumns = hasPlan && hasSteps;
   return (
     <>
       {hasPlan || hasSteps ? (
-        <div className={`grid gap-2 ${twoColumns ? "@xl:grid-cols-2 @xl:items-start" : ""}`}>
+        <div className={`grid gap-2 ${hasPlan && hasSteps ? "@xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] @xl:items-start" : ""}`}>
           {plan && plan.length > 0 ? <PlanBar plan={plan} /> : null}
-          {hasSteps ? <Steps steps={steps} cards={twoColumns} /> : null}
+          {hasSteps ? <Steps steps={steps} /> : null}
         </div>
       ) : null}
       {aside}
@@ -709,111 +708,117 @@ function groupStatus(steps: Step[]): Step["status"] {
 
 function StepStatusIcon({ status }: { status: Step["status"] }) {
   if (status === "running") {
-    return <span className="mt-1 size-3.5 shrink-0 animate-spin rounded-full border-2 border-line border-t-pine" aria-hidden="true" />;
+    return <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-line border-t-pine" aria-hidden="true" />;
   }
   return (
-    <span className={`mt-0.5 shrink-0 ${status === "ok" ? "text-moss" : "text-clay"}`} aria-hidden="true">
+    <span className={`shrink-0 ${status === "ok" ? "text-moss" : "text-clay"}`} aria-hidden="true">
       {status === "ok" ? "✓" : "✕"}
     </span>
   );
 }
 
-function Steps({ steps, cards = false }: { steps: Step[]; cards?: boolean }) {
-  const { t, tx } = useI18n();
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const [pages, setPages] = useState<Record<string, number>>({});
+function Steps({ steps }: { steps: Step[] }) {
+  const { t } = useI18n();
+  const groups = groupSteps(steps);
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null);
+  // Without a manual pick the pane follows the newest call, so it changes with
+  // the progress and comes to rest on the last action of the turn.
+  const newest = steps[steps.length - 1];
+  const selectedKey = pinnedKey && steps.some((step) => step.key === pinnedKey) ? pinnedKey : newest?.key ?? null;
+  const selected = steps.find((step) => step.key === selectedKey) ?? null;
+  const selectedGroup = groups.find((group) => group.steps.some((step) => step.key === selectedKey)) ?? null;
+  const selectedIndex = selected && selectedGroup ? selectedGroup.steps.findIndex((step) => step.key === selected.key) : 0;
+  const selectedAction = selected && needsApproval(selected.name) ? changeAction(selected.name, selected.input) : null;
+
+  function selectGroup(group: StepGroup) {
+    const last = group.steps[group.steps.length - 1];
+    if (last) setPinnedKey(last.key);
+  }
+
   return (
-    <ol className={cards ? "grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2" : "grid gap-2"}>
-      {groupSteps(steps).map((group) => {
-        // The newest call is the one worth seeing, so a group opens on its last
-        // action until the user picks a dot.
-        const active = Math.min(pages[group.key] ?? group.steps.length - 1, group.steps.length - 1);
-        const step = group.steps[active];
-        const action = needsApproval(step.name) ? changeAction(step.name, step.input) : null;
-        const open = openKey === group.key;
-        const panelId = `assistant-step-${group.key}`;
-        return (
-          <li
-            key={group.key}
-            className={
-              cards
-                ? `min-w-0 rounded-xl border border-line bg-card p-2 ${open ? "col-span-full" : "hover:border-ink/25"}`
-                : ""
-            }
-          >
-            <div className="flex items-start gap-2">
-              <StepStatusIcon status={groupStatus(group.steps)} />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                  <button
-                    type="button"
-                    aria-expanded={open}
-                    title={open ? t("assistant.step.hide") : t("assistant.step.show")}
-                    onClick={() => setOpenKey(open ? null : group.key)}
-                    className="group inline-flex min-w-0 items-center gap-1 rounded text-left"
-                  >
-                    <span className={`text-[12px] font-medium group-hover:text-pine ${step.status === "error" ? "text-clay" : ""}`}>
-                      {toolLabelFor(group.name, t)}
-                    </span>
-                    <svg
-                      viewBox="0 0 16 16"
-                      className={`size-3 shrink-0 text-muted transition-transform ${open ? "rotate-90" : ""}`}
-                      aria-hidden="true"
+    <div className="@container min-w-0">
+      <div className="grid gap-2 @sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] @sm:items-start">
+        <ol className="grid gap-1.5">
+          {groups.map((group) => {
+            const current = group === selectedGroup;
+            const last = group.steps[group.steps.length - 1];
+            const groupAction = last && needsApproval(group.name) ? changeAction(group.name, last.input) : null;
+            return (
+              <li key={group.key}>
+                <div className={`rounded-xl border p-2 transition ${current ? "border-pine/50 bg-pine/5" : "border-line bg-card hover:border-ink/25"}`}>
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                    <button
+                      type="button"
+                      aria-current={current ? "true" : undefined}
+                      onClick={() => selectGroup(group)}
+                      className="group flex min-w-0 items-center gap-1.5 rounded text-left"
                     >
-                      <path d="m6 4 4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                  {action ? <ActionBadge action={action} /> : null}
-                  {group.steps.length > 1 ? (
-                    <span
-                      role="group"
-                      aria-label={t("assistant.step.calls", { count: group.steps.length })}
-                      className="inline-flex items-center gap-0.5"
-                    >
-                      {group.steps.map((entry, index) => (
-                        <button
-                          key={entry.key}
-                          type="button"
-                          aria-label={t("assistant.step.call", { index: index + 1, total: group.steps.length })}
-                          aria-current={index === active ? "true" : undefined}
-                          onClick={() => {
-                            setPages((current) => ({ ...current, [group.key]: index }));
-                            setOpenKey(group.key);
-                          }}
-                          className="grid size-4 place-items-center rounded-full hover:bg-ink/5"
-                        >
-                          <span
-                            className={`size-1.5 rounded-full transition ${
-                              index === active
-                                ? "bg-pine"
-                                : entry.status === "error"
-                                  ? "bg-clay/60"
-                                  : "bg-line"
-                            }`}
-                          />
-                        </button>
-                      ))}
-                    </span>
-                  ) : null}
+                      <StepStatusIcon status={groupStatus(group.steps)} />
+                      <span className={`text-[12px] leading-tight font-medium group-hover:text-pine ${last?.status === "error" ? "text-clay" : ""}`}>
+                        {toolLabelFor(group.name, t)}
+                      </span>
+                    </button>
+                    {groupAction ? <ActionBadge action={groupAction} /> : null}
+                    {group.steps.length > 1 ? (
+                      <span
+                        role="group"
+                        aria-label={t("assistant.step.calls", { count: group.steps.length })}
+                        className="inline-flex items-center gap-0.5"
+                      >
+                        {group.steps.map((entry, index) => {
+                          const active = current && index === selectedIndex;
+                          return (
+                            <button
+                              key={entry.key}
+                              type="button"
+                              aria-label={t("assistant.step.call", { index: index + 1, total: group.steps.length })}
+                              aria-current={active ? "true" : undefined}
+                              onClick={() => setPinnedKey(entry.key)}
+                              className="grid size-4 place-items-center rounded-full hover:bg-ink/5"
+                            >
+                              <span
+                                className={`size-1.5 rounded-full transition ${
+                                  active ? "bg-pine" : entry.status === "error" ? "bg-clay/60" : "bg-line"
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-                {step.status === "error" ? <p className="mt-0.5 text-[11px] text-clay">{step.summary ? tx(step.summary) : t("assistant.step.failed")}</p> : null}
-                {step.status === "ok" ? <StepCard step={step} /> : null}
-                {open ? (
-                  <StepDetails id={panelId} step={step} page={active} total={group.steps.length} />
-                ) : null}
-              </div>
+              </li>
+            );
+          })}
+        </ol>
+        {selected ? (
+          <div className="min-w-0 rounded-xl border border-line bg-card p-2">
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              <StepStatusIcon status={selected.status} />
+              <p className={`text-[12px] leading-tight font-medium ${selected.status === "error" ? "text-clay" : ""}`}>
+                {toolLabelFor(selected.name, t)}
+              </p>
+              {selectedAction ? <ActionBadge action={selectedAction} /> : null}
+              {selectedGroup && selectedGroup.steps.length > 1 ? (
+                <span className="ml-auto text-[10px] text-muted">
+                  {t("assistant.step.call", { index: selectedIndex + 1, total: selectedGroup.steps.length })}
+                </span>
+              ) : null}
             </div>
-          </li>
-        );
-      })}
-    </ol>
+            <StepDetails step={selected} />
+            {selected.status === "ok" ? <StepCard step={selected} /> : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 const stepSectionClass = "text-[10px] font-semibold tracking-[0.12em] text-muted uppercase";
 
 /** What the assistant called, with which arguments, and what came back. */
-function StepDetails({ id, step, page, total }: { id: string; step: Step; page: number; total: number }) {
+function StepDetails({ step }: { step: Step }) {
   const { t, tx } = useI18n();
   const input = step.input;
   const write = needsApproval(step.name);
@@ -824,8 +829,7 @@ function StepDetails({ id, step, page, total }: { id: string; step: Step; page: 
   const truncated =
     typeof step.data === "object" && step.data !== null && (step.data as { truncated?: unknown }).truncated === true;
   return (
-    <div id={id} className="mt-1.5 grid gap-2 rounded-lg border border-line bg-card p-2 text-[11px]">
-      {total > 1 ? <p className="text-[10px] text-muted">{t("assistant.step.call", { index: page + 1, total })}</p> : null}
+    <div className="mt-1.5 grid gap-2 text-[11px]">
       <section>
         <p className={stepSectionClass}>{t("assistant.step.executed")}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">

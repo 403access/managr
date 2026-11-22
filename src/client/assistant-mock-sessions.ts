@@ -167,8 +167,8 @@ export const MOCK_SESSIONS: MockSession[] = [
     id: "time-weeks",
     title: { de: "Vier Wochen Zeiten", en: "Four weeks of time" },
     note: {
-      de: "Vier „Zeiten lesen“-Aufrufe, kein update_plan. So sah die gemeldete Sitzung aus: eine Zeile mit vier Punkten, aber ohne Roadmap.",
-      en: "Four “read time” calls, no update_plan. The reported session looked like this: one row with four dots, no roadmap.",
+      de: "Vier „Zeiten lesen“-Aufrufe, kein update_plan. So sah die gemeldete Sitzung aus: eine Gruppe mit vier Punkten, daneben der zuletzt gelesene Aufruf – aber ohne Roadmap.",
+      en: "Four “read time” calls, no update_plan. The reported session looked like this: one group with four dots beside the newest call that was read, but no roadmap.",
     },
     prompt: {
       de: "alle zeit-einträge im november müssen auf berechenbar gesetzt werden",
