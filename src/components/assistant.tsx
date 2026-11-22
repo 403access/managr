@@ -25,6 +25,7 @@ import { useI18n } from "./locale-provider";
 import { Markdown } from "./markdown";
 import { buttonClass, inputClass, Pill } from "./ui";
 import { useFollowBottom } from "./use-follow-bottom";
+import { setJsonView, useJsonView } from "./use-json-view";
 
 const ACTION_STYLE: Record<ChangeAction, string> = {
   add: "bg-moss/15 text-moss",
@@ -731,6 +732,7 @@ function StepStatusIcon({ status }: { status: Step["status"] }) {
 
 function Steps({ steps }: { steps: Step[] }) {
   const { t } = useI18n();
+  const jsonView = useJsonView();
   const groups = groupSteps(steps);
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
   const listRef = useRef<HTMLOListElement | null>(null);
@@ -858,14 +860,29 @@ function Steps({ steps }: { steps: Step[] }) {
                   {toolLabelFor(selected.name, t)}
                 </p>
                 {selectedAction ? <ActionBadge action={selectedAction} /> : null}
-                {selectedGroup && selectedGroup.steps.length > 1 ? (
-                  <span className="ml-auto text-[10px] text-muted">
-                    {t("assistant.step.call", { index: selectedIndex + 1, total: selectedGroup.steps.length })}
-                  </span>
-                ) : null}
+                <span className="ml-auto flex items-center gap-1">
+                  {selectedGroup && selectedGroup.steps.length > 1 ? (
+                    <span className="text-[10px] text-muted">
+                      {t("assistant.step.call", { index: selectedIndex + 1, total: selectedGroup.steps.length })}
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-pressed={jsonView === "raw"}
+                    title={jsonView === "raw" ? t("assistant.step.rawOff") : t("assistant.step.rawOn")}
+                    onClick={() => setJsonView(jsonView === "raw" ? "tree" : "raw")}
+                    className={`rounded-full border px-1.5 py-0.5 font-mono text-[10px] leading-none transition ${
+                      jsonView === "raw"
+                        ? "border-pine bg-pine text-paper"
+                        : "border-line bg-white text-muted hover:border-ink hover:text-ink"
+                    }`}
+                  >
+                    JSON
+                  </button>
+                </span>
               </div>
               <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto">
-                <StepDetails step={selected} />
+                <StepDetails step={selected} raw={jsonView === "raw"} />
                 {selected.status === "ok" ? <StepCard step={selected} /> : null}
               </div>
             </div>
@@ -879,7 +896,7 @@ function Steps({ steps }: { steps: Step[] }) {
 const stepSectionClass = "text-[10px] font-semibold tracking-[0.12em] text-muted uppercase";
 
 /** What the assistant called, with which arguments, and what came back. */
-function StepDetails({ step }: { step: Step }) {
+function StepDetails({ step, raw }: { step: Step; raw: boolean }) {
   const { t, tx } = useI18n();
   const input = step.input;
   const write = needsApproval(step.name);
@@ -898,9 +915,7 @@ function StepDetails({ step }: { step: Step }) {
           {step.status === "running" ? <span className="text-[10px] text-muted">{t("assistant.step.running")}</span> : null}
         </div>
         {hasInput ? (
-          <pre className="mt-1 rounded bg-ink/5 p-1.5 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap">
-            {JSON.stringify(input, null, 2)}
-          </pre>
+          <JsonBlock value={input} raw={raw} className="mt-1" />
         ) : (
           <p className="mt-1 text-[10px] text-muted">{t("assistant.step.noInput")}</p>
         )}
@@ -914,13 +929,68 @@ function StepDetails({ step }: { step: Step }) {
         ) : truncated ? (
           <p className="mt-1 text-[10px] text-muted">{t("assistant.step.truncated")}</p>
         ) : (
-          <pre className="mt-1 rounded bg-ink/5 p-1.5 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap">
-            {JSON.stringify(step.data, null, 2)}
-          </pre>
+          <JsonBlock value={step.data} raw={raw} className="mt-1" />
         )}
       </section>
     </div>
   );
+}
+
+/** The tool payload either as a readable tree or as its raw JSON block. */
+function JsonBlock({ value, raw, className = "" }: { value: unknown; raw: boolean; className?: string }) {
+  if (raw) {
+    return (
+      <pre className={`${className} rounded bg-ink/5 p-1.5 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap`}>
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    );
+  }
+  return (
+    <div className={`${className} text-[11px] leading-relaxed`}>
+      <JsonTree value={value} />
+    </div>
+  );
+}
+
+function JsonTree({ value }: { value: unknown }) {
+  const { t } = useI18n();
+  if (value === null) return <span className="text-muted">null</span>;
+  if (typeof value === "boolean") return <span>{value ? t("assistant.approval.yes") : t("assistant.approval.no")}</span>;
+  if (typeof value === "number" || typeof value === "string") {
+    return <span className="break-words whitespace-pre-wrap">{String(value)}</span>;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-muted">{t("assistant.approval.empty")}</span>;
+    return (
+      <div className="grid gap-1">
+        <span className="text-[10px] text-muted">{t("assistant.approval.entries", { count: value.length })}</span>
+        <ol className="grid gap-1.5 border-l border-line pl-2">
+          {value.map((item, index) => (
+            <li key={index} className="min-w-0">
+              <JsonTree value={item} />
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return <span className="text-muted">{t("assistant.approval.empty")}</span>;
+    return (
+      <dl className="grid gap-0.5">
+        {entries.map(([key, item]) => (
+          <div key={key} className="grid grid-cols-[minmax(4.5rem,auto)_minmax(0,1fr)] gap-x-2">
+            <dt className="break-all font-mono text-[10px] text-muted">{key}</dt>
+            <dd className="min-w-0">
+              <JsonTree value={item} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+  return <span>{String(value)}</span>;
 }
 
 export function formatMessageTime(iso: string, locale: string): string {
