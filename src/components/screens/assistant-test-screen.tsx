@@ -9,6 +9,7 @@ import { MCP_SERVER } from "@/client/assistant-types";
 import { AssistantStreamingTurn, AssistantTurn } from "@/components/assistant";
 import { useI18n } from "@/components/locale-provider";
 import { buttonClass } from "@/components/ui";
+import { useFollowBottom } from "@/components/use-follow-bottom";
 
 type SpeedID = "normal" | "fast" | "instant";
 
@@ -39,7 +40,6 @@ export function AssistantTestScreen() {
   const speedRef = useRef<SpeedID>("normal");
   const promptRef = useRef<ChatMessage | null>(null);
   const startedRef = useRef(0);
-  const listRef = useRef<HTMLDivElement>(null);
   speedRef.current = speedID;
 
   const session = MOCK_SESSIONS.find((item) => item.id === sessionID) ?? MOCK_SESSIONS[0];
@@ -162,9 +162,7 @@ export function AssistantTestScreen() {
     runRef.current += 1;
   }, []);
 
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages, stream]);
+  const listRef = useFollowBottom<HTMLDivElement>([messages, stream]);
 
   const protocol = session.model.protocol === "anthropic" ? t("assistant.protocolAnthropic") : t("assistant.protocolOpenai");
   const calls = session.events.filter((item) => item.event.type === "tool").length;

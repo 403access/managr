@@ -24,6 +24,7 @@ import { Combobox } from "./combobox";
 import { useI18n } from "./locale-provider";
 import { Markdown } from "./markdown";
 import { buttonClass, inputClass, Pill } from "./ui";
+import { useFollowBottom } from "./use-follow-bottom";
 
 const ACTION_STYLE: Record<ChangeAction, string> = {
   add: "bg-moss/15 text-moss",
@@ -305,7 +306,6 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
   const [open, setOpen] = useState(false);
   const shown = page || open;
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const lastUserMessageId = [...messages].reverse().find((message) => message.role === "user")?.id ?? null;
 
   useEffect(() => {
@@ -323,9 +323,7 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
     inputRef.current?.focus();
   }, [shown]);
 
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages, streaming, error]);
+  const listRef = useFollowBottom<HTMLDivElement>([messages, streaming, error]);
 
   const quickActions = [
     { key: "assistant.quickBriefing", prompt: t("assistant.promptBriefing") },
