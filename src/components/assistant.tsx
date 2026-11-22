@@ -704,6 +704,20 @@ function groupStatus(steps: Step[]): Step["status"] {
   return "ok";
 }
 
+/** A short hint that tells one call in a group from its siblings. */
+function stepHint(step: Step): string {
+  const input = step.input;
+  if (typeof input === "string") return input;
+  if (typeof input === "number") return String(input);
+  if (input && typeof input === "object" && !Array.isArray(input)) {
+    for (const value of Object.values(input as Record<string, unknown>)) {
+      if (typeof value === "string" && value.trim()) return value;
+      if (typeof value === "number") return String(value);
+    }
+  }
+  return "";
+}
+
 function StepStatusIcon({ status }: { status: Step["status"] }) {
   if (status === "running") {
     return <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-line border-t-pine" aria-hidden="true" />;
@@ -733,7 +747,9 @@ function Steps({ steps }: { steps: Step[] }) {
   // scrolling the transcript itself.
   useEffect(() => {
     const list = listRef.current;
-    const current = list?.querySelector<HTMLElement>('[aria-current="true"]');
+    const current = list
+      ? [...list.querySelectorAll<HTMLElement>('[aria-current="true"]')].filter((node) => node.offsetParent !== null).pop()
+      : null;
     if (!list || !current) return;
     const listBox = list.getBoundingClientRect();
     const box = current.getBoundingClientRect();
@@ -774,7 +790,7 @@ function Steps({ steps }: { steps: Step[] }) {
                       <span
                         role="group"
                         aria-label={t("assistant.step.calls", { count: group.steps.length })}
-                        className="inline-flex items-center gap-0.5"
+                        className={`inline-flex items-center gap-0.5 ${current ? "@sm:hidden" : ""}`}
                       >
                         {group.steps.map((entry, index) => {
                           const active = current && index === selectedIndex;
@@ -798,6 +814,34 @@ function Steps({ steps }: { steps: Step[] }) {
                       </span>
                     ) : null}
                   </div>
+                  {/* With room to show them, the open group lists its calls
+                      instead of leaving the reader with the dots alone. */}
+                  {current && group.steps.length > 1 ? (
+                    <ol className="mt-1.5 hidden gap-0.5 border-t border-line pt-1.5 @sm:grid">
+                      {group.steps.map((entry, index) => {
+                        const active = index === selectedIndex;
+                        const hint = stepHint(entry);
+                        return (
+                          <li key={entry.key}>
+                            <button
+                              type="button"
+                              aria-current={active ? "true" : undefined}
+                              onClick={() => setPinnedKey(entry.key)}
+                              className={`flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[11px] transition ${
+                                active ? "bg-pine/10 text-ink" : "text-muted hover:bg-ink/5 hover:text-ink"
+                              }`}
+                            >
+                              <StepStatusIcon status={entry.status} />
+                              <span className="min-w-0 flex-1 truncate">
+                                {t("assistant.step.call", { index: index + 1, total: group.steps.length })}
+                              </span>
+                              {hint ? <span className="max-w-[45%] shrink-0 truncate font-mono text-[10px]">{hint}</span> : null}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  ) : null}
                 </div>
               </li>
             );
