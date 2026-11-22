@@ -34,6 +34,7 @@ const ACTION_STYLE: Record<ChangeAction, string> = {
 };
 
 const PANEL_OPEN_KEY = "managr-assistant-open";
+const PANEL_EXPANDED_KEY = "managr-assistant-expanded";
 
 function readPanelOpen(): boolean {
   try {
@@ -48,6 +49,22 @@ function storePanelOpen(open: boolean): void {
     window.sessionStorage.setItem(PANEL_OPEN_KEY, open ? "1" : "0");
   } catch {
     // A private window may refuse storage; the panel then lasts for the mount.
+  }
+}
+
+function readPanelExpanded(): boolean {
+  try {
+    return window.sessionStorage.getItem(PANEL_EXPANDED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function storePanelExpanded(expanded: boolean): void {
+  try {
+    window.sessionStorage.setItem(PANEL_EXPANDED_KEY, expanded ? "1" : "0");
+  } catch {
+    // A private window may refuse storage; the size then lasts for the mount.
   }
 }
 
@@ -305,6 +322,7 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
   } = useAssistant();
   const page = variant === "page";
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const shown = page || open;
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastUserMessageId = [...messages].reverse().find((message) => message.role === "user")?.id ?? null;
@@ -312,6 +330,7 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
   useEffect(() => {
     if (page) return;
     if (readPanelOpen()) setOpen(true);
+    if (readPanelExpanded()) setExpanded(true);
   }, [page]);
 
   useEffect(() => {
@@ -320,11 +339,16 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
   }, [open, page]);
 
   useEffect(() => {
+    if (page) return;
+    storePanelExpanded(expanded);
+  }, [expanded, page]);
+
+  useEffect(() => {
     if (!shown) return;
     inputRef.current?.focus();
   }, [shown]);
 
-  const listRef = useFollowBottom<HTMLDivElement>([messages, streaming, error]);
+  const listRef = useFollowBottom<HTMLDivElement>([messages, streaming, error, expanded]);
 
   const quickActions = [
     { key: "assistant.quickBriefing", prompt: t("assistant.promptBriefing") },
@@ -413,7 +437,9 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
           className={
             page
               ? "flex h-[70dvh] min-h-[28rem] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-sm md:h-[calc(100dvh-12rem)] md:min-h-[32rem]"
-              : "fixed inset-x-3 bottom-20 z-50 flex max-h-[78dvh] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl shadow-ink/25 md:inset-x-auto md:right-6 md:bottom-24 md:w-[27rem] md:max-h-[42rem]"
+              : expanded
+                ? "fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl shadow-ink/25 md:inset-6"
+                : "fixed inset-x-3 bottom-20 z-50 flex max-h-[78dvh] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl shadow-ink/25 md:inset-x-auto md:right-6 md:bottom-24 md:w-[27rem] md:max-h-[42rem]"
           }
         >
           <header className="border-b border-line px-4 py-3">
@@ -432,6 +458,38 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
                   <Link href="/assistant" className="rounded-full px-2 py-1 text-xs font-medium text-pine hover:underline">
                     {t("assistant.openPage")}
                   </Link>
+                )}
+                {page ? null : (
+                  <button
+                    type="button"
+                    className="grid size-9 place-items-center rounded-full text-muted hover:text-ink"
+                    onClick={() => setExpanded((value) => !value)}
+                    aria-label={expanded ? t("assistant.restore") : t("assistant.maximize")}
+                    aria-pressed={expanded}
+                    title={expanded ? t("assistant.restore") : t("assistant.maximize")}
+                  >
+                    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+                      {expanded ? (
+                        <path
+                          d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      ) : (
+                        <path
+                          d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      )}
+                    </svg>
+                  </button>
                 )}
                 {page ? null : (
                   <button type="button" className="grid size-9 place-items-center rounded-full text-muted hover:text-ink" onClick={() => setOpen(false)} aria-label={t("assistant.close")}>
