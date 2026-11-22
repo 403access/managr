@@ -35,9 +35,13 @@ h3 {
   font-weight: 500;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-pine);
-  outline-offset: 2px;
+/* Keep the default focus ring in the base layer so individual controls can opt out
+   with `outline-none` (e.g. the command bar input, which has no field chrome). */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+  }
 }
 
 select.select-input {

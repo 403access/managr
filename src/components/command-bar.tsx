@@ -290,7 +290,7 @@ export function CommandBar({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="absolute inset-x-3 top-[8dvh] mx-auto flex max-h-[80dvh] max-w-2xl flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-2xl sm:top-[12dvh]"
+        className="absolute inset-x-3 top-[8dvh] mx-auto flex max-h-[80dvh] max-w-2xl flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-2xl transition-colors focus-within:border-pine/40 sm:top-[12dvh]"
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
           <SearchGlyph />
