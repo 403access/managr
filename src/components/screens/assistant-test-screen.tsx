@@ -168,7 +168,7 @@ export function AssistantTestScreen() {
   const calls = session.events.filter((item) => item.event.type === "tool").length;
 
   return (
-    <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 md:px-8">
+    <main className="grid w-full gap-6 px-4 py-8 md:px-8">
       <header className="grid gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-2xl">{t("test.title")}</h1>
