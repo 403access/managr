@@ -725,7 +725,9 @@ function Steps({ steps, cards = false }: { steps: Step[]; cards?: boolean }) {
   return (
     <ol className={cards ? "grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2" : "grid gap-2"}>
       {groupSteps(steps).map((group) => {
-        const active = Math.min(pages[group.key] ?? 0, group.steps.length - 1);
+        // The newest call is the one worth seeing, so a group opens on its last
+        // action until the user picks a dot.
+        const active = Math.min(pages[group.key] ?? group.steps.length - 1, group.steps.length - 1);
         const step = group.steps[active];
         const action = needsApproval(step.name) ? changeAction(step.name, step.input) : null;
         const open = openKey === group.key;
