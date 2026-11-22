@@ -640,12 +640,13 @@ function TurnParts({
 }) {
   const hasPlan = Boolean(plan?.length);
   const hasSteps = steps.length > 0;
+  const twoColumns = hasPlan && hasSteps;
   return (
     <>
       {hasPlan || hasSteps ? (
-        <div className={`grid gap-2 ${hasPlan && hasSteps ? "@xl:grid-cols-2 @xl:items-start" : ""}`}>
+        <div className={`grid gap-2 ${twoColumns ? "@xl:grid-cols-2 @xl:items-start" : ""}`}>
           {plan && plan.length > 0 ? <PlanBar plan={plan} /> : null}
-          {hasSteps ? <Steps steps={steps} /> : null}
+          {hasSteps ? <Steps steps={steps} cards={twoColumns} /> : null}
         </div>
       ) : null}
       {aside}
@@ -717,12 +718,12 @@ function StepStatusIcon({ status }: { status: Step["status"] }) {
   );
 }
 
-function Steps({ steps }: { steps: Step[] }) {
+function Steps({ steps, cards = false }: { steps: Step[]; cards?: boolean }) {
   const { t, tx } = useI18n();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [pages, setPages] = useState<Record<string, number>>({});
   return (
-    <ol className="grid gap-2">
+    <ol className={cards ? "grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2" : "grid gap-2"}>
       {groupSteps(steps).map((group) => {
         const active = Math.min(pages[group.key] ?? 0, group.steps.length - 1);
         const step = group.steps[active];
@@ -730,7 +731,14 @@ function Steps({ steps }: { steps: Step[] }) {
         const open = openKey === group.key;
         const panelId = `assistant-step-${group.key}`;
         return (
-          <li key={group.key}>
+          <li
+            key={group.key}
+            className={
+              cards
+                ? `min-w-0 rounded-xl border border-line bg-card p-2 ${open ? "col-span-full" : "hover:border-ink/25"}`
+                : ""
+            }
+          >
             <div className="flex items-start gap-2">
               <StepStatusIcon status={groupStatus(group.steps)} />
               <div className="min-w-0 flex-1">
