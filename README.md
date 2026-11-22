@@ -13,6 +13,10 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000). The first launch creates `data/managr.db` and loads the sample company Atelier Nordlicht UG. Delete that file to start over. Uploaded files live in `data/uploads`.
 
+## iPhone app
+
+`ios/` is a native SwiftUI client for the same desk, not a second backend. It reads `GET /api/views/[name]` and writes through `POST /api/tools`, which runs the same tool registry, validation, and journal postings as the MCP endpoint and the in-app assistant. The phone connects to the Next server on your Mac over the same Wi-Fi; there is no hosting, no account, and no copy of the books on the phone. It covers the overview, invoices (issue a draft, record a payment), customers, time, people, projects, tasks, and deadlines. Build and install steps, signing, and troubleshooting are in [ios/README.md](ios/README.md).
+
 ## Search
 
 The command bar opens from the sidebar, the mobile header, or with `Cmd/Ctrl+K`. It searches the navigation pages and the records behind them: invoices, customers, people, projects and tasks, documents, deadlines, milestones, legal records, company records, and ledger accounts. A result opens the record's detail page or the tab that holds it. The index comes from the same queries the screens use and is cached in the browser; a write refreshes it.

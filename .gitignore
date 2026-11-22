@@ -8,3 +8,7 @@ tsconfig.tsbuildinfo
 next-env.d.ts
 website/.docusaurus
 website/build
+ios/Managr.xcodeproj/xcuserdata
+ios/Managr.xcodeproj/project.xcworkspace/xcuserdata
+ios/build
+*.xcuserstate
