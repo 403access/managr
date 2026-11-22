@@ -721,6 +721,8 @@ function Steps({ steps }: { steps: Step[] }) {
   const { t } = useI18n();
   const groups = groupSteps(steps);
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
+  const listRef = useRef<HTMLOListElement | null>(null);
+  const detailRef = useRef<HTMLDivElement | null>(null);
   // Without a manual pick the pane follows the newest call, so it changes with
   // the progress and comes to rest on the last action of the turn.
   const newest = steps[steps.length - 1];
@@ -730,6 +732,23 @@ function Steps({ steps }: { steps: Step[] }) {
   const selectedIndex = selected && selectedGroup ? selectedGroup.steps.findIndex((step) => step.key === selected.key) : 0;
   const selectedAction = selected && needsApproval(selected.name) ? changeAction(selected.name, selected.input) : null;
 
+  // Keep the highlighted group visible inside the capped list without
+  // scrolling the transcript itself.
+  useEffect(() => {
+    const list = listRef.current;
+    const current = list?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!list || !current) return;
+    const listBox = list.getBoundingClientRect();
+    const box = current.getBoundingClientRect();
+    if (box.top < listBox.top) list.scrollTop += box.top - listBox.top;
+    else if (box.bottom > listBox.bottom) list.scrollTop += box.bottom - listBox.bottom;
+  }, [selectedKey]);
+
+  // A new call starts at the top of its own output.
+  useEffect(() => {
+    if (detailRef.current) detailRef.current.scrollTop = 0;
+  }, [selectedKey]);
+
   function selectGroup(group: StepGroup) {
     const last = group.steps[group.steps.length - 1];
     if (last) setPinnedKey(last.key);
@@ -738,7 +757,7 @@ function Steps({ steps }: { steps: Step[] }) {
   return (
     <div className="@container min-w-0">
       <div className="grid gap-2 @sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] @sm:items-start">
-        <ol className="grid gap-1.5">
+        <ol ref={listRef} className="grid gap-1.5 @sm:max-h-64 @sm:overflow-y-auto">
           {groups.map((group) => {
             const current = group === selectedGroup;
             const last = group.steps[group.steps.length - 1];
@@ -793,7 +812,7 @@ function Steps({ steps }: { steps: Step[] }) {
           })}
         </ol>
         {selected ? (
-          <div className="min-w-0 rounded-xl border border-line bg-card p-2">
+          <div className="flex h-64 min-w-0 flex-col rounded-xl border border-line bg-card p-2">
             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
               <StepStatusIcon status={selected.status} />
               <p className={`text-[12px] leading-tight font-medium ${selected.status === "error" ? "text-clay" : ""}`}>
@@ -806,8 +825,12 @@ function Steps({ steps }: { steps: Step[] }) {
                 </span>
               ) : null}
             </div>
-            <StepDetails step={selected} />
-            {selected.status === "ok" ? <StepCard step={selected} /> : null}
+            {/* A fixed height keeps the bubble still while the selected call
+                changes or its result arrives. */}
+            <div ref={detailRef} className="mt-1.5 min-h-0 flex-1 overflow-y-auto">
+              <StepDetails step={selected} />
+              {selected.status === "ok" ? <StepCard step={selected} /> : null}
+            </div>
           </div>
         ) : null}
       </div>
@@ -829,7 +852,7 @@ function StepDetails({ step }: { step: Step }) {
   const truncated =
     typeof step.data === "object" && step.data !== null && (step.data as { truncated?: unknown }).truncated === true;
   return (
-    <div className="mt-1.5 grid gap-2 text-[11px]">
+    <div className="grid gap-2 text-[11px]">
       <section>
         <p className={stepSectionClass}>{t("assistant.step.executed")}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -837,7 +860,7 @@ function StepDetails({ step }: { step: Step }) {
           {step.status === "running" ? <span className="text-[10px] text-muted">{t("assistant.step.running")}</span> : null}
         </div>
         {hasInput ? (
-          <pre className="mt-1 max-h-40 overflow-y-auto rounded bg-ink/5 p-1.5 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap">
+          <pre className="mt-1 rounded bg-ink/5 p-1.5 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap">
             {JSON.stringify(input, null, 2)}
           </pre>
         ) : (
@@ -853,7 +876,7 @@ function StepDetails({ step }: { step: Step }) {
         ) : truncated ? (
           <p className="mt-1 text-[10px] text-muted">{t("assistant.step.truncated")}</p>
         ) : (
-          <pre className="mt-1 max-h-64 overflow-y-auto rounded bg-ink/5 p-1.5 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap">
+          <pre className="mt-1 rounded bg-ink/5 p-1.5 font-mono text-[10px] leading-relaxed break-words whitespace-pre-wrap">
             {JSON.stringify(step.data, null, 2)}
           </pre>
         )}
