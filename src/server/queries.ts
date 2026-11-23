@@ -45,7 +45,7 @@ import { statutoryObligations } from "@/domain/obligations";
 import { salaryForMonth, type SalaryPeriod } from "@/domain/salary";
 import { loanInterestCents, loanOutstandingCents, reviewShareholderLoan } from "@/domain/shareholder-loan";
 import { estimateContributions, type ContributionEstimate } from "@/domain/social";
-import { DEFAULT_UI_SETTINGS, isDetailSidebarMode, isInvoiceLineGrouping, isInvoiceLineOrder, parseDetailSidebarOverrides, type UiSettings } from "@/domain/settings";
+import { DEFAULT_UI_SETTINGS, isDetailSidebarMode, isInvoiceLineGrouping, isInvoiceLineOrder, isInvoiceQuantityInput, parseDetailSidebarOverrides, type UiSettings } from "@/domain/settings";
 import { countWorkdays, weekStart } from "@/domain/time";
 import { lineNetCents, summarizeVat } from "@/domain/vat";
 import { invoiceMoney } from "./invoice-math";
@@ -82,6 +82,8 @@ export function readUiSettings(): UiSettings {
       row && isInvoiceLineOrder(row.invoiceLineOrder) ? row.invoiceLineOrder : DEFAULT_UI_SETTINGS.invoiceLineOrder,
     invoiceLineGrouping:
       row && isInvoiceLineGrouping(row.invoiceLineGrouping) ? row.invoiceLineGrouping : DEFAULT_UI_SETTINGS.invoiceLineGrouping,
+    invoiceQuantityInput:
+      row && isInvoiceQuantityInput(row.invoiceQuantityInput) ? row.invoiceQuantityInput : DEFAULT_UI_SETTINGS.invoiceQuantityInput,
   };
 }
 

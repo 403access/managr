@@ -103,6 +103,7 @@ describe("invoice templates", () => {
       buyerReference: "",
       amountDisplay: "net",
       lineGrouping: "date",
+      quantityInput: "quantity",
       letter: {
         subject: template.subject,
         salutation: template.salutation,
@@ -119,11 +120,14 @@ describe("invoice templates", () => {
     expect(stored?.letterSubject).toBe("Softwareentwicklung");
     expect(stored?.letterPayment).toContain("{betrag}");
     expect(stored?.lineGrouping).toBe("date");
+    expect(stored?.quantityInput).toBe("quantity");
     const edit = stored ? invoiceEditView(stored.id) : null;
     expect(edit?.kind).toBe("draft");
     if (edit?.kind === "draft") {
       expect(edit.draft.lineGrouping).toBe("date");
       expect(edit.defaultLineGrouping).toBe("none");
+      expect(edit.draft.quantityInput).toBe("quantity");
+      expect(edit.defaultQuantityInput).toBe("hoursMinutes");
     }
 
     await deleteInvoiceTemplate(initialState, templateForm({ id: String(template.id) }));

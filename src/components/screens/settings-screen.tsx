@@ -215,6 +215,35 @@ export function SettingsScreen() {
                   </span>
                 </label>
               </fieldset>
+              <fieldset className="mt-4 grid gap-2 sm:grid-cols-2">
+                <legend className="mb-1 text-sm font-medium">{t("settings.linesQuantity")}</legend>
+                <label className="flex items-start gap-3 rounded-xl border border-line bg-white p-3">
+                  <input
+                    type="radio"
+                    name="invoiceQuantityInput"
+                    value="hoursMinutes"
+                    defaultChecked={data.settings.invoiceQuantityInput === "hoursMinutes"}
+                    className="mt-1 size-4 accent-pine"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">{t("settings.linesQuantityTime")}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted">{t("settings.linesQuantityTimeHint")}</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-xl border border-line bg-white p-3">
+                  <input
+                    type="radio"
+                    name="invoiceQuantityInput"
+                    value="quantity"
+                    defaultChecked={data.settings.invoiceQuantityInput === "quantity"}
+                    className="mt-1 size-4 accent-pine"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">{t("settings.linesQuantitySingle")}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted">{t("settings.linesQuantitySingleHint")}</span>
+                  </span>
+                </label>
+              </fieldset>
             </Card>
 
             <div>

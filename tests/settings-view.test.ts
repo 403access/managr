@@ -30,7 +30,13 @@ afterAll(() => {
 
 describe("display settings", () => {
   it("starts with the inline default and no page overrides", () => {
-    expect(readUiSettings()).toEqual({ detailSidebarMode: "inline", detailSidebarOverrides: {}, invoiceLineOrder: "newestFirst", invoiceLineGrouping: "none" });
+    expect(readUiSettings()).toEqual({
+      detailSidebarMode: "inline",
+      detailSidebarOverrides: {},
+      invoiceLineOrder: "newestFirst",
+      invoiceLineGrouping: "none",
+      invoiceQuantityInput: "hoursMinutes",
+    });
     expect(settingsView().settings.detailSidebarMode).toBe("inline");
     expect(shellView().settings.detailSidebarMode).toBe("inline");
   });
@@ -49,6 +55,7 @@ describe("display settings", () => {
       detailSidebarOverrides: { customers: "inline" },
       invoiceLineOrder: "newestFirst",
       invoiceLineGrouping: "none",
+      invoiceQuantityInput: "hoursMinutes",
     });
     expect(settingsView().settings.detailSidebarOverrides.customers).toBe("inline");
   });
@@ -59,7 +66,13 @@ describe("display settings", () => {
     form.set("page.customers", "");
 
     expect(await saveSettings(initialState, form)).toEqual({ error: "", message: "Settings saved." });
-    expect(readUiSettings()).toEqual({ detailSidebarMode: "inline", detailSidebarOverrides: {}, invoiceLineOrder: "newestFirst", invoiceLineGrouping: "none" });
+    expect(readUiSettings()).toEqual({
+      detailSidebarMode: "inline",
+      detailSidebarOverrides: {},
+      invoiceLineOrder: "newestFirst",
+      invoiceLineGrouping: "none",
+      invoiceQuantityInput: "hoursMinutes",
+    });
   });
 
   it("rejects an unknown mode", async () => {
@@ -96,5 +109,20 @@ describe("display settings", () => {
     invalid.set("invoiceLineGrouping", "week");
     expect((await saveSettings(initialState, invalid)).error).toBe("Choose a valid grouping for invoice lines.");
     expect(readUiSettings().invoiceLineGrouping).toBe("date");
+  });
+
+  it("switches the default quantity entry and rejects an unknown value", async () => {
+    const form = new FormData();
+    form.set("detailSidebarMode", "inline");
+    form.set("invoiceQuantityInput", "quantity");
+    expect(await saveSettings(initialState, form)).toEqual({ error: "", message: "Settings saved." });
+    expect(readUiSettings().invoiceQuantityInput).toBe("quantity");
+    expect(settingsView().settings.invoiceQuantityInput).toBe("quantity");
+
+    const invalid = new FormData();
+    invalid.set("detailSidebarMode", "inline");
+    invalid.set("invoiceQuantityInput", "pieces");
+    expect((await saveSettings(initialState, invalid)).error).toBe("Choose a valid quantity entry for invoice lines.");
+    expect(readUiSettings().invoiceQuantityInput).toBe("quantity");
   });
 });

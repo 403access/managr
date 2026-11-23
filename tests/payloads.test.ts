@@ -29,6 +29,12 @@ describe("action payloads", () => {
     expect(invoicePayloadSchema.safeParse(unknown).success).toBe(false);
   });
 
+  it("accepts the two quantity entry modes and rejects an unknown one", () => {
+    expect(invoicePayloadSchema.safeParse({ ...invoice, quantityInput: "hoursMinutes" }).success).toBe(true);
+    expect(invoicePayloadSchema.safeParse({ ...invoice, quantityInput: "quantity" }).success).toBe(true);
+    expect(invoicePayloadSchema.safeParse({ ...invoice, quantityInput: "pieces" }).success).toBe(false);
+  });
+
   it("accepts a two-line journal and trims the memo", () => {
     const parsed = journalPayloadSchema.safeParse({
       date: "2026-10-25",

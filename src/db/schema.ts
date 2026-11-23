@@ -122,6 +122,8 @@ export const invoices = sqliteTable("invoices", {
   letterClosing: text("letter_closing").notNull().default(""),
   letterSignature: text("letter_signature").notNull().default(""),
   lineGrouping: text("line_grouping"),
+  /** The quantity entry chosen for this draft; null uses the desk default. */
+  quantityInput: text("quantity_input"),
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
   deletedAt: text("deleted_at"),
 }, (table) => [uniqueIndex("invoices_company_number_unique").on(table.companyId, table.number)]);
@@ -630,4 +632,5 @@ export const appSettings = sqliteTable("app_settings", {
   detailSidebarOverrides: text("detail_sidebar_overrides").notNull().default("{}"),
   invoiceLineOrder: text("invoice_line_order").notNull().default("newestFirst"),
   invoiceLineGrouping: text("invoice_line_grouping").notNull().default("none"),
+  invoiceQuantityInput: text("invoice_quantity_input").notNull().default("hoursMinutes"),
 });

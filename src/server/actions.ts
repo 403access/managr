@@ -67,10 +67,12 @@ import { reserveDutyActive } from "@/domain/reserve";
 import {
   DEFAULT_INVOICE_LINE_GROUPING,
   DEFAULT_INVOICE_LINE_ORDER,
+  DEFAULT_INVOICE_QUANTITY_INPUT,
   DETAIL_PAGE_KEYS,
   isDetailSidebarMode,
   isInvoiceLineGrouping,
   isInvoiceLineOrder,
+  isInvoiceQuantityInput,
   serializeDetailSidebarOverrides,
   type DetailSidebarOverrides,
 } from "@/domain/settings";
@@ -259,6 +261,9 @@ export async function saveSettings(_state: ActionState, formData: FormData): Pro
     const groupingInput = text(formData, "invoiceLineGrouping");
     if (groupingInput && !isInvoiceLineGrouping(groupingInput)) throw new Error("Choose a valid grouping for invoice lines.");
     const invoiceLineGrouping = groupingInput ? groupingInput : DEFAULT_INVOICE_LINE_GROUPING;
+    const quantityInputValue = text(formData, "invoiceQuantityInput");
+    if (quantityInputValue && !isInvoiceQuantityInput(quantityInputValue)) throw new Error("Choose a valid quantity entry for invoice lines.");
+    const invoiceQuantityInput = quantityInputValue ? quantityInputValue : DEFAULT_INVOICE_QUANTITY_INPUT;
     const overrides: DetailSidebarOverrides = {};
     for (const page of DETAIL_PAGE_KEYS) {
       const value = text(formData, `page.${page}`);
@@ -271,6 +276,7 @@ export async function saveSettings(_state: ActionState, formData: FormData): Pro
       detailSidebarOverrides: serializeDetailSidebarOverrides(overrides),
       invoiceLineOrder,
       invoiceLineGrouping,
+      invoiceQuantityInput,
     };
     const hourlyRateCents = optionalEuros(formData, "hourlyRate", "The hourly rate");
     const db = getDb();
@@ -944,6 +950,7 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
         buyerReference: payload.buyerReference,
         amountDisplay: payload.amountDisplay,
         lineGrouping: payload.lineGrouping,
+        quantityInput: payload.quantityInput ?? null,
         letterSubject: letter.subject,
         letterSalutation: letter.salutation,
         letterIntro: letter.intro,

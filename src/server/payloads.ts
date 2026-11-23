@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CUSTOMER_KINDS } from "@/domain/customers";
+import { INVOICE_QUANTITY_INPUTS } from "@/domain/settings";
 
 export const invoiceLetterSchema = z.object({
   subject: z.string().trim().max(200).default(""),
@@ -31,6 +32,7 @@ export const invoicePayloadSchema = z.object({
   buyerReference: z.string().trim().max(100).default(""),
   amountDisplay: z.enum(["net", "gross"]).default("net"),
   lineGrouping: z.enum(["none", "date"]).nullable().default(null),
+  quantityInput: z.enum(INVOICE_QUANTITY_INPUTS).optional(),
   letter: invoiceLetterSchema.optional(),
   lines: z
     .array(

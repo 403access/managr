@@ -48,6 +48,8 @@ An invoice states its amounts as net prices with VAT added, or as gross prices w
 
 The invoice form renders the same document component as the print page (`src/components/invoice-document.tsx`) as a live preview. Saving a draft or issuing an invoice opens that preview again and requires confirmation, so no invoice is created unseen.
 
+A line's quantity is stored as a decimal amount. The desk can ask for it in one field (**Menge**) or as separate hours and minutes. The default for new invoices lives in `app_settings.invoice_quantity_input`; a draft carries its own choice in `invoices.quantity_input` and the form shows the selected mode. Hours and minutes are only an entry aid: they become decimal hours, so the invoice, the ledger, and the XRechnung keep the same quantity.
+
 For a chosen customer the form lists the activities of their billable time entries that no live invoice carries yet. Each activity becomes one line, described as `project: activity`, priced at the effective hourly rate. The entry's duration is split evenly across its activities (`activityQuantityMilli` in `src/domain/invoice-time.ts`); cumulative rounding keeps the entry's total exact to the milli-hour. `invoice_lines.time_entry_id` and `time_activity_id` keep the link, so a draft or issued invoice reserves its activities and a void invoice or deleted draft releases them again. The save refuses an activity that another invoice already carries. A line keeps the text and price it had when written; later changes to the time entry do not rewrite an issued invoice.
 
 ## E-Rechnung (XRechnung)

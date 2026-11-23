@@ -9,6 +9,7 @@ import { reviewInvoice, compareInvoiceDates, resolveInvoiceLineGrouping, sortInv
 import { invoiceLetterFromInvoice } from "@/domain/invoice-letter";
 import { activityQuantityMilli, invoiceLineDescription } from "@/domain/invoice-time";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung } from "@/domain/xrechnung";
+import { isInvoiceQuantityInput } from "@/domain/settings";
 import { policyReminders } from "@/domain/obligations";
 import { nextSalaryChange } from "@/domain/salary";
 import { conversionGap, reserveDutyActive } from "@/domain/reserve";
@@ -611,6 +612,7 @@ export function invoiceNewView() {
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,
     defaultLineGrouping: readUiSettings().invoiceLineGrouping,
+    defaultQuantityInput: readUiSettings().invoiceQuantityInput,
     amountDisplay: "net" as const,
     draft: null,
   };
@@ -624,6 +626,8 @@ export function invoiceEditView(id: number) {
   const order = readUiSettings().invoiceLineOrder;
   const lineGrouping: "none" | "date" | null =
     loaded.invoice.lineGrouping === "none" || loaded.invoice.lineGrouping === "date" ? loaded.invoice.lineGrouping : null;
+  const storedQuantityInput = loaded.invoice.quantityInput;
+  const draftQuantityInput = storedQuantityInput && isInvoiceQuantityInput(storedQuantityInput) ? storedQuantityInput : null;
   const entryDates = timeEntryDates(
     loaded.lines.map((line) => line.timeEntryId).filter((entryId): entryId is number => entryId !== null),
   );
@@ -637,6 +641,7 @@ export function invoiceEditView(id: number) {
     termsDays: company.paymentTermsDays,
     defaultVatBps: company.defaultVatBps,
     defaultLineGrouping: readUiSettings().invoiceLineGrouping,
+    defaultQuantityInput: readUiSettings().invoiceQuantityInput,
     draft: {
       id: loaded.invoice.id,
       customerId: loaded.invoice.customerId,
@@ -647,6 +652,7 @@ export function invoiceEditView(id: number) {
       buyerReference: loaded.invoice.buyerReference,
       amountDisplay: loaded.invoice.amountDisplay,
       lineGrouping,
+      quantityInput: draftQuantityInput,
       letter: invoiceLetterFromInvoice(loaded.invoice),
       lines: sortInvoicePositions(
         loaded.lines.map((line) => ({

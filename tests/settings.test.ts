@@ -14,9 +14,10 @@ describe("detail sidebar settings", () => {
     expect(resolveDetailSidebarMode(DEFAULT_UI_SETTINGS, "customers")).toBe("inline");
   });
 
-  it("lists invoice positions newest first by default", () => {
+  it("lists invoice positions newest first and splits quantities into hours and minutes by default", () => {
     expect(DEFAULT_UI_SETTINGS.invoiceLineOrder).toBe("newestFirst");
     expect(DEFAULT_UI_SETTINGS.invoiceLineGrouping).toBe("none");
+    expect(DEFAULT_UI_SETTINGS.invoiceQuantityInput).toBe("hoursMinutes");
   });
 
   it("lets a page override the global mode", () => {

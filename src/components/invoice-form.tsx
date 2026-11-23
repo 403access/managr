@@ -17,7 +17,12 @@ import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
 import { XRECHNUNG_NUMBER_BLOCKER, reviewXRechnung, type XRechnungInput } from "@/domain/xrechnung";
-import type { InvoiceLineGrouping } from "@/domain/settings";
+import {
+  INVOICE_QUANTITY_INPUTS,
+  type InvoiceLineGrouping,
+  type InvoiceQuantityInput,
+} from "@/domain/settings";
+import { quantityFromParts, quantityParts } from "./amounts";
 import { InvoiceDocument, type InvoiceDocumentData } from "./invoice-document";
 import { useI18n } from "./locale-provider";
 import { useUiSettings } from "./settings-provider";
@@ -98,6 +103,7 @@ type Draft = {
   amountDisplay: string;
   letter: InvoiceLetter;
   lineGrouping: "none" | "date" | null;
+  quantityInput: InvoiceQuantityInput | null;
   lines: Line[];
 };
 
@@ -112,6 +118,7 @@ export function InvoiceForm({
   termsDays,
   defaultVatBps,
   defaultLineGrouping,
+  defaultQuantityInput,
   draft,
 }: {
   seller: Seller;
@@ -122,6 +129,7 @@ export function InvoiceForm({
   termsDays: number;
   defaultVatBps: number;
   defaultLineGrouping: InvoiceLineGrouping;
+  defaultQuantityInput: InvoiceQuantityInput;
   draft?: Draft;
 }) {
   const { t, tx } = useI18n();
@@ -137,6 +145,7 @@ export function InvoiceForm({
   const [amountDisplay, setAmountDisplay] = useState<"net" | "gross">(draft?.amountDisplay === "gross" ? "gross" : "net");
   const [lineGrouping, setLineGrouping] = useState<"global" | InvoiceLineGrouping>(draft?.lineGrouping ?? "global");
   const effectiveLineGrouping: InvoiceLineGrouping = lineGrouping === "global" ? defaultLineGrouping : lineGrouping;
+  const [quantityInput, setQuantityInput] = useState<InvoiceQuantityInput>(draft?.quantityInput ?? defaultQuantityInput);
   const [lines, setLines] = useState<Line[]>(() =>
     sortInvoicePositions(
       draft?.lines ?? [{ description: "", quantity: "1", unitNet: "", vatBps: seller.kleinunternehmer ? 0 : defaultVatBps }],
@@ -357,6 +366,7 @@ export function InvoiceForm({
     buyerReference,
     amountDisplay,
     lineGrouping: lineGrouping === "global" ? null : lineGrouping,
+    quantityInput,
     letter,
     lines: lines.map((line) => ({ ...line, vatBps: seller.kleinunternehmer ? 0 : line.vatBps })),
   });
@@ -624,17 +634,73 @@ export function InvoiceForm({
           )}
         </Card>
       ) : null}
+      <fieldset className="grid gap-2">
+        <legend className="text-sm font-medium">{t("invoices.quantityMode")}</legend>
+        <div className="flex flex-wrap gap-2">
+          {INVOICE_QUANTITY_INPUTS.map((mode) => (
+            <label
+              key={mode}
+              className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition ${quantityInput === mode ? "border-pine/40 bg-pine/5" : "border-line bg-white hover:border-ink/30"}`}
+            >
+              <input
+                type="radio"
+                name="invoiceQuantityInputMode"
+                value={mode}
+                checked={quantityInput === mode}
+                onChange={() => setQuantityInput(mode)}
+                className="size-4 accent-pine"
+              />
+              <span className="font-medium">
+                {mode === "hoursMinutes" ? t("invoices.quantityModeHoursMinutes") : t("invoices.quantityModeQuantity")}
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="text-xs leading-relaxed text-muted">{t("invoices.quantityModeHint")}</p>
+      </fieldset>
       <div className="grid gap-3">
         {lines.map((line, index) => (
           <div key={index} className="grid gap-3 rounded-2xl border border-line bg-white p-3 @[34rem]:grid-cols-12">
-            <label className={`grid gap-1 text-sm ${seller.kleinunternehmer ? "@[34rem]:col-span-6" : "@[34rem]:col-span-5"}`}>
+            <label
+              className={`grid gap-1 text-sm ${
+                seller.kleinunternehmer
+                  ? quantityInput === "hoursMinutes" ? "@[34rem]:col-span-5" : "@[34rem]:col-span-6"
+                  : quantityInput === "hoursMinutes" ? "@[34rem]:col-span-4" : "@[34rem]:col-span-5"
+              }`}
+            >
               <span className="font-medium">{t("invoices.description")}</span>
               <input className={inputClass} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} />
             </label>
-            <label className="grid gap-1 text-sm @[34rem]:col-span-2">
-              <span className="font-medium">{t("invoices.quantity")}</span>
-              <input className={inputClass} inputMode="decimal" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} />
-            </label>
+            {quantityInput === "hoursMinutes" ? (
+              <div className="grid gap-1 text-sm @[34rem]:col-span-3">
+                <span className="font-medium">{t("invoices.quantity")}</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="grid gap-0.5">
+                    <span className="text-xs text-muted">{t("invoices.quantityHoursShort")}</span>
+                    <input
+                      className={inputClass}
+                      inputMode="numeric"
+                      value={quantityParts(line.quantity).hours}
+                      onChange={(event) => updateLine(index, { quantity: quantityFromParts(event.target.value, quantityParts(line.quantity).minutes) })}
+                    />
+                  </label>
+                  <label className="grid gap-0.5">
+                    <span className="text-xs text-muted">{t("invoices.quantityMinutesShort")}</span>
+                    <input
+                      className={inputClass}
+                      inputMode="numeric"
+                      value={quantityParts(line.quantity).minutes}
+                      onChange={(event) => updateLine(index, { quantity: quantityFromParts(quantityParts(line.quantity).hours, event.target.value) })}
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <label className="grid gap-1 text-sm @[34rem]:col-span-2">
+                <span className="font-medium">{t("invoices.quantity")}</span>
+                <input className={inputClass} inputMode="decimal" value={line.quantity} onChange={(event) => updateLine(index, { quantity: event.target.value })} />
+              </label>
+            )}
             <label className={`grid gap-1 text-sm ${seller.kleinunternehmer ? "@[34rem]:col-span-4" : "@[34rem]:col-span-3"}`}>
               <span className="font-medium">{seller.kleinunternehmer ? t("invoices.unitAmount") : t("invoices.unitNet")}</span>
               <input className={inputClass} inputMode="decimal" value={line.unitNet} onChange={(event) => updateLine(index, { unitNet: event.target.value })} placeholder="0,00" />

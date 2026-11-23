@@ -38,11 +38,23 @@ export type InvoiceLineGrouping = (typeof INVOICE_LINE_GROUPINGS)[number];
 
 export const DEFAULT_INVOICE_LINE_GROUPING: InvoiceLineGrouping = "none";
 
+/**
+ * How a line's quantity is entered: one generic field, or separate hours and
+ * minutes. The stored quantity is always a decimal amount, so the choice only
+ * changes the form.
+ */
+export const INVOICE_QUANTITY_INPUTS = ["hoursMinutes", "quantity"] as const;
+
+export type InvoiceQuantityInput = (typeof INVOICE_QUANTITY_INPUTS)[number];
+
+export const DEFAULT_INVOICE_QUANTITY_INPUT: InvoiceQuantityInput = "hoursMinutes";
+
 export type UiSettings = {
   detailSidebarMode: DetailSidebarMode;
   detailSidebarOverrides: DetailSidebarOverrides;
   invoiceLineOrder: InvoiceLineOrder;
   invoiceLineGrouping: InvoiceLineGrouping;
+  invoiceQuantityInput: InvoiceQuantityInput;
 };
 
 export const DEFAULT_UI_SETTINGS: UiSettings = {
@@ -50,6 +62,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   detailSidebarOverrides: {},
   invoiceLineOrder: DEFAULT_INVOICE_LINE_ORDER,
   invoiceLineGrouping: DEFAULT_INVOICE_LINE_GROUPING,
+  invoiceQuantityInput: DEFAULT_INVOICE_QUANTITY_INPUT,
 };
 
 export function isDetailSidebarMode(value: string): value is DetailSidebarMode {
@@ -62,6 +75,10 @@ export function isInvoiceLineOrder(value: string): value is InvoiceLineOrder {
 
 export function isInvoiceLineGrouping(value: string): value is InvoiceLineGrouping {
   return INVOICE_LINE_GROUPINGS.some((grouping) => grouping === value);
+}
+
+export function isInvoiceQuantityInput(value: string): value is InvoiceQuantityInput {
+  return INVOICE_QUANTITY_INPUTS.some((input) => input === value);
 }
 
 export function isDetailPageKey(value: string): value is DetailPageKey {
