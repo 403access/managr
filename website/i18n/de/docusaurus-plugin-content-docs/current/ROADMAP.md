@@ -47,6 +47,8 @@ Nach der ersten Version ausgeliefert, in dieser Reihenfolge:
 14. Eine Geldflussseite folgt einem Jahr von der Rechnung bis zum Finanzamt: Bruttoumsatz geteilt in Einkäufe, Nettolöhne, Lohnsteuer, Sozialversicherung, Umsatzsteuer, Körperschaftsteuer, Solidaritätszuschlag, Gewerbesteuer und Gewinn, dazu die Umsatzsteuerkette und tatsächliche Bankbewegungen. Der MCP-Server stellt sie als `read_cashflow` bereit.
 15. Ein Organigramm zeichnet die Berichtslinien aus der Führungskraft jeder Person, lässt ehemalige Personen aus dem Baum und lehnt Selbstverweis oder Schleife ab. Die Seite Personen und `read_org` nutzen dieselbe Ansicht.
 16. Ein Quellenregister stellt jeder Erklärung die offiziellen Websites zur Seite und gruppiert die Quellen nach Domain. `/sources`, `read_guides` und `read_sources` lesen dieselben typisierten Daten.
+17. Ein Arbeitsbereich für Steuererklärungen bereitet Umsatzsteuer-Voranmeldung, Umsatzsteuer-Jahreserklärung, Körperschaftsteuer und Gewerbesteuer aus dem Journal vor, friert einen Zahlenstand mit Hash ein, führt blockierende und warnende Prüfungen aus und hält eine manuelle Einreichung mit Ticket und Protokoll fest. Die Voranmeldung exportiert eine Mein-ELSTER-Datei; die Jahreserklärungen exportieren CSV oder JSON. Die ELSTER/ERiC-Übermittlung bleibt eine spätere Phase.
+18. Ein nativer SwiftUI-iPhone-Client liest dieselben Views unter `GET /api/views/[name]` und schreibt über `POST /api/tools` im lokalen WLAN. Der Mac behält Datenbank und Journal; das Telefon deckt Übersicht, Rechnungen, Zahlungen, Kunden, Zeit, Personen, Projekte, Aufgaben und Fristen ab. Bauen und Signieren stehen in `ios/README.md`.
 
 ## Gründervergütung — Roadmap aus dem Gespräch
 

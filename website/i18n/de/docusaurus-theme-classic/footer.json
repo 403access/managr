@@ -19,6 +19,10 @@
     "message": "Überblick",
     "description": "The label of footer link with label Overview"
   },
+  "link.item.label.iPhone app": {
+    "message": "iPhone-App",
+    "description": "The label of footer link with label iPhone app"
+  },
   "link.item.label.Architecture": {
     "message": "Architektur",
     "description": "The label of footer link with label Architecture"

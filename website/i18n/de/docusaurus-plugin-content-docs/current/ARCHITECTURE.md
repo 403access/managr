@@ -11,12 +11,13 @@ src/domain        reine Regeln, keine Datenbank, kein React
 src/db            Drizzle-Schema, SQL-Migration, Verbindung, Beispiel-Seed
 src/server        Abfragen, View-JSON und Server Actions
 src/client        von Server und Browser gemeinsam genutzte TanStack-Query-Keys
-src/app           Routen, einschließlich GET /api/views/[name]
+src/app           Routen, einschließlich GET /api/views/[name] und POST /api/tools
 src/components    Layout, Formulare und Bildschirme
 src/i18n          deutsche und englische Kataloge, Labels und Phrasenübersetzung
 src/content       kuratiertes Quellenregister und die Erklärungen hinter den Bildschirmen
 docs/             Notizen, die die Docusaurus-Website veröffentlicht
 website/          veröffentlichte Website; Marketingseite, Docs unter /docs
+ios/              nativer SwiftUI-Client und sein XcodeGen-Projekt
 data/managr.db    wird beim ersten Start angelegt (von Git ignoriert)
 data/uploads      Dokumentdateien (von Git ignoriert)
 ```
@@ -108,6 +109,16 @@ Der Assistent in der App nutzt dasselbe `runTool`. `src/app/api/assistant/route.
 `src/server/opencode.ts` liest die lokale opencode-CLI (`opencode api get /api/model`, `/api/provider`, `/api/credential`, `/api/model/default`) und cacht das Ergebnis eine Minute. `GET /api/assistant/models` liefert die Anbieter und die Chat-Modelle mit Werkzeugunterstützung, die über das OpenAI-Chat-Completions-Protokoll erreichbar sind. Das Widget zeigt sie als zwei durchsuchbare Felder und sendet die Wahl mit jeder Nachricht; die Route prüft sie erneut, damit der Browser eine Anfrage nicht an einen beliebigen Endpunkt umleiten kann. Die Zugangsdaten des Anbieters werden auf dem Server gelesen, verlassen ihn nie und werden von managr nicht gespeichert. Die Umgebungsvariablen bleiben der Ausweichweg, wenn opencode nicht installiert ist, was im Docker-Image der Normalfall ist.
 
 `src/server/web.ts` ergänzt `web_search` und `web_fetch` in derselben Registrierung. Eine Suche fragt den HTML-Endpunkt von DuckDuckGo, weicht auf Bing aus oder nutzt einen SearXNG-Endpunkt aus `MANAGR_WEB_SEARCH_URL`; ein Abruf löst den Host auf, lehnt Loopback- und private Adressen ab, folgt höchstens fünf geprüften Weiterleitungen, begrenzt den Body auf 2 MB und liefert extrahierten Text plus E-Mail-Adressen. Beide cachen fünf Minuten. `MANAGR_WEB=0` entfernt die zwei Werkzeuge aus `enabledTools()`, sodass die Werkzeugliste des Assistenten, der MCP-Server und `runTool` sie nicht mehr sehen. Die Werkzeuge sind schreibgeschützt und berühren die Datenbank nicht. Eine Seite ist nicht vertrauenswürdige Eingabe: Der System-Prompt verbietet, Anweisungen daraus zu folgen.
+
+## iPhone-Client
+
+`ios/` ist ein nativer SwiftUI-Client für denselben Schreibtisch. Er öffnet kein SQLite und hält keine Kopie der Bücher. Gelesen wird über die bestehende Route `GET /api/views/[name]`, sodass das Telefon dasselbe JSON erhält wie ein Bildschirm. Geschrieben wird über `POST /api/tools` in `src/app/api/tools/route.ts`, eine einfache JSON-Fassade, die `runTool` aufruft und `{ ok, data }` oder `{ ok, error }` zurückgibt. Es sind dasselbe Register, dieselbe Zod-Validierung, dieselben Domänen-Builder und dasselbe Journal aus `src/server/posting.ts` wie beim MCP-Endpunkt und beim Assistenten.
+
+Server Actions werden vom Telefon nicht verwendet. Ihre IDs sind Build-Artefakte, und der Body ist React-Flight-kodiert; das ist keine stabile Schnittstelle für einen nativen Client. Die iPhone-App schreibt nie über einen zweiten Pfad: `runTool` ist der eine Vertrag.
+
+Die App hat einen eigenen Verbindungsbildschirm und speichert nur die Adresse des Schreibtischs und die Sprache in `UserDefaults`. Sie cached die Bücher nicht; jeder Bildschirm liest vom Schreibtisch. `Info.plist` erlaubt HTTP im lokalen Netz über eine ATS-Ausnahme, und iOS fragt beim ersten Zugriff nach der Freigabe fürs lokale Netzwerk. Wie `/api/mcp` hat `/api/tools` keine Anmeldung; Schreibtisch und Telefon bleiben daher in einem vertrauenswürdigen Netz.
+
+Das Xcode-Projekt wird mit XcodeGen aus `ios/project.yml` erzeugt. `ios/Managr/` enthält die App: `App/` für den Einstiegspunkt und `AppState`, `Core/` für HTTP-Client, Modelle und Formatierung, `Design/` und `Features/` für die Bildschirme. Bauen, Signieren und Installieren stehen in `ios/README.md`.
 
 ## Oberfläche
 

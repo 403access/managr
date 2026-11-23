@@ -4,16 +4,19 @@ slug: /mcp
 
 # Assistant and MCP
 
-managr gets one tool layer that drives the desk, reached from two places:
+managr gets one tool layer that drives the desk, reached from three places:
 
 - **In the app:** a chat widget that turns a sentence into the same calls the screens make.
 - **From outside:** an MCP server at `/api/mcp`, so another agent (Claude Desktop, an IDE, a script) can read and post to the desk.
+- **From the iPhone:** the native SwiftUI client calls `POST /api/tools`, a plain JSON facade over the same registry.
 
-Both surfaces use the same registry in `src/server/tools.ts`. There is no second set of business rules: each tool calls the domain builders in `src/domain` and the posting path in `src/server/posting.ts`. The screens and the assistant therefore produce the same numbers.
+All three surfaces use the same registry in `src/server/tools.ts`. There is no second set of business rules: each tool calls the domain builders in `src/domain` and the posting path in `src/server/posting.ts`. The screens, the assistant, and the phone therefore produce the same numbers.
+
+`POST /api/tools` accepts `{ "name": "...", "arguments": { ... } }` and answers `{ "ok": true, "data": ... }` or `{ "ok": false, "error": "..." }`. `GET /api/tools` lists the enabled tools with their JSON schemas and whether a tool is a write. The route calls `runTool`, so it has the same validation and the same approval boundary as MCP: no confirmation gate, and no sign-in. See [iPhone app](./IPHONE.md).
 
 ## Status
 
-All four phases have shipped. The widget is in the app shell, the MCP endpoint answers at `/api/mcp`, and the registry has read tools, write tools, and four deterministic briefings. The registry follows the screens: the org chart, the Qonto bank view, the money-flow page, analytics, milestones, the source register, and the tax-return workspace are all reachable. The phase headings below describe what each one added.
+All four phases have shipped. The widget is in the app shell, the MCP endpoint answers at `/api/mcp`, the native iPhone client writes through `/api/tools`, and the registry has read tools, write tools, and four deterministic briefings. The registry follows the screens: the org chart, the Qonto bank view, the money-flow page, analytics, milestones, the source register, and the tax-return workspace are all reachable. The phase headings below describe what each one added.
 
 ## Boundaries
 

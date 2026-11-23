@@ -11,12 +11,13 @@ src/domain        pure rules, no database, no React
 src/db            Drizzle schema, SQL migration, connection, sample seed
 src/server        queries, view JSON, and server actions
 src/client        TanStack Query keys shared by the server and the browser
-src/app           routes, including GET /api/views/[name]
+src/app           routes, including GET /api/views/[name] and POST /api/tools
 src/components    layout, forms, and screens
 src/i18n          German and English catalogs, labels, and phrase translation
 src/content       curated source register and the explanations behind screens
 docs/             notes published by the Docusaurus site
 website/          published site; marketing page, docs served at /docs
+ios/              native SwiftUI client and its XcodeGen project
 data/managr.db    created on first launch (gitignored)
 data/uploads      document files (gitignored)
 ```
@@ -144,6 +145,16 @@ The in-app assistant uses the same `runTool`. `src/app/api/assistant/route.ts` v
 The repository's `.opencode/opencode.json` registers `managr-mcp` at `/api/mcp` and denies every other MCP server through `mcp.use` policies, so the opencode service in this checkout does not connect unrelated MCP servers from the user's global configuration. managr's own assistant does not use opencode MCP tools at all: the model receives `openAiTools()` from `src/server/tools.ts`. The assistant route also drops empty tool-only turns and older turns before the model call, and accepts a restored history without rejecting it; a rejected body logs the failing field.
 
 `src/server/web.ts` adds `web_search` and `web_fetch` to the same registry. A search asks DuckDuckGo's HTML endpoint, falls back to Bing, or uses a SearXNG endpoint from `MANAGR_WEB_SEARCH_URL`; a fetch resolves the host, refuses loopback and private addresses, follows at most five checked redirects, caps the body at 2 MB, and returns extracted text plus email addresses. Both cache for five minutes. `MANAGR_WEB=0` removes the two tools from `enabledTools()`, so the assistant's tool list, the MCP server, and `runTool` no longer see them. The tools are read-only and do not touch the database. A page is untrusted input: the system prompt forbids following instructions from it.
+
+## iPhone client
+
+`ios/` is a native SwiftUI client for the same desk. It does not open SQLite and keeps no copy of the books. Reads go to the existing `GET /api/views/[name]` route, so the phone receives the same JSON a screen receives. Writes go to `POST /api/tools` in `src/app/api/tools/route.ts`, a plain JSON facade that calls `runTool` and returns `{ ok, data }` or `{ ok, error }`. It is the same registry, Zod validation, domain builders, and `src/server/posting.ts` journal as the MCP endpoint and the assistant.
+
+Server actions are not used by the phone. Their ids are build artifacts and the body is React Flight encoded, which is not a stable API for a native client. The iPhone never writes through a second code path: `runTool` is the one contract.
+
+The app has its own connection screen and stores only the desk address and language in `UserDefaults`. It does not cache the books; every screen fetches from the desk. `Info.plist` allows local-network HTTP through an ATS exception, and iOS asks for local-network access on the first request. Like `/api/mcp`, `/api/tools` has no authentication, so the desk and the phone stay on a trusted network.
+
+The Xcode project is generated from `ios/project.yml` with XcodeGen. `ios/Managr/` holds the app: `App/` for the entry point and `AppState`, `Core/` for the HTTP client, models, and formatting, `Design/`, and `Features/` for the screens. Build, signing, and install are in `ios/README.md`.
 
 ## UI
 

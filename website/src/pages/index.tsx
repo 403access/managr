@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "@docusaurus/Link";
 import { translate } from "@docusaurus/Translate";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import Layout from "@theme/Layout";
 import styles from "./index.module.css";
 
@@ -72,12 +73,17 @@ const areas: { id: string; term: string; text: string }[] = [
 ];
 
 export default function Home(): ReactNode {
+  const deskShot = useBaseUrl("/img/screens/desk.png");
+  const phoneDashboard = useBaseUrl("/img/ios/iphone-dashboard.png");
+  const phoneInvoice = useBaseUrl("/img/ios/iphone-invoice.png");
+  const phoneTime = useBaseUrl("/img/ios/iphone-time.png");
+
   return (
     <Layout
       title={t("home.meta.title", "A local desk for German companies")}
       description={t(
         "home.meta.description",
-        "managr is a local planning desk for German companies, including the UG (haftungsbeschränkt), an Einzelunternehmen, and other legal forms: company records, obligations, invoices, a ledger, people, and legal notes.",
+        "managr is a local planning desk for German companies, including the UG (haftungsbeschränkt), an Einzelunternehmen, and other legal forms: company records, obligations, invoices, a ledger, people, legal notes, and a native iPhone app.",
       )}
     >
       <div className={styles.page}>
@@ -89,12 +95,15 @@ export default function Home(): ReactNode {
               <p className={styles.lead}>
                 {t(
                   "home.hero.lead",
-                  "managr keeps Stammdaten, the statutory reserve, obligations, invoices, a double-entry ledger, the bank view, people, time, documents, and legal notes for each company. Every company has separate books. It runs on this computer.",
+                  "managr keeps Stammdaten, the statutory reserve, obligations, invoices, a double-entry ledger, the bank view, people, time, documents, and legal notes for each company. Every company has separate books. It runs on this computer and on the iPhone over your Wi-Fi.",
                 )}
               </p>
               <div className={styles.actions}>
                 <Link className={styles.primary} to="/docs">
                   {t("home.hero.readDocs", "Read the docs")}
+                </Link>
+                <Link className={styles.secondary} to="/docs/iphone">
+                  {t("home.hero.iphone", "iPhone app")}
                 </Link>
                 <Link className={styles.secondary} href="https://github.com/403access/managr">
                   {t("home.hero.source", "View the source")}
@@ -146,6 +155,31 @@ export default function Home(): ReactNode {
             </aside>
           </section>
 
+          <section className={styles.shot} aria-labelledby="shot-title">
+            <div className={styles.sectionHead}>
+              <h2 id="shot-title">{t("home.shot.title", "The desk, at a glance.")}</h2>
+              <p>
+                {t(
+                  "home.shot.intro",
+                  "The sample company on first launch: the figures, the invoices, the next deadlines, and the week's time.",
+                )}
+              </p>
+            </div>
+            <figure className={styles.deskShot}>
+              <img
+                src={deskShot}
+                alt={t("home.shot.alt", "The managr overview with the sample company")}
+                loading="lazy"
+              />
+              <figcaption>
+                {t(
+                  "home.shot.caption",
+                  "One screen for the figures, open invoices, and the deadlines that need attention.",
+                )}
+              </figcaption>
+            </figure>
+          </section>
+
           <section className={styles.holds} aria-labelledby="holds-title">
             <div className={styles.sectionHead}>
               <h2 id="holds-title">{t("home.holds.title", "What the desk holds")}</h2>
@@ -164,6 +198,47 @@ export default function Home(): ReactNode {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className={styles.pocket} aria-labelledby="pocket-title">
+            <div className={styles.sectionHead}>
+              <h2 id="pocket-title">{t("home.pocket.title", "The same desk, in your pocket.")}</h2>
+              <p>
+                {t(
+                  "home.pocket.intro",
+                  "The native iPhone app reads and writes the same local desk over your Wi-Fi. No cloud, no second database, no sign-in. Issue an invoice, record a payment, or book time from the phone; the Mac still holds the books.",
+                )}
+              </p>
+            </div>
+            <div className={styles.phones}>
+              <figure>
+                <img
+                  src={phoneDashboard}
+                  alt={t("home.pocket.alt.overview", "The managr overview on the iPhone")}
+                  loading="lazy"
+                />
+                <figcaption>{t("home.pocket.overview", "Overview")}</figcaption>
+              </figure>
+              <figure>
+                <img
+                  src={phoneInvoice}
+                  alt={t("home.pocket.alt.invoice", "An invoice with a payment action on the iPhone")}
+                  loading="lazy"
+                />
+                <figcaption>{t("home.pocket.invoice", "Invoice")}</figcaption>
+              </figure>
+              <figure>
+                <img
+                  src={phoneTime}
+                  alt={t("home.pocket.alt.time", "The time screen on the iPhone")}
+                  loading="lazy"
+                />
+                <figcaption>{t("home.pocket.time", "Time")}</figcaption>
+              </figure>
+            </div>
+            <p className={styles.pocketLink}>
+              <Link to="/docs/iphone">{t("home.pocket.link", "Build and install the iPhone app")} →</Link>
+            </p>
           </section>
 
           <section

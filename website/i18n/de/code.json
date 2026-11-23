@@ -4,7 +4,7 @@
     "description": "The home page title"
   },
   "home.meta.description": {
-    "message": "managr ist ein lokaler Planungsschreibtisch für deutsche Unternehmen, auch die Unternehmergesellschaft (haftungsbeschränkt) und ein Einzelunternehmen: Gesellschaftsdaten, Pflichten, Rechnungen, ein Journal, Personen und rechtliche Notizen.",
+    "message": "managr ist ein lokaler Planungsschreibtisch für deutsche Unternehmen, auch die Unternehmergesellschaft (haftungsbeschränkt) und ein Einzelunternehmen: Gesellschaftsdaten, Pflichten, Rechnungen, ein Journal, Personen, rechtliche Notizen und eine native iPhone-App.",
     "description": "The home page meta description"
   },
   "home.hero.title": {
@@ -12,12 +12,16 @@
     "description": "The home page hero heading"
   },
   "home.hero.lead": {
-    "message": "managr hält Stammdaten, die gesetzliche Rücklage, Pflichten, Rechnungen, ein doppelt geführtes Journal, die Bankansicht, Personen, Zeit, Dokumente und rechtliche Notizen für jedes Unternehmen. Jedes Unternehmen führt eigene Bücher. Es läuft auf diesem Computer.",
+    "message": "managr hält Stammdaten, die gesetzliche Rücklage, Pflichten, Rechnungen, ein doppelt geführtes Journal, die Bankansicht, Personen, Zeit, Dokumente und rechtliche Notizen für jedes Unternehmen. Jedes Unternehmen führt eigene Bücher. Es läuft auf diesem Computer und auf dem iPhone über dein WLAN.",
     "description": "The home page hero introduction"
   },
   "home.hero.readDocs": {
     "message": "Dokumentation lesen",
     "description": "The home page link to the docs"
+  },
+  "home.hero.iphone": {
+    "message": "iPhone-App",
+    "description": "The home page link to the iPhone app"
   },
   "home.hero.source": {
     "message": "Quellcode ansehen",
@@ -42,6 +46,22 @@
   "home.sample.foot.after": {
     "message": ", um diese Gesellschaft wiederherzustellen.",
     "description": "The text after the sample database file name"
+  },
+  "home.shot.title": {
+    "message": "Der Schreibtisch auf einen Blick.",
+    "description": "The heading of the desktop screenshot section"
+  },
+  "home.shot.intro": {
+    "message": "Die Beispielgesellschaft beim ersten Start: die Zahlen, die Rechnungen, die nächsten Fristen und die Zeit der Woche.",
+    "description": "The introduction of the desktop screenshot section"
+  },
+  "home.shot.alt": {
+    "message": "Die managr-Übersicht mit der Beispielgesellschaft",
+    "description": "Alt text for the desktop screenshot"
+  },
+  "home.shot.caption": {
+    "message": "Ein Bildschirm für die Zahlen, offene Rechnungen und die Fristen, die Aufmerksamkeit brauchen.",
+    "description": "Caption for the desktop screenshot"
   },
   "home.holds.title": {
     "message": "Was der Schreibtisch enthält",
@@ -94,6 +114,42 @@
   "home.area.assistant": {
     "message": "Ein Chat-Panel, das mit denselben Werkzeugen wie die Bildschirme liest und bucht, einschließlich Bankansicht, Geldfluss, Meilensteinen, Organigramm und Quellenregister. Es zeigt jeden Schritt und legt den angelegten Datensatz als Karte vor. Dazu ein MCP-Endpunkt für andere Agenten. Mit einem lokalen Modell bleibt das Gespräch auf diesem Computer. Ein Cloud-Endpunkt erhält es.",
     "description": "The assistant feature description"
+  },
+  "home.pocket.title": {
+    "message": "Derselbe Schreibtisch, in der Tasche.",
+    "description": "The heading of the iPhone section"
+  },
+  "home.pocket.intro": {
+    "message": "Die native iPhone-App liest und schreibt denselben lokalen Schreibtisch über dein WLAN. Keine Cloud, keine zweite Datenbank, keine Anmeldung. Eine Rechnung ausstellen, eine Zahlung buchen oder Zeit erfassen – der Mac behält die Bücher.",
+    "description": "The introduction of the iPhone section"
+  },
+  "home.pocket.alt.overview": {
+    "message": "Die managr-Übersicht auf dem iPhone",
+    "description": "Alt text for the iPhone overview screenshot"
+  },
+  "home.pocket.alt.invoice": {
+    "message": "Eine Rechnung mit Zahlungsaktion auf dem iPhone",
+    "description": "Alt text for the iPhone invoice screenshot"
+  },
+  "home.pocket.alt.time": {
+    "message": "Der Zeit-Bildschirm auf dem iPhone",
+    "description": "Alt text for the iPhone time screenshot"
+  },
+  "home.pocket.overview": {
+    "message": "Übersicht",
+    "description": "Caption for the iPhone overview screenshot"
+  },
+  "home.pocket.invoice": {
+    "message": "Rechnung",
+    "description": "Caption for the iPhone invoice screenshot"
+  },
+  "home.pocket.time": {
+    "message": "Zeit",
+    "description": "Caption for the iPhone time screenshot"
+  },
+  "home.pocket.link": {
+    "message": "iPhone-App bauen und installieren",
+    "description": "The link to the iPhone install notes"
   },
   "home.split.aria": {
     "message": "Wie es läuft und was es nicht tut",

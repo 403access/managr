@@ -48,6 +48,7 @@ Shipped after the first version, in this order:
 15. An org chart draws the reporting lines from the manager on each person, keeps former people out of the tree, and refuses a self-reference or a loop. The People page and `read_org` use the same view.
 16. A source register pairs each explanation with the official websites behind it and groups the sources by domain. `/sources`, `read_guides`, and `read_sources` read the same typed data.
 17. A tax-return workspace prepares VAT advance, VAT annual, corporate-tax, and trade-tax returns from the journal, freezes a figure snapshot with a hash, runs blocking and warning checks, and records a manual filing with its ticket and protocol. The VAT advance return exports a Mein ELSTER upload file; the annual returns export CSV and JSON. ELSTER/ERiC transmission remains a later phase.
+18. A native SwiftUI iPhone client reads the same views at `GET /api/views/[name]` and writes through `POST /api/tools` over the local Wi-Fi. The Mac keeps the database and journal; the phone covers the overview, invoices, payments, customers, time, people, projects, tasks, and deadlines. Build and signing are in `ios/README.md`.
 
 ## Founder self-payment — conversation roadmap
 

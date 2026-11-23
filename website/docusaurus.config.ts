@@ -101,6 +101,7 @@ const config: Config = {
           title: "Docs",
           items: [
             { label: "Overview", to: "/docs" },
+            { label: "iPhone app", to: "/docs/iphone" },
             { label: "Architecture", to: "/docs/architecture" },
             { label: "Domain rules", to: "/docs/domain" },
             { label: "Roadmap", to: "/docs/roadmap" },

@@ -4,16 +4,19 @@ slug: /mcp
 
 # Assistent und MCP
 
-managr bekommt eine Werkzeugschicht, die den Schreibtisch steuert, erreichbar von zwei Seiten:
+managr bekommt eine Werkzeugschicht, die den Schreibtisch steuert, erreichbar von drei Seiten:
 
 - **In der App:** ein Chat-Widget, das einen Satz in dieselben Aufrufe übersetzt, die auch die Bildschirme machen.
 - **Von außen:** ein MCP-Server unter `/api/mcp`, damit ein anderer Agent (Claude Desktop, eine IDE, ein Skript) den Schreibtisch lesen und buchen kann.
+- **Vom iPhone:** der native SwiftUI-Client ruft `POST /api/tools` auf, eine einfache JSON-Fassade vor derselben Registrierung.
 
-Beide Oberflächen verwenden dieselbe Registrierung in `src/server/tools.ts`. Es gibt keine zweite Sammlung von Geschäftsregeln: Jedes Werkzeug ruft die Domänenfunktionen in `src/domain` und den Buchungspfad in `src/server/posting.ts`. Bildschirme und Assistent erzeugen deshalb dieselben Zahlen.
+Alle drei Oberflächen verwenden dieselbe Registrierung in `src/server/tools.ts`. Es gibt keine zweite Sammlung von Geschäftsregeln: Jedes Werkzeug ruft die Domänenfunktionen in `src/domain` und den Buchungspfad in `src/server/posting.ts`. Bildschirme, Assistent und Telefon erzeugen deshalb dieselben Zahlen.
+
+`POST /api/tools` nimmt `{ "name": "...", "arguments": { ... } }` und antwortet mit `{ "ok": true, "data": ... }` oder `{ "ok": false, "error": "..." }`. `GET /api/tools` listet die aktiven Werkzeuge mit ihren JSON-Schemata und ob ein Werkzeug schreibt. Die Route ruft `runTool` auf und hat damit dieselbe Validierung und dieselbe Freigabegrenze wie MCP: kein Bestätigungsschritt und keine Anmeldung. Siehe [iPhone-App](./IPHONE.md).
 
 ## Stand
 
-Alle vier Phasen sind ausgeliefert. Das Widget sitzt in der App-Hülle, der MCP-Endpunkt antwortet unter `/api/mcp`, und die Registrierung enthält Lese-Werkzeuge, Schreib-Werkzeuge und vier deterministische Briefings. Die Registrierung folgt den Bildschirmen: Organigramm, Qonto-Bankansicht, Geldfluss, Auswertung, Meilensteine und Quellenregister sind erreichbar. Die Phasenüberschriften unten beschreiben, was jede Phase ergänzt hat.
+Alle vier Phasen sind ausgeliefert. Das Widget sitzt in der App-Hülle, der MCP-Endpunkt antwortet unter `/api/mcp`, der native iPhone-Client schreibt über `/api/tools`, und die Registrierung enthält Lese-Werkzeuge, Schreib-Werkzeuge und vier deterministische Briefings. Die Registrierung folgt den Bildschirmen: Organigramm, Qonto-Bankansicht, Geldfluss, Auswertung, Meilensteine und Quellenregister sind erreichbar. Die Phasenüberschriften unten beschreiben, was jede Phase ergänzt hat.
 
 ## Grenzen
 
