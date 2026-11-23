@@ -26,6 +26,12 @@ export function InvoiceScreen({ id }: { id: number }) {
     <ViewGate query={query}>
       {(loaded) => {
         const { invoice, customer, lines, payments, grossCents, openCents, displayStatus: status, effectiveLineGrouping } = loaded;
+        const buyerReferenceHint =
+          customer.kind === "public"
+            ? t("invoices.buyerReferenceHintPublic")
+            : customer.kind === "private"
+              ? t("invoices.buyerReferenceHintPrivate")
+              : t("invoices.buyerReferenceHintBusiness");
         const kleinunternehmer = isKleinunternehmerNote(invoice.exemptionNote);
         const grossDisplay = invoice.amountDisplay === "gross";
         const lineAmounts = allocateLineVat(lines);
@@ -90,30 +96,38 @@ export function InvoiceScreen({ id }: { id: number }) {
             ) : (
               <Card className="mt-6">
                 <h2 className="text-xl">{t("invoices.xrechnungTitle")}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{t("invoices.xrechnungBody")}</p>
-                {invoice.status === "draft" ? <p className="mt-3 text-sm">{t("invoices.xrechnungAfterIssue")}</p> : (
-                  <ActionForm action={saveBuyerReference} className="mt-4 grid gap-3">
-                    <input type="hidden" name="invoiceId" value={invoice.id} />
-                    <Field label={t("invoices.buyerReference")} hint={t("invoices.buyerReferenceHint")}>
-                      <TextInput name="buyerReference" defaultValue={invoice.buyerReference} maxLength={100} />
-                    </Field>
-                    <SubmitButton tone="quiet">{t("invoices.saveBuyerReference")}</SubmitButton>
-                  </ActionForm>
+                {loaded.eInvoiceNotApplicable ? null : (
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{t("invoices.xrechnungBody")}</p>
                 )}
-                {loaded.eInvoiceBlockers.length > 0 ? (
-                  <ul className="mt-3 grid gap-1 text-sm text-amber">
-                    {loaded.eInvoiceBlockers.map((item) => (
-                      <li key={item}>{tx(item)}</li>
-                    ))}
-                  </ul>
-                ) : invoice.status !== "draft" ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <a className={buttonClass()} href={`/invoices/${invoice.id}/xrechnung`} download>
-                      {t("invoices.downloadXrechnung")}
-                    </a>
-                    <XRechnungCheck invoiceId={invoice.id} />
-                  </div>
-                ) : null}
+                {loaded.eInvoiceNotApplicable ? (
+                  <p className="mt-3 text-sm leading-relaxed text-muted">{t("invoices.xrechnungPrivate")}</p>
+                ) : (
+                  <>
+                    {invoice.status === "draft" ? <p className="mt-3 text-sm">{t("invoices.xrechnungAfterIssue")}</p> : (
+                      <ActionForm action={saveBuyerReference} className="mt-4 grid gap-3">
+                        <input type="hidden" name="invoiceId" value={invoice.id} />
+                        <Field label={t("invoices.buyerReference")} hint={buyerReferenceHint}>
+                          <TextInput name="buyerReference" defaultValue={invoice.buyerReference} maxLength={100} />
+                        </Field>
+                        <SubmitButton tone="quiet">{t("invoices.saveBuyerReference")}</SubmitButton>
+                      </ActionForm>
+                    )}
+                    {loaded.eInvoiceBlockers.length > 0 ? (
+                      <ul className="mt-3 grid gap-1 text-sm text-amber">
+                        {loaded.eInvoiceBlockers.map((item) => (
+                          <li key={item}>{tx(item)}</li>
+                        ))}
+                      </ul>
+                    ) : invoice.status !== "draft" ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <a className={buttonClass()} href={`/invoices/${invoice.id}/xrechnung`} download>
+                          {t("invoices.downloadXrechnung")}
+                        </a>
+                        <XRechnungCheck invoiceId={invoice.id} />
+                      </div>
+                    ) : null}
+                  </>
+                )}
                 <div className="mt-4">
                   <Disclaimer>{t("invoices.xrechnungDisclaimer")}</Disclaimer>
                 </div>

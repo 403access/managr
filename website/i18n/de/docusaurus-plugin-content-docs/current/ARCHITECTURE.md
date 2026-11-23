@@ -92,7 +92,7 @@ Ein Bildschirm öffnet kein SQLite. `src/server/views.ts` baut das JSON für die
 
 Mutationen bleiben Server Actions in `src/server/actions.ts`. Nach einem Schreibvorgang rufen sie `revalidatePath` auf, und das Formular invalidiert den `view`-Query-Cache, damit der offene Bildschirm neu lädt. Ausgestellte Rechnungen, Zahlungen, Ausgaben, Lohn, Rücklagenbewegungen und Stornos laufen alle über einen Buchungs-Builder in `src/domain/postings.ts`. Die druckbare Rechnung bleibt ein Server-Render und ist keine Abfrage.
 
-`GET /invoices/[id]/xrechnung` erzeugt aus dem Unternehmen der Rechnung, dem Kunden und der Rechnung ein XRechnung-3.0.2-UBL-Dokument. Die Regeln stehen in `src/domain/xrechnung.ts`. Das XML wird nicht gespeichert.
+`GET /invoices/[id]/xrechnung` erzeugt aus dem Unternehmen der Rechnung, dem Kunden und der Rechnung ein XRechnung-3.0.2-UBL-Dokument. Die Regeln stehen in `src/domain/xrechnung.ts`. Das XML wird nicht gespeichert. Der Kundentyp `kind` (`business`, `public` oder `private`) wählt die BT-10-Regel: Eine öffentliche Auftraggeberin braucht eine Leitweg-ID mit gültigen MOD-97-10-Prüfziffern, ein Unternehmen eine Referenz, eine Privatperson keine E-Rechnung.
 
 Die Prüfschaltfläche ruft die Server Action `checkInvoiceXRechnung` auf. `src/server/validator.ts` sendet das erzeugte XML an `VALIDATOR_URL` (den Compose-Validator oder `127.0.0.1:8090` bei `bun dev`). `src/server/validator-report.ts` macht aus dem KoSIT-Bericht ein Urteil und eine Meldungsliste. Es ist eine reine Funktion mit einem Test; der HTTP-Aufruf wird nicht gecacht, und es wird nichts in die Datenbank geschrieben.
 

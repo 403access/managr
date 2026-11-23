@@ -36,6 +36,7 @@ import { ACCOUNTS, CHART, type DraftLine } from "@/domain/accounts";
 import { TASK_TYPES } from "@/domain/analytics";
 import { addDays, nextDueDate, todayIso, type Recurrence } from "@/domain/calendar";
 import { DEFAULT_LEGAL_FORM, LEGAL_FORMS, isCorporation, isLegalForm } from "@/domain/company";
+import { CUSTOMER_KINDS, DEFAULT_CUSTOMER_KIND, normalizeCustomerKind } from "@/domain/customers";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, isKleinunternehmerNote, reviewInvoice } from "@/domain/invoice";
 import { formatEuro, parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import { MILESTONE_CATEGORIES, MILESTONE_STATUSES, clampProgress } from "@/domain/milestones";
@@ -62,12 +63,12 @@ import { estimateContributions, payrollAmounts } from "@/domain/social";
 import { isStateCode } from "@/domain/states";
 import { durationMinutes, timeActivitiesProblem, timeWarnings } from "@/domain/time";
 import { isSupportedVat, lineNetCents, summarizeVat } from "@/domain/vat";
-import { buyerReferenceProblem } from "@/domain/xrechnung";
+import { customerBuyerReferenceProblem, invoiceBuyerReferenceProblem, reviewXRechnung } from "@/domain/xrechnung";
 import { socialInput } from "./people";
 import { entryLines, payrollSourceId, postJournal } from "./posting";
 import { checkXRechnungXml } from "./validator";
 import { webEnabled, webFetch, webSearch } from "./web";
-import { xrechnungFile } from "./xrechnung";
+import { toXRechnungInput, xrechnungFile } from "./xrechnung";
 import {
   accountBalances,
   listContacts,
@@ -1135,9 +1136,10 @@ export const tools: DeskTool[] = [
   // ------------------------------------------------------------- invoices
   tool({
     name: "save_customer",
-    description: "Create a customer, or update one when customerId is given.",
+    description: "Create a customer, or update one when customerId is given. The customer type decides whether an XRechnung applies: public uses the Leitweg-ID as BT-10, business needs the buyer's reference, private needs no e-invoice.",
     input: {
       customerId: z.number().int().positive().optional(),
+      kind: z.enum(CUSTOMER_KINDS).optional().describe("business (B2B), public (B2G), or private (B2C). Defaults to business for a new customer; an update keeps the stored type."),
       name: z.string().trim().min(1).max(160),
       street: z.string().trim().max(160).optional(),
       postalCode: z.string().trim().max(16).optional(),
@@ -1146,16 +1148,23 @@ export const tools: DeskTool[] = [
       email: z.string().trim().max(160).optional(),
       website: z.string().trim().max(200).optional(),
       vatId: z.string().trim().max(32).optional(),
-      buyerReference: z.string().trim().max(100).optional(),
+      buyerReference: z.string().trim().max(100).optional().describe("BT-10. For a public customer this must be the Leitweg-ID. Omit to keep the stored reference on an update."),
       hourlyRate: z.string().trim().optional().describe('Hourly rate for this customer in euro, for example "95,00". Omit to keep the stored rate; pass an empty string to inherit the company default.'),
     },
     run: (input) => {
       const company = requireCompany();
-      const buyerReference = input.buyerReference ?? "";
-      const problem = buyerReferenceProblem(buyerReference);
+      const db = getDb();
+      const existing = input.customerId
+        ? db.select().from(customers).where(and(eq(customers.id, input.customerId), eq(customers.companyId, company.id))).get()
+        : null;
+      if (input.customerId && !existing) throw new Error("Customer not found.");
+      const kind = input.kind ?? (existing ? normalizeCustomerKind(existing.kind) : DEFAULT_CUSTOMER_KIND);
+      const buyerReference = input.buyerReference ?? existing?.buyerReference ?? "";
+      const problem = customerBuyerReferenceProblem(kind, buyerReference);
       if (problem) throw new Error(problem);
       const hourlyRate = rateCents(input.hourlyRate);
       const values = {
+        kind,
         name: input.name,
         street: input.street ?? "",
         postalCode: input.postalCode ?? "",
@@ -1166,12 +1175,9 @@ export const tools: DeskTool[] = [
         vatId: (input.vatId ?? "").toUpperCase(),
         buyerReference,
       };
-      const db = getDb();
-      if (input.customerId) {
-        const existing = db.select().from(customers).where(and(eq(customers.id, input.customerId), eq(customers.companyId, company.id))).get();
-        if (!existing) throw new Error("Customer not found.");
-        db.update(customers).set({ ...values, hourlyRateCents: hourlyRate === undefined ? existing.hourlyRateCents : hourlyRate }).where(eq(customers.id, input.customerId)).run();
-        return { id: input.customerId, saved: true };
+      if (existing) {
+        db.update(customers).set({ ...values, hourlyRateCents: hourlyRate === undefined ? existing.hourlyRateCents : hourlyRate }).where(eq(customers.id, existing.id)).run();
+        return { id: existing.id, saved: true };
       }
       const created = db.insert(customers).values({ ...values, companyId: company.id, hourlyRateCents: hourlyRate ?? null }).run();
       return { id: Number(created.lastInsertRowid), saved: true };
@@ -1252,6 +1258,11 @@ export const tools: DeskTool[] = [
       const serviceDate = input.serviceDate ? date(input.serviceDate, "The service date") : issueDate;
       const dueDate = input.dueDate ? date(input.dueDate, "The due date") : addDays(issueDate, company.paymentTermsDays);
       const exemptionNote = company.kleinunternehmer ? KLEINUNTERNEHMER_NOTE : "";
+      const buyerReference = input.buyerReference ?? customer.buyerReference;
+      if (buyerReference.trim()) {
+        const problem = invoiceBuyerReferenceProblem(normalizeCustomerKind(customer.kind), buyerReference);
+        if (problem) throw new Error(problem);
+      }
       const header = {
         customerId: customer.id,
         issueDate,
@@ -1259,7 +1270,7 @@ export const tools: DeskTool[] = [
         dueDate,
         notes: input.notes?.trim() ?? "",
         exemptionNote,
-        buyerReference: input.buyerReference ?? customer.buyerReference,
+        buyerReference,
         amountDisplay: input.amountDisplay ?? "net",
       };
       const id = db.transaction(() => {
@@ -1273,7 +1284,9 @@ export const tools: DeskTool[] = [
         return invoiceId;
       });
       const review = reviewFor(company, customer, header, lines, summary.vatCents);
-      return { invoiceId: id, ...summary, review };
+      const loaded = requireInvoice(id);
+      const eInvoice = reviewXRechnung(toXRechnungInput(company, loaded)).blockers;
+      return { invoiceId: id, ...summary, review, eInvoice };
     },
   }),
   tool({
@@ -1309,15 +1322,15 @@ export const tools: DeskTool[] = [
   }),
   tool({
     name: "update_buyer_reference",
-    description: "Set the buyer reference (BT-10) on an issued invoice.",
+    description: "Set the buyer reference (BT-10) on an issued invoice. A public customer needs a valid Leitweg-ID; a business customer needs a reference or 'nicht zutreffend'.",
     input: { invoiceId: z.number().int().positive(), buyerReference: z.string().trim().max(100) },
     run: (input) => {
-      const invoice = requireInvoice(input.invoiceId).invoice;
-      if (invoice.status === "draft" || invoice.status === "void") throw new Error("The buyer reference on this invoice cannot be changed.");
-      const problem = buyerReferenceProblem(input.buyerReference);
+      const loaded = requireInvoice(input.invoiceId);
+      if (loaded.invoice.status === "draft" || loaded.invoice.status === "void") throw new Error("The buyer reference on this invoice cannot be changed.");
+      const problem = invoiceBuyerReferenceProblem(normalizeCustomerKind(loaded.customer.kind), input.buyerReference);
       if (problem) throw new Error(problem);
-      getDb().update(invoices).set({ buyerReference: input.buyerReference }).where(eq(invoices.id, invoice.id)).run();
-      return { invoiceId: invoice.id, buyerReference: input.buyerReference };
+      getDb().update(invoices).set({ buyerReference: input.buyerReference }).where(eq(invoices.id, loaded.invoice.id)).run();
+      return { invoiceId: loaded.invoice.id, buyerReference: input.buyerReference };
     },
   }),
   tool({

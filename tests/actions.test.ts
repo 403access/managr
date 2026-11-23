@@ -27,6 +27,7 @@ import {
   addShareholderLoan,
   addShareholderLoanMovement,
   deleteProject,
+  saveCustomer,
   saveDirectorContract,
   saveFounderHealth,
   saveInvoice,
@@ -70,6 +71,37 @@ describe("company switching", () => {
     const rows = db.select().from(companies).all();
     expect(rows.find((row) => row.id === secondId)?.isActive).toBe(true);
     expect(rows.filter((row) => row.isActive)).toHaveLength(1);
+  });
+});
+
+describe("customer type and buyer reference", () => {
+  function customerForm(values: Record<string, string>) {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(values)) form.set(key, value);
+    return form;
+  }
+
+  it("stores the customer type and checks the Leitweg-ID for a public customer", async () => {
+    const valid = await saveCustomer(
+      initialState,
+      customerForm({ name: "Stadt Berlin", kind: "public", buyerReference: "04011000-1234512345-06" }),
+    );
+    expect(valid).toEqual({ error: "", message: "Customer added." });
+    const stored = getDb().select().from(customers).all().find((row) => row.name === "Stadt Berlin");
+    expect(stored?.kind).toBe("public");
+
+    const wrongCheck = await saveCustomer(
+      initialState,
+      customerForm({ name: "Stadt Potsdam", kind: "public", buyerReference: "04011000-1234512345-05" }),
+    );
+    expect(wrongCheck.error).toContain("check digit");
+
+    const business = await saveCustomer(initialState, customerForm({ name: "Ohne Referenz GmbH", kind: "business" }));
+    expect(business).toEqual({ error: "", message: "Customer added." });
+    const privateCustomer = await saveCustomer(initialState, customerForm({ name: "Privatperson", kind: "private" }));
+    expect(privateCustomer).toEqual({ error: "", message: "Customer added." });
+    const unknownKind = await saveCustomer(initialState, customerForm({ name: "Unbekannt", kind: "authority" }));
+    expect(unknownKind.error).toBe("Choose a customer type.");
   });
 });
 

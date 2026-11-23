@@ -1,3 +1,19 @@
+/** The recipient's role decides whether an XRechnung applies and what BT-10 carries. */
+export const CUSTOMER_KINDS = ["business", "public", "private"] as const;
+
+export type CustomerKind = (typeof CUSTOMER_KINDS)[number];
+
+export const DEFAULT_CUSTOMER_KIND: CustomerKind = "business";
+
+export function isCustomerKind(value: unknown): value is CustomerKind {
+  return typeof value === "string" && (CUSTOMER_KINDS as readonly string[]).includes(value);
+}
+
+/** A stored value from before the customer type existed, or an unknown one, is a business. */
+export function normalizeCustomerKind(value: string): CustomerKind {
+  return isCustomerKind(value) ? value : DEFAULT_CUSTOMER_KIND;
+}
+
 export const CUSTOMER_RELATIONSHIPS = ["all", "withProjects", "withoutProjects", "withInvoices", "withoutInvoices"] as const;
 
 export type CustomerRelationship = (typeof CUSTOMER_RELATIONSHIPS)[number];

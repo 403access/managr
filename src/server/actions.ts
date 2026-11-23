@@ -41,11 +41,12 @@ import { ACCOUNTS, CHART, type DraftLine } from "@/domain/accounts";
 import { TASK_TYPES } from "@/domain/analytics";
 import { formatDate, nextDueDate, todayIso, type Recurrence } from "@/domain/calendar";
 import { DEFAULT_LEGAL_FORM, isCorporation, isLegalForm } from "@/domain/company";
+import { DEFAULT_CUSTOMER_KIND, isCustomerKind, normalizeCustomerKind } from "@/domain/customers";
 import { KLEINUNTERNEHMER_NOTE, formatInvoiceNumber, reviewInvoice } from "@/domain/invoice";
 import { EMPTY_INVOICE_LETTER } from "@/domain/invoice-letter";
 import { MILESTONE_CATEGORIES, MILESTONE_STATUSES, clampProgress } from "@/domain/milestones";
 import { managerProblem } from "@/domain/org";
-import { buyerReferenceProblem } from "@/domain/xrechnung";
+import { customerBuyerReferenceProblem, invoiceBuyerReferenceProblem } from "@/domain/xrechnung";
 import { parseEuroToCents, parseQuantityMilli } from "@/domain/money";
 import {
   buildCustomerPayment,
@@ -803,10 +804,13 @@ export async function saveCustomer(_state: ActionState, formData: FormData): Pro
   try {
     const name = text(formData, "name");
     if (!name) throw new Error("The customer needs a name.");
+    const kind = text(formData, "kind") || DEFAULT_CUSTOMER_KIND;
+    if (!isCustomerKind(kind)) throw new Error("Choose a customer type.");
     const buyerReference = text(formData, "buyerReference");
-    const referenceProblem = buyerReferenceProblem(buyerReference);
+    const referenceProblem = customerBuyerReferenceProblem(kind, buyerReference);
     if (referenceProblem) throw new Error(referenceProblem);
     const values = {
+      kind,
       name,
       street: text(formData, "street"),
       postalCode: text(formData, "postalCode"),
@@ -1011,6 +1015,7 @@ function resolveCustomer(db: ReturnType<typeof getDb>, payload: InvoicePayload, 
     .insert(customers)
     .values({
       companyId,
+      kind: payload.newCustomer.kind,
       name: payload.newCustomer.name,
       street: payload.newCustomer.street,
       postalCode: payload.newCustomer.postalCode,
@@ -1028,13 +1033,15 @@ export async function saveBuyerReference(_state: ActionState, formData: FormData
   try {
     const id = requiredId(formData, "invoiceId");
     const buyerReference = text(formData, "buyerReference");
-    const problem = buyerReferenceProblem(buyerReference);
-    if (problem) throw new Error(problem);
     const db = getDb();
     const company = requireCompany();
     const invoice = db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.companyId, company.id), isNull(invoices.deletedAt))).get();
     if (!invoice) throw new Error("Invoice not found.");
     if (invoice.status === "draft" || invoice.status === "void") throw new Error("The buyer reference on this invoice cannot be changed.");
+    const customer = db.select().from(customers).where(and(eq(customers.id, invoice.customerId), eq(customers.companyId, company.id))).get();
+    if (!customer) throw new Error("Customer not found.");
+    const problem = invoiceBuyerReferenceProblem(normalizeCustomerKind(customer.kind), buyerReference);
+    if (problem) throw new Error(problem);
     db.update(invoices).set({ buyerReference }).where(eq(invoices.id, id)).run();
     return saved("Buyer reference saved.");
   } catch (error) {

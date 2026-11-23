@@ -18,7 +18,7 @@ Open [http://localhost:3000](http://localhost:3000). The first launch creates `d
 ## What it does
 
 - **Company and books** — UG, GmbH, AG, OHG, KG, GbR, PartG, e.K., and Einzelunternehmen; shareholders, Stammkapital, the §5a reserve, and shareholder loans; a SKR03 ledger, trial balance, profit, and tax estimates.
-- **Invoices** — draft, issue, pay, and void; §14 UStG and §35a GmbHG particulars; a printable invoice; XRechnung 3.0.2 download. The file is not sent.
+- **Invoices** — draft, issue, pay, and void; §14 UStG and §35a GmbHG particulars; a printable invoice; XRechnung 3.0.2 download with BT-10 rules for B2B, B2G (Leitweg-ID), and B2C. The file is not sent.
 - **Tax** — VAT advance and annual, corporate-tax, and trade-tax returns: prepare, check, freeze the figures, record a manual filing, and export Mein ELSTER, CSV, or JSON. No ELSTER transmission.
 - **People** — employment, 2026 minijob / midijob / regular contribution estimates, vacation, salary history, a payroll journal, founder health cover, and an org chart.
 - **Time and projects** — time with §3/§4 ArbZG warnings, tasks, projects, deliverables, hourly rates at four levels, and a yearly analysis with a printable customer report. A read-only test run replays recorded days at `/time/playback`.

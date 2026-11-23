@@ -1,0 +1,1 @@
+ALTER TABLE customers ADD COLUMN kind TEXT NOT NULL DEFAULT 'business';

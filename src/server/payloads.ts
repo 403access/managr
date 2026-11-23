@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CUSTOMER_KINDS } from "@/domain/customers";
 
 export const invoiceLetterSchema = z.object({
   subject: z.string().trim().max(200).default(""),
@@ -14,6 +15,7 @@ export const invoicePayloadSchema = z.object({
   customerMode: z.enum(["existing", "new"]),
   customerId: z.number().int().positive().nullable(),
   newCustomer: z.object({
+    kind: z.enum(CUSTOMER_KINDS).default("business"),
     name: z.string().trim().max(160),
     street: z.string().trim().max(160),
     postalCode: z.string().trim().max(16),

@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizeCustomerKind } from "@/domain/customers";
 import { buildXRechnung, reviewXRechnung, xrechnungFilename, xrechnungStatusBlocker, type XRechnungInput } from "@/domain/xrechnung";
 import { loadInvoice } from "./queries";
 
@@ -12,6 +13,7 @@ export function toXRechnungInput(company: Company, loaded: Loaded): XRechnungInp
     issueDate: invoice.issueDate,
     dueDate: invoice.dueDate,
     serviceDate: invoice.serviceDate,
+    customerKind: normalizeCustomerKind(customer.kind),
     buyerReference: invoice.buyerReference,
     notes: invoice.notes,
     exemptionNote: invoice.exemptionNote,

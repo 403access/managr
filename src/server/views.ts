@@ -1,6 +1,7 @@
 import "server-only";
 import { CHART, ACCOUNTS, signedBalance } from "@/domain/accounts";
 import { addDays, fiscalYearContaining, formatDate, todayIso } from "@/domain/calendar";
+import { normalizeCustomerKind } from "@/domain/customers";
 import { currentDirectorContract, reviewDirectorContract } from "@/domain/director-contract";
 import { reviewDirectorSalary } from "@/domain/director-salary";
 import { reviewFounderHealth } from "@/domain/founder-health";
@@ -133,6 +134,7 @@ function kleinSnapshot(company: ReturnType<typeof loadCompany>) {
 function customerOptions(companyId = loadCompany().id) {
   return listCustomers(companyId).map((customer) => ({
     id: customer.id,
+    kind: normalizeCustomerKind(customer.kind),
     name: customer.name,
     street: customer.street,
     postalCode: customer.postalCode,
@@ -504,12 +506,15 @@ export function invoiceView(id: number) {
     exemptionNote: invoice.exemptionNote,
     vatCents: loaded.vatCents,
   });
+  const eInvoiceNotApplicable = normalizeCustomerKind(customer.kind) === "private";
   const fileBlockers = reviewXRechnung(toXRechnungInput(company, loaded)).blockers;
-  const eInvoiceBlockers = loaded.invoice.status === "draft"
-    ? fileBlockers.filter((item) => item !== XRECHNUNG_NUMBER_BLOCKER && !review.blockers.includes(item))
-    : fileBlockers;
+  const eInvoiceBlockers = eInvoiceNotApplicable
+    ? []
+    : loaded.invoice.status === "draft"
+      ? fileBlockers.filter((item) => item !== XRECHNUNG_NUMBER_BLOCKER && !review.blockers.includes(item))
+      : fileBlockers;
   const effectiveLineGrouping = resolveInvoiceLineGrouping(invoice.lineGrouping, readUiSettings().invoiceLineGrouping);
-  return { ...loaded, blockers: review.blockers, eInvoiceBlockers, effectiveLineGrouping, today: todayIso() };
+  return { ...loaded, blockers: review.blockers, eInvoiceBlockers, eInvoiceNotApplicable, effectiveLineGrouping, today: todayIso() };
 }
 
 export type InvoiceTimeActivity = {

@@ -57,6 +57,8 @@ export const shareholders = sqliteTable("shareholders", {
 export const customers = sqliteTable("customers", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  /** business (B2B), public (B2G), or private (B2C). */
+  kind: text("kind").notNull().default("business"),
   name: text("name").notNull(),
   street: text("street").notNull().default(""),
   postalCode: text("postal_code").notNull().default(""),

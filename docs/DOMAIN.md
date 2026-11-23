@@ -58,7 +58,13 @@ Implementation: `src/domain/xrechnung.ts`. Specification identifiers: `XRECHNUNG
 
 Issue still follows §14 and §35a only. The extra XRechnung fields do not block issue. They block the file.
 
-- The buyer reference (BT-10) is stored on the invoice. For a public authority it is the Leitweg-ID. The desk does not check that checksum.
+The customer type decides what BT-10 has to contain. `customers.kind` is `business` (B2B), `public` (B2G), or `private` (B2C); rows from before the column existed are treated as `business`.
+
+- XRechnung (BR-DE-15) requires BT-10 for B2B and B2G. The e-invoice review enforces it; the invoice form shows it as a warning without blocking issue.
+- A public-sector customer's BT-10 must be a Leitweg-ID. The desk checks the structure from the Leitweg-ID format specification v2.0.2 and the ISO/IEC 7064 MOD 97-10 check digits. KoSIT itself only checks that BT-10 is present.
+- A business customer's BT-10 is the reference the customer gave, such as an order or project number, or `nicht zutreffend` when there is none.
+- A private customer (B2C) needs no e-invoice. The desk does not render an XRechnung for that invoice and says so on the invoice screen.
+- The buyer reference (BT-10) is stored on the invoice. ZUGFeRD is not produced, so there is no profile switch.
 - Seller and buyer electronic addresses are the e-mail addresses, scheme EM (BT-34, BT-49).
 - The seller contact is the managing director, the company phone, and the company e-mail.
 - Payment is a SEPA credit transfer (code 58) with a checksum-valid IBAN. A BIC is included only when it is present and well formed.

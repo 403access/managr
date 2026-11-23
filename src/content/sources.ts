@@ -427,8 +427,8 @@ export const guides: Guide[] = [
       {
         heading: { de: "Leitweg-ID und Buyer Reference", en: "Routing ID and buyer reference" },
         body: {
-          de: "Öffentliche Auftraggeber verlangen eine Leitweg-ID. Sie gehört als Buyer Reference in die E-Rechnung (XRechnung oder ZUGFeRD). Bei anderen Kunden kann das Feld als interne Referenz genutzt werden.",
-          en: "Public-sector clients require a routing ID. It belongs in the e-invoice as the buyer reference (XRechnung or ZUGFeRD). For other customers the field can carry an internal reference.",
+          de: "Die XRechnung verlangt die Käuferreferenz BT-10 bei Unternehmen und öffentlichen Auftraggebern. Bei einer öffentlichen Auftraggeberin ist das die Leitweg-ID; bei einem Unternehmen die von ihm vorgegebene Referenz, notfalls „nicht zutreffend“. Eine Rechnung an eine Privatperson (B2C) muss keine E-Rechnung sein.",
+          en: "XRechnung requires the buyer reference BT-10 for businesses and public-sector customers. For a public-sector customer it is the Leitweg-ID; for a business it is the reference the customer gave, or “nicht zutreffend” if there is none. An invoice to a private individual (B2C) does not have to be an e-invoice.",
         },
       },
     ],

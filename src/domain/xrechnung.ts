@@ -1,5 +1,6 @@
 import { parseIso, formatDate } from "./calendar";
 import { isCorporation, legalFormLabel } from "./company";
+import type { CustomerKind } from "./customers";
 import { isValidBic, isValidIban } from "./iban";
 import { isKleinunternehmerNote, reviewInvoice } from "./invoice";
 import { lineNetCents, isSupportedVat } from "./vat";
@@ -13,7 +14,9 @@ export { isValidBic, isValidIban } from "./iban";
  * Quantity is UNECE Rec 20 code C62 ("one"): the invoice has no unit of measure.
  * 19% and 7% are VAT category S, which needs a seller VAT id (BR-S-02).
  * 0% is category E. The exemption sentence is BT-120.
- * BR-DE-15 makes the buyer reference mandatory. A public authority uses the Leitweg-ID there.
+ * BR-DE-15 makes the buyer reference mandatory for a business or public-sector
+ * customer. A public authority uses the Leitweg-ID there; a private customer (B2C)
+ * does not need an e-invoice at all.
  */
 export const XRECHNUNG_CUSTOMIZATION_ID = "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0";
 export const XRECHNUNG_PROFILE_ID = "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0";
@@ -21,6 +24,10 @@ export const XRECHNUNG_UNIT_CODE = "C62";
 export const XRECHNUNG_NUMBER_BLOCKER = "The e-invoice needs an invoice number (BT-1).";
 
 const BUYER_REFERENCE_REQUIRED = "The e-invoice needs a buyer reference (BT-10). For a public-sector customer this is the Leitweg-ID.";
+const LEITWEG_REQUIRED = "The e-invoice needs the Leitweg-ID as buyer reference (BT-10) for a public-sector customer.";
+const LEITWEG_FORMAT = "The Leitweg-ID is not in the official format (coarse address, optional fine address, and two check digits, e.g. 04011000-1234512345-06).";
+const LEITWEG_CHECK = "The Leitweg-ID check digit is wrong.";
+const PRIVATE_CUSTOMER_EINVOICE = "XRechnung is for business and public-sector customers (B2B/B2G). A private customer's invoice is not an e-invoice under §14 UStG.";
 const BUYER_REFERENCE_LENGTH = "The buyer reference is too long for BT-10.";
 const BUYER_REFERENCE_CHAR = "The buyer reference contains a character the e-invoice cannot carry.";
 const XML_ILLEGAL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
@@ -40,6 +47,7 @@ export type XRechnungInput = {
   issueDate: string;
   dueDate: string;
   serviceDate: string;
+  customerKind: CustomerKind;
   buyerReference: string;
   notes: string;
   exemptionNote: string;
@@ -74,6 +82,38 @@ export function buyerReferenceProblem(value: string): string | null {
   if (reference.length > 100) return BUYER_REFERENCE_LENGTH;
   if (XML_ILLEGAL.test(reference)) return BUYER_REFERENCE_CHAR;
   return null;
+}
+
+/**
+ * The Leitweg-ID format specification v2.0.2: a 2–12 digit coarse address, an
+ * optional alphanumeric fine address of up to 30 characters, and two check digits.
+ * Letters count as A = 10 through Z = 35, and the whole identifier is validated with
+ * ISO/IEC 7064 MOD 97-10. The specification is at
+ * <https://xeinkauf.de/app/uploads/2022/11/Leitweg-ID-Formatspezifikation-v2-0-2-1.pdf>.
+ */
+export function leitwegIdProblem(value: string): string | null {
+  const id = value.trim().toUpperCase();
+  if (!id) return LEITWEG_REQUIRED;
+  if (id.length < 5 || id.length > 46) return LEITWEG_FORMAT;
+  if (!/^[0-9]{2,12}(?:-[A-Z0-9]{1,30})?-[0-9]{2}$/.test(id)) return LEITWEG_FORMAT;
+  const numeric = id.replace(/-/g, "").replace(/[A-Z]/g, (letter) => String(letter.charCodeAt(0) - 55));
+  let remainder = 0;
+  for (const digit of numeric) remainder = (remainder * 10 + Number(digit)) % 97;
+  return remainder === 1 ? null : LEITWEG_CHECK;
+}
+
+/** BT-10 on an XRechnung: required for B2B and B2G, and a Leitweg-ID for B2G. */
+export function invoiceBuyerReferenceProblem(kind: CustomerKind, value: string): string | null {
+  const reference = value.trim();
+  if (kind === "private") return null;
+  if (!reference) return kind === "public" ? LEITWEG_REQUIRED : BUYER_REFERENCE_REQUIRED;
+  return kind === "public" ? leitwegIdProblem(reference) : buyerReferenceProblem(reference);
+}
+
+/** Customer master data: the reference may be filled in later, but a present one must fit the type. */
+export function customerBuyerReferenceProblem(kind: CustomerKind, value: string): string | null {
+  if (!value.trim()) return null;
+  return kind === "public" ? leitwegIdProblem(value) : buyerReferenceProblem(value);
 }
 
 export function countryCode(value: string): string | null {
@@ -133,9 +173,10 @@ export function reviewXRechnung(input: XRechnungInput): { blockers: string[] } {
   if (!realDate(input.serviceDate) && input.serviceDate.trim()) push("The date of supply is not a real calendar day.");
   if (!realDate(input.dueDate)) push("The e-invoice needs a due date (BT-9).");
 
-  if (!input.buyerReference.trim()) push(BUYER_REFERENCE_REQUIRED);
-  else {
-    const problem = buyerReferenceProblem(input.buyerReference);
+  if (input.customerKind === "private") {
+    push(PRIVATE_CUSTOMER_EINVOICE);
+  } else {
+    const problem = invoiceBuyerReferenceProblem(input.customerKind, input.buyerReference);
     if (problem) push(problem);
   }
 

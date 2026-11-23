@@ -126,7 +126,7 @@ A screen does not open SQLite. `src/server/views.ts` builds the JSON for that sc
 
 Mutations stay server actions in `src/server/actions.ts`. After a write they call `revalidatePath`, and the form invalidates the `view` query cache so the open screen refetches. Issued invoices, payments, expenses, payroll, reserve movements, and voids all go through a posting builder in `src/domain/postings.ts`. The printable invoice stays a server render and is not a query.
 
-`GET /invoices/[id]/xrechnung` renders an XRechnung 3.0.2 UBL document from the invoice's company, the customer, and the invoice. The rules live in `src/domain/xrechnung.ts`. The XML is not stored.
+`GET /invoices/[id]/xrechnung` renders an XRechnung 3.0.2 UBL document from the invoice's company, the customer, and the invoice. The rules live in `src/domain/xrechnung.ts`. The XML is not stored. The customer's `kind` (`business`, `public`, or `private`) selects the BT-10 rule: a public customer needs a Leitweg-ID with valid MOD 97-10 check digits, a business customer needs a reference, and a private customer needs no e-invoice.
 
 The check button calls the `checkInvoiceXRechnung` server action. `src/server/validator.ts` posts the rendered XML to `VALIDATOR_URL` (the Compose validator, or `127.0.0.1:8090` for `bun dev`). `src/server/validator-report.ts` turns the KoSIT report into a verdict and a message list. It is a pure function with a test; the HTTP call is not cached and nothing is written to the database. The same check is the read-only `check_xrechnung` tool, so MCP clients and the assistant can inspect an invoice without sending it.
 

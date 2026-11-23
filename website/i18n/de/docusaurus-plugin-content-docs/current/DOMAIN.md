@@ -50,7 +50,13 @@ Implementierung: `src/domain/xrechnung.ts`. Spezifikationskennungen: `XRECHNUNG_
 
 Die Ausstellung folgt weiterhin nur §14 und §35a. Die zusätzlichen XRechnung-Felder blockieren die Ausstellung nicht. Sie blockieren die Datei.
 
-- Die Käuferreferenz (BT-10) wird auf der Rechnung gespeichert. Bei einer öffentlichen Stelle ist sie die Leitweg-ID. Der Schreibtisch prüft diese Prüfsumme nicht.
+Der Kundentyp entscheidet, was BT-10 enthalten muss. `customers.kind` ist `business` (B2B), `public` (B2G) oder `private` (B2C); Zeilen aus der Zeit vor der Spalte gelten als `business`.
+
+- Die XRechnung (BR-DE-15) verlangt BT-10 bei B2B und B2G. Die E-Rechnungsprüfung setzt das durch; das Rechnungsformular zeigt es als Hinweis, ohne die Ausstellung zu blockieren.
+- Bei einer öffentlichen Auftraggeberin muss BT-10 eine Leitweg-ID sein. Der Schreibtisch prüft den Aufbau nach der Leitweg-ID-Formatspezifikation v2.0.2 und die Prüfziffern nach ISO/IEC 7064 MOD 97-10. KoSIT selbst prüft nur, dass BT-10 vorhanden ist.
+- Bei einem Unternehmen ist BT-10 die vom Kunden vorgegebene Referenz, etwa eine Bestell- oder Projektnummer, oder `nicht zutreffend`, wenn es keine gibt.
+- Eine Privatperson (B2C) braucht keine E-Rechnung. Der Schreibtisch erzeugt für diese Rechnung keine XRechnung und sagt das auf dem Rechnungsbildschirm.
+- Die Käuferreferenz (BT-10) wird auf der Rechnung gespeichert. ZUGFeRD wird nicht erzeugt, daher gibt es keinen Profilwechsel.
 - Die elektronischen Adressen von Verkäufer und Käufer sind die E-Mail-Adressen, Schema EM (BT-34, BT-49).
 - Der Verkäuferkontakt ist die Geschäftsführung, die Telefonnummer der Gesellschaft und die E-Mail-Adresse der Gesellschaft.
 - Die Zahlung ist eine SEPA-Überweisung (Code 58) mit einer prüfsummengültigen IBAN. Eine BIC wird nur aufgenommen, wenn sie vorhanden und wohlgeformt ist.

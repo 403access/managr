@@ -19,6 +19,16 @@ describe("action payloads", () => {
     expect(invoicePayloadSchema.safeParse({ ...invoice, customerMode: "later" }).success).toBe(false);
   });
 
+  it("defaults a new customer to business and accepts the public type", () => {
+    const parsed = invoicePayloadSchema.safeParse(invoice);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.newCustomer.kind).toBe("business");
+    const publicCustomer = { ...invoice, newCustomer: { ...invoice.newCustomer, kind: "public" } };
+    expect(invoicePayloadSchema.safeParse(publicCustomer).success).toBe(true);
+    const unknown = { ...invoice, newCustomer: { ...invoice.newCustomer, kind: "authority" } };
+    expect(invoicePayloadSchema.safeParse(unknown).success).toBe(false);
+  });
+
   it("accepts a two-line journal and trims the memo", () => {
     const parsed = journalPayloadSchema.safeParse({
       date: "2026-10-25",

@@ -6,11 +6,15 @@ import { deleteContact, saveContact, saveCustomer } from "@/server/actions";
 import type { customerView, customersView } from "@/server/views";
 import { formatDate } from "@/domain/calendar";
 import {
+  CUSTOMER_KINDS,
   CUSTOMER_RELATIONSHIPS,
+  DEFAULT_CUSTOMER_KIND,
   DEFAULT_CUSTOMER_SORT,
   defaultCustomerDirection,
   filterCustomers,
+  isCustomerKind,
   sortCustomers,
+  type CustomerKind,
   type CustomerRelationship,
   type CustomerSortKey,
   type SortDirection,
@@ -33,6 +37,7 @@ type Customer = Customers["customers"][number];
 type CustomerDetail = NonNullable<ReturnType<typeof customerView>>;
 
 type CustomerFieldsValue = {
+  kind: string;
   name: string;
   email: string;
   website: string;
@@ -45,10 +50,36 @@ type CustomerFieldsValue = {
   hourlyRateCents: number | null;
 };
 
+function customerKindLabelKey(kind: string): "customers.kindBusiness" | "customers.kindPublic" | "customers.kindPrivate" {
+  return kind === "public" ? "customers.kindPublic" : kind === "private" ? "customers.kindPrivate" : "customers.kindBusiness";
+}
+
 function CustomerFields({ customer }: { customer?: CustomerFieldsValue }) {
   const { t } = useI18n();
+  const [kind, setKind] = useState<CustomerKind>(isCustomerKind(customer?.kind) ? customer.kind : DEFAULT_CUSTOMER_KIND);
+  const buyerReferenceHint =
+    kind === "public"
+      ? t("invoices.buyerReferenceHintPublic")
+      : kind === "private"
+        ? t("invoices.buyerReferenceHintPrivate")
+        : t("invoices.buyerReferenceHintBusiness");
+  const buyerReferencePlaceholder =
+    kind === "public" ? "04011000-1234512345-06" : kind === "business" ? t("invoices.buyerReferencePlaceholderBusiness") : undefined;
   return (
     <div className="grid gap-3 sm:grid-cols-2">
+      <Field label={t("customers.kind")} hint={t("customers.kindHint")}>
+        <SelectInput
+          name="kind"
+          value={kind}
+          onChange={(event) => {
+            if (isCustomerKind(event.target.value)) setKind(event.target.value);
+          }}
+        >
+          {CUSTOMER_KINDS.map((value) => (
+            <option key={value} value={value}>{t(customerKindLabelKey(value))}</option>
+          ))}
+        </SelectInput>
+      </Field>
       <Field label={t("common.name")}><TextInput name="name" defaultValue={customer?.name} required /></Field>
       <Field label={t("common.email")}><TextInput name="email" type="email" defaultValue={customer?.email} /></Field>
       <Field label={t("common.website")}><TextInput name="website" type="url" defaultValue={customer?.website} maxLength={200} /></Field>
@@ -57,8 +88,8 @@ function CustomerFields({ customer }: { customer?: CustomerFieldsValue }) {
       <Field label={t("common.city")}><TextInput name="city" defaultValue={customer?.city} /></Field>
       <Field label={t("common.country")}><TextInput name="country" defaultValue={customer?.country ?? "Deutschland"} /></Field>
       <Field label={t("company.vatId")}><TextInput name="vatId" defaultValue={customer?.vatId} /></Field>
-      <Field label={t("invoices.buyerReference")} hint={t("invoices.buyerReferenceHint")}>
-        <TextInput name="buyerReference" defaultValue={customer?.buyerReference} maxLength={100} />
+      <Field label={t("invoices.buyerReference")} hint={buyerReferenceHint}>
+        <TextInput name="buyerReference" defaultValue={customer?.buyerReference} maxLength={100} placeholder={buyerReferencePlaceholder} />
       </Field>
       <Field label={t("rates.customer")} hint={t("rates.customerHint")}>
         <TextInput
@@ -225,6 +256,7 @@ function CustomerDetails({ data }: { data: CustomerDetail }) {
               )}
             </DetailRow>
             <DetailRow label={t("company.vatId")}>{customer.vatId || t("customers.noValue")}</DetailRow>
+            <DetailRow label={t("customers.kind")}>{t(customerKindLabelKey(customer.kind))}</DetailRow>
             <DetailRow label={t("invoices.buyerReference")}>{customer.buyerReference || t("customers.noValue")}</DetailRow>
             <DetailRow label={t("rates.customer")}>
               {customer.hourlyRateCents === null

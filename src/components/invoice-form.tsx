@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { saveInvoice } from "@/server/actions";
 import { addDays, formatDate } from "@/domain/calendar";
+import { isCustomerKind, type CustomerKind } from "@/domain/customers";
 import { KLEINUNTERNEHMER_NOTE, reviewInvoice, sortInvoicePositions } from "@/domain/invoice";
 import {
   DEFAULT_INVOICE_TEMPLATE,
@@ -25,6 +26,7 @@ import { buttonClass, Card, Field, inputClass, SelectInput, TextArea } from "./u
 
 export type CustomerOption = {
   id: number;
+  kind: CustomerKind;
   name: string;
   street: string;
   postalCode: string;
@@ -99,7 +101,7 @@ type Draft = {
   lines: Line[];
 };
 
-const emptyCustomer = { name: "", street: "", postalCode: "", city: "", country: "Deutschland", email: "", vatId: "" };
+const emptyCustomer = { kind: "business" as CustomerKind, name: "", street: "", postalCode: "", city: "", country: "Deutschland", email: "", vatId: "" };
 
 export function InvoiceForm({
   seller,
@@ -160,6 +162,14 @@ export function InvoiceForm({
 
   const chosen = customers.find((item) => item.id === customerId) ?? null;
   const buyer = mode === "existing" && chosen ? chosen : { ...customer, id: 0 };
+  const buyerReferenceHint =
+    buyer.kind === "public"
+      ? t("invoices.buyerReferenceHintPublic")
+      : buyer.kind === "private"
+        ? t("invoices.buyerReferenceHintPrivate")
+        : t("invoices.buyerReferenceHintBusiness");
+  const buyerReferencePlaceholder =
+    buyer.kind === "public" ? "04011000-1234512345-06" : buyer.kind === "business" ? t("invoices.buyerReferencePlaceholderBusiness") : undefined;
   const customerActivities = useMemo(
     () => (mode === "existing" && customerId !== null ? timeActivities.filter((item) => item.customerId === customerId) : []),
     [customerId, mode, timeActivities],
@@ -280,7 +290,7 @@ export function InvoiceForm({
   });
 
   const eInvoiceWarnings = useMemo(() => {
-    if (!preview) return [];
+    if (!preview || buyer.kind === "private") return [];
     const linesForFile = lines.flatMap((line) => {
       const quantityMilli = parseQuantityMilli(line.quantity);
       const unitNetCents = parseEuroToCents(line.unitNet);
@@ -295,6 +305,7 @@ export function InvoiceForm({
       issueDate,
       dueDate,
       serviceDate,
+      customerKind: buyer.kind,
       buyerReference,
       notes,
       exemptionNote: seller.kleinunternehmer ? KLEINUNTERNEHMER_NOTE : "",
@@ -443,8 +454,10 @@ export function InvoiceForm({
       <div className="grid gap-3 @[30rem]:grid-cols-2">
         <Field label={t("invoices.customer")}>
           <select className={inputClass} value={mode === "new" ? "new" : String(customerId ?? "")} onChange={(event) => {
-            if (event.target.value === "new") setMode("new");
-            else {
+            if (event.target.value === "new") {
+              setMode("new");
+              setBuyerReference("");
+            } else {
               setMode("existing");
               const nextId = Number(event.target.value);
               setCustomerId(nextId);
@@ -461,6 +474,18 @@ export function InvoiceForm({
       </div>
       {mode === "new" ? (
         <div className="grid gap-3 @[30rem]:grid-cols-2">
+          <Field label={t("customers.kind")} hint={t("customers.kindHint")}>
+            <SelectInput
+              value={customer.kind}
+              onChange={(event) => {
+                if (isCustomerKind(event.target.value)) setCustomer({ ...customer, kind: event.target.value });
+              }}
+            >
+              <option value="business">{t("customers.kindBusiness")}</option>
+              <option value="public">{t("customers.kindPublic")}</option>
+              <option value="private">{t("customers.kindPrivate")}</option>
+            </SelectInput>
+          </Field>
           <Field label={t("common.name")}><input className={inputClass} value={customer.name} onChange={(event) => setCustomer({ ...customer, name: event.target.value })} /></Field>
           <Field label={t("common.street")}><input className={inputClass} value={customer.street} onChange={(event) => setCustomer({ ...customer, street: event.target.value })} /></Field>
           <Field label={t("common.postal")}><input className={inputClass} value={customer.postalCode} onChange={(event) => setCustomer({ ...customer, postalCode: event.target.value })} /></Field>
@@ -469,9 +494,18 @@ export function InvoiceForm({
           <Field label={t("company.vatId")}><input className={inputClass} value={customer.vatId} onChange={(event) => setCustomer({ ...customer, vatId: event.target.value })} /></Field>
         </div>
       ) : null}
-      <Field label={t("invoices.buyerReference")} hint={t("invoices.buyerReferenceHint")}>
-        <input className={inputClass} value={buyerReference} maxLength={100} onChange={(event) => setBuyerReference(event.target.value)} />
+      <Field label={t("invoices.buyerReference")} hint={buyerReferenceHint}>
+        <input
+          className={inputClass}
+          value={buyerReference}
+          maxLength={100}
+          placeholder={buyerReferencePlaceholder}
+          onChange={(event) => setBuyerReference(event.target.value)}
+        />
       </Field>
+      {buyer.kind === "private" ? (
+        <p className="text-xs leading-relaxed text-muted">{t("invoices.privateCustomerHint")}</p>
+      ) : null}
       <div className="grid gap-3 @[30rem]:grid-cols-3">
         <Field label={t("invoices.issueDate")}><input className={inputClass} type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} /></Field>
         <Field label={t("invoices.serviceDate")}><input className={inputClass} type="date" value={serviceDate} onChange={(event) => setServiceDate(event.target.value)} /></Field>

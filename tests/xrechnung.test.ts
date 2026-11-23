@@ -14,8 +14,11 @@ import {
   buildXRechnung,
   buyerReferenceProblem,
   countryCode,
+  customerBuyerReferenceProblem,
+  invoiceBuyerReferenceProblem,
   isValidBic,
   isValidIban,
+  leitwegIdProblem,
   reviewXRechnung,
   xrechnungFilename,
   xrechnungStatusBlocker,
@@ -69,6 +72,7 @@ function ready(patch: Partial<XRechnungInput> = {}): XRechnungInput {
     issueDate: "2026-11-02",
     dueDate: "2026-11-16",
     serviceDate: "2026-11-02",
+    customerKind: "business",
     buyerReference: "LF-BER-2026",
     notes: "",
     exemptionNote: "",
@@ -132,6 +136,39 @@ describe("XRechnung identifiers", () => {
 describe("XRechnung review", () => {
   it("accepts a complete standard-rated invoice", () => {
     expect(reviewXRechnung(ready()).blockers).toEqual([]);
+  });
+
+  it("uses the customer type to decide what BT-10 has to contain", () => {
+    const leitweg = "04011000-1234512345-06";
+    expect(leitwegIdProblem(leitweg)).toBeNull();
+    expect(leitwegIdProblem("991-03730-19")).toBeNull();
+    expect(leitwegIdProblem("02-L12345-05")).toBeNull();
+    expect(leitwegIdProblem("04011000-1234512345-05")).toMatch(/check digit/);
+    expect(leitwegIdProblem("991-03730")).toMatch(/official format/);
+    expect(leitwegIdProblem("991 03730 19")).toMatch(/official format/);
+    expect(leitwegIdProblem("")).toMatch(/Leitweg-ID/);
+
+    expect(reviewXRechnung(ready({ customerKind: "public", buyerReference: leitweg })).blockers).toEqual([]);
+    expect(buildXRechnung(ready({ customerKind: "public", buyerReference: leitweg }))).toContain(
+      `<cbc:BuyerReference>${leitweg}</cbc:BuyerReference>`,
+    );
+    expect(reviewXRechnung(ready({ customerKind: "public", buyerReference: "" })).blockers).toContain(
+      "The e-invoice needs the Leitweg-ID as buyer reference (BT-10) for a public-sector customer.",
+    );
+    expect(reviewXRechnung(ready({ customerKind: "public", buyerReference: "991-03730-18" })).blockers).toContain(
+      "The Leitweg-ID check digit is wrong.",
+    );
+    expect(reviewXRechnung(ready({ customerKind: "public", buyerReference: "991-03730" })).blockers).toContain(
+      "The Leitweg-ID is not in the official format (coarse address, optional fine address, and two check digits, e.g. 04011000-1234512345-06).",
+    );
+    expect(reviewXRechnung(ready({ customerKind: "business", buyerReference: "nicht zutreffend" })).blockers).toEqual([]);
+    expect(reviewXRechnung(ready({ customerKind: "private", buyerReference: "" })).blockers).toContain(
+      "XRechnung is for business and public-sector customers (B2B/B2G). A private customer's invoice is not an e-invoice under §14 UStG.",
+    );
+    expect(invoiceBuyerReferenceProblem("private", "")).toBeNull();
+    expect(customerBuyerReferenceProblem("public", leitweg)).toBeNull();
+    expect(customerBuyerReferenceProblem("public", "nicht zutreffend")).toMatch(/official format/);
+    expect(customerBuyerReferenceProblem("business", "")).toBeNull();
   });
 
   it("requires the buyer reference, electronic addresses, phone, IBAN, and a German VAT id", () => {
@@ -329,6 +366,7 @@ describe("sample buyer references", () => {
       issueDate: invoice.issueDate,
       dueDate: invoice.dueDate,
       serviceDate: invoice.serviceDate,
+      customerKind: "business",
       buyerReference: invoice.buyerReference,
       notes: invoice.notes,
       exemptionNote: invoice.exemptionNote,
