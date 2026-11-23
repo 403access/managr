@@ -303,6 +303,117 @@ function protocolLabel(protocol: "openai" | "anthropic", t: Translate): string {
   return protocol === "anthropic" ? t("assistant.protocolAnthropic") : t("assistant.protocolOpenai");
 }
 
+/**
+ * Provider and model pickers. The widget shows them across its header, the
+ * full page shows them in the settings column beside the conversation. Either
+ * place changes the model for the next turn without touching the history.
+ */
+export function AssistantModelChoice({ compact = false }: { compact?: boolean } = {}) {
+  const { t } = useI18n();
+  const { catalog, selection, chooseSelection, pending } = useAssistant();
+  const providerID = selection?.providerID ?? null;
+  const selectedProvider = (catalog?.providers ?? []).find((provider) => provider.id === providerID) ?? null;
+  const hasChoices = Boolean(catalog && catalog.providers.length > 0 && catalog.models.length > 0);
+  const providerModels = (catalog?.models ?? []).filter((model) => model.providerID === providerID);
+  const providerOptions = (catalog?.providers ?? []).map((provider) => {
+    const label = provider.id === "env" ? t("assistant.envProvider") : provider.name;
+    return {
+      value: provider.id,
+      label,
+      tag: protocolLabel(provider.protocol, t),
+      description: [
+        provider.local ? t("assistant.providerLocal") : t("assistant.providerRemote"),
+        provider.modelCount > 0 ? t("assistant.providerModelCount", { count: provider.modelCount }) : t("assistant.providerNoModels"),
+        provider.id === "env" ? t("assistant.providerFromEnv") : provider.id,
+      ].join(" · "),
+      disabled: provider.modelCount === 0,
+    };
+  });
+  const modelOptions = providerModels.map((model) => ({
+    value: model.modelID,
+    label: model.name,
+    hint: contextHint(model.context),
+  }));
+  const unusableProvider =
+    selectedProvider && selectedProvider.modelCount === 0
+      ? t("assistant.providerUnusable", { provider: selectedProvider.name })
+      : null;
+  // opencode found providers but none of them can be driven: say which ones, so
+  // the entry the user added is not silently missing from the panel.
+  const unusableProviders =
+    catalog && catalog.providers.length > 0 && catalog.models.length === 0
+      ? catalog.providers.map((provider) => provider.name).join(", ")
+      : null;
+
+  function chooseProvider(nextProviderID: string) {
+    if (nextProviderID === providerID) return;
+    const first = catalog?.models.find((model) => model.providerID === nextProviderID);
+    if (first) chooseSelection({ providerID: first.providerID, modelID: first.modelID });
+  }
+
+  function chooseModel(nextModelID: string) {
+    if (!providerID) return;
+    chooseSelection({ providerID, modelID: nextModelID });
+  }
+
+  if (catalog === null) {
+    return <p className="text-[11px] leading-relaxed text-muted">{t("assistant.modelsLoading")}</p>;
+  }
+
+  if (!hasChoices) {
+    return (
+      <p className="text-[11px] leading-relaxed text-clay">
+        {unusableProviders
+          ? `${t("assistant.providerUnusableAll", { providers: unusableProviders })} ${t("assistant.providerUnusableHint")}`
+          : t("assistant.configTitle")}
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid gap-2">
+      <div className={compact ? "grid grid-cols-[minmax(0,0.56fr)_minmax(0,1fr)] gap-2" : "grid gap-3"}>
+        <Combobox
+          label={t("assistant.provider")}
+          value={providerID}
+          options={providerOptions}
+          onSelect={chooseProvider}
+          placeholder={t("assistant.noProvider")}
+          searchPlaceholder={t("assistant.searchProvider")}
+          noResultsLabel={t("assistant.noResults")}
+          disabled={pending}
+        />
+        <Combobox
+          label={t("assistant.model")}
+          value={selection?.modelID ?? null}
+          options={modelOptions}
+          onSelect={chooseModel}
+          placeholder={t("assistant.noModel")}
+          searchPlaceholder={t("assistant.searchModel")}
+          noResultsLabel={t("assistant.noResults")}
+          disabled={pending || !providerID}
+        />
+      </div>
+      {selectedProvider && selectedProvider.id !== "env" ? (
+        <p className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted">
+          <span
+            className={`rounded-full px-1.5 py-0.5 font-medium ${
+              selectedProvider.local ? "bg-moss/15 text-moss" : "bg-amber/15 text-amber"
+            }`}
+          >
+            {selectedProvider.local ? t("assistant.providerLocal") : t("assistant.providerRemote")}
+          </span>
+          <span className="rounded-full bg-pine/10 px-1.5 py-0.5 font-medium text-pine">
+            {protocolLabel(selectedProvider.protocol, t)}
+          </span>
+          <span className="truncate font-mono normal-case">{selectedProvider.id}</span>
+        </p>
+      ) : null}
+      {unusableProvider ? <p className="text-[11px] leading-relaxed text-clay">{unusableProvider}</p> : null}
+    </div>
+  );
+}
+
 export function Assistant({ variant = "popover" }: { variant?: "popover" | "page" } = {}) {
   const { t } = useI18n();
   const {
@@ -316,7 +427,6 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
     setDraft,
     pending,
     send,
-    chooseSelection,
     clear,
     abort,
   } = useAssistant();
@@ -357,33 +467,11 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
     { key: "assistant.quickClose", prompt: t("assistant.promptClose") },
   ] as const;
 
-  const providerID = selection?.providerID ?? null;
   const selectedModel = selection
     ? (catalog?.models.find((model) => model.providerID === selection.providerID && model.modelID === selection.modelID) ?? null)
     : null;
-  const providerModels = (catalog?.models ?? []).filter((model) => model.providerID === providerID);
   const hasChoices = Boolean(catalog && catalog.providers.length > 0 && catalog.models.length > 0);
   const showConfig = settings !== null && !settings.configured && !hasChoices;
-  const selectedProvider = (catalog?.providers ?? []).find((provider) => provider.id === providerID) ?? null;
-  const providerOptions = (catalog?.providers ?? []).map((provider) => {
-    const label = provider.id === "env" ? t("assistant.envProvider") : provider.name;
-    return {
-      value: provider.id,
-      label,
-      tag: protocolLabel(provider.protocol, t),
-      description: [
-        provider.local ? t("assistant.providerLocal") : t("assistant.providerRemote"),
-        provider.modelCount > 0 ? t("assistant.providerModelCount", { count: provider.modelCount }) : t("assistant.providerNoModels"),
-        provider.id === "env" ? t("assistant.providerFromEnv") : provider.id,
-      ].join(" · "),
-      disabled: provider.modelCount === 0,
-    };
-  });
-  const modelOptions = providerModels.map((model) => ({
-    value: model.modelID,
-    label: model.name,
-    hint: contextHint(model.context),
-  }));
   const modelStatus = selectedModel
     ? `${selectedModel.local ? t("assistant.local") : t("assistant.remote")} · ${protocolLabel(selectedModel.protocol, t)}${
         selectedModel.providerID === "env" ? ` · ${t("assistant.envProvider")}` : ""
@@ -391,27 +479,6 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
     : settings?.configured
       ? `${settings.model} · ${settings.local ? t("assistant.local") : t("assistant.remote")}`
       : t("assistant.subtitle");
-  const unusableProvider =
-    selectedProvider && selectedProvider.modelCount === 0
-      ? t("assistant.providerUnusable", { provider: selectedProvider.name })
-      : null;
-  // opencode found providers but none of them can be driven: say which ones, so
-  // the entry the user added is not silently missing from the panel.
-  const unusableProviders =
-    catalog && catalog.providers.length > 0 && catalog.models.length === 0
-      ? catalog.providers.map((provider) => provider.name).join(", ")
-      : null;
-
-  function chooseProvider(nextProviderID: string) {
-    if (nextProviderID === providerID) return;
-    const first = catalog?.models.find((model) => model.providerID === nextProviderID);
-    if (first) chooseSelection({ providerID: first.providerID, modelID: first.modelID });
-  }
-
-  function chooseModel(nextModelID: string) {
-    if (!providerID) return;
-    chooseSelection({ providerID, modelID: nextModelID });
-  }
 
   return (
     <>
@@ -436,7 +503,7 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
           aria-label={t("assistant.title")}
           className={
             page
-              ? "flex h-[70dvh] min-h-[28rem] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-sm md:h-[calc(100dvh-12rem)] md:min-h-[32rem]"
+              ? "flex h-[70dvh] min-h-[28rem] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-sm lg:h-full lg:min-h-0"
               : expanded
                 ? "fixed inset-3 z-50 flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl shadow-ink/25 md:inset-6"
                 : "fixed inset-x-3 bottom-20 z-50 flex max-h-[78dvh] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl shadow-ink/25 md:inset-x-auto md:right-6 md:bottom-24 md:w-[27rem] md:max-h-[42rem]"
@@ -500,52 +567,11 @@ export function Assistant({ variant = "popover" }: { variant?: "popover" | "page
                 )}
               </div>
             </div>
-            {catalog === null ? <p className="mt-2 text-[11px] text-muted">{t("assistant.modelsLoading")}</p> : null}
-            {hasChoices ? (
-              <div className="mt-3 grid grid-cols-[minmax(0,0.56fr)_minmax(0,1fr)] gap-2">
-                <Combobox
-                  label={t("assistant.provider")}
-                  value={providerID}
-                  options={providerOptions}
-                  onSelect={chooseProvider}
-                  placeholder={t("assistant.noProvider")}
-                  searchPlaceholder={t("assistant.searchProvider")}
-                  noResultsLabel={t("assistant.noResults")}
-                  disabled={pending}
-                />
-                <Combobox
-                  label={t("assistant.model")}
-                  value={selectedModel?.modelID ?? null}
-                  options={modelOptions}
-                  onSelect={chooseModel}
-                  placeholder={t("assistant.noModel")}
-                  searchPlaceholder={t("assistant.searchModel")}
-                  noResultsLabel={t("assistant.noResults")}
-                  disabled={pending || !providerID}
-                />
+            {page ? null : (
+              <div className="mt-3">
+                <AssistantModelChoice compact />
               </div>
-            ) : null}
-            {selectedProvider && selectedProvider.id !== "env" ? (
-              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-muted">
-                <span
-                  className={`rounded-full px-1.5 py-0.5 font-medium ${
-                    selectedProvider.local ? "bg-moss/15 text-moss" : "bg-amber/15 text-amber"
-                  }`}
-                >
-                  {selectedProvider.local ? t("assistant.providerLocal") : t("assistant.providerRemote")}
-                </span>
-                <span className="rounded-full bg-pine/10 px-1.5 py-0.5 font-medium text-pine">
-                  {protocolLabel(selectedProvider.protocol, t)}
-                </span>
-                <span className="truncate font-mono normal-case">{selectedProvider.id}</span>
-              </p>
-            ) : null}
-            {unusableProvider ? <p className="mt-2 text-[11px] leading-relaxed text-clay">{unusableProvider}</p> : null}
-            {unusableProviders ? (
-              <p className="mt-2 text-[11px] leading-relaxed text-clay">
-                {t("assistant.providerUnusableAll", { providers: unusableProviders })} {t("assistant.providerUnusableHint")}
-              </p>
-            ) : null}
+            )}
           </header>
 
           <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3" aria-live="polite">

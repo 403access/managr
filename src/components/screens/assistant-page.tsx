@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { changeAction, type ChangeAction } from "@/domain/assistant-actions";
 import { needsApproval } from "@/domain/assistant-writes";
-import { ActionBadge, Assistant, formatMessageTime, toolLabelFor } from "@/components/assistant";
+import { ActionBadge, Assistant, AssistantModelChoice, formatMessageTime, toolLabelFor } from "@/components/assistant";
 import { useAssistantMessages } from "@/components/assistant-provider";
 import { useI18n } from "@/components/locale-provider";
 import { SidePanel } from "@/components/side-panel";
@@ -578,24 +578,30 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
   const activePanel = panel === "tools" ? toolPanel : panel === "history" ? historyPanel : null;
 
   return (
-    <>
-      <PageHeader title={t("assistantPage.title")} lede={t("assistantPage.lede")} />
+    <div className="lg:flex lg:h-full lg:min-h-0 lg:flex-col">
+      <div className="shrink-0">
+        <PageHeader title={t("assistantPage.title")} lede={t("assistantPage.lede")} />
+      </div>
       <div
         className={
           inline && activePanel
-            ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start"
-            : "grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
+            ? "grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-stretch"
+            : "grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-stretch"
         }
       >
         <Assistant variant="page" />
         {inline && activePanel ? (
-          <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start">{activePanel}</aside>
+          <aside className="min-w-0 lg:min-h-0 lg:overflow-y-auto">{activePanel}</aside>
         ) : (
-          <aside className="grid gap-3">
+          <aside className="grid content-start gap-3 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
             <Card>
               <h2 className="text-base">{t("assistantPage.settings")}</h2>
-              <dl className="mt-3 grid gap-3">
-                <Row label={t("assistantPage.model")} value={t("assistantPage.modelValue")} hint={t("assistantPage.modelHint")} />
+              <div className="mt-3 grid gap-2">
+                <p className="text-xs font-medium text-muted">{t("assistantPage.model")}</p>
+                <AssistantModelChoice />
+                <p className="text-[11px] leading-relaxed text-muted">{t("assistantPage.modelHint")}</p>
+              </div>
+              <dl className="mt-4 grid gap-3">
                 <Row
                   label={t("assistantPage.web")}
                   value={web ? t("assistantPage.webOn") : t("assistantPage.webOff")}
@@ -644,6 +650,6 @@ export function AssistantPageScreen({ web, tools, mcpUrl }: { web: boolean; tool
         )}
       </div>
       {!inline && activePanel ? activePanel : null}
-    </>
+    </div>
   );
 }

@@ -35,6 +35,7 @@ export function AppShell({ children, lastDeletion }: { children: ReactNode; last
   const query = useView<Shell>(queryKeys.shell, viewPath.shell);
   const { t } = useI18n();
   const pathname = usePathname();
+  const assistantPage = pathname === "/assistant";
   const company = query.data;
   const [collapsed, setCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -61,8 +62,8 @@ export function AppShell({ children, lastDeletion }: { children: ReactNode; last
     <InfoProvider>
       <SettingsProvider settings={company?.settings}>
         <AddSheetProvider>
-        <div className="min-h-dvh">
-        <div className="flex w-full">
+        <div className={assistantPage ? "min-h-dvh lg:h-dvh lg:min-h-0 lg:overflow-hidden" : "min-h-dvh"}>
+        <div className={assistantPage ? "flex w-full lg:h-full lg:min-h-0" : "flex w-full"}>
           <aside
             id="app-sidebar"
             className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line py-6 transition-[width,padding] duration-200 md:flex ${collapsed ? "w-16 px-2" : "w-60 px-4"}`}
@@ -116,7 +117,13 @@ export function AppShell({ children, lastDeletion }: { children: ReactNode; last
             {company && !collapsed ? <CompanySwitcher companies={company.companies} activeId={company.activeCompanyId} /> : null}
             <AppNav variant="side" collapsed={collapsed} />
           </aside>
-          <div className="min-w-0 flex-1 px-4 pt-4 pb-28 md:px-8 md:pt-8 md:pb-12">
+          <div
+            className={
+              assistantPage
+                ? "flex min-w-0 flex-1 flex-col px-4 pt-4 pb-28 md:px-8 md:pt-8 md:pb-12 lg:min-h-0 lg:pb-8"
+                : "min-w-0 flex-1 px-4 pt-4 pb-28 md:px-8 md:pt-8 md:pb-12"
+            }
+          >
             <div className="mb-4 flex items-start justify-between gap-3 md:hidden">
               <div className="min-w-0">
                 <p className="font-display text-2xl text-pine">managr</p>
