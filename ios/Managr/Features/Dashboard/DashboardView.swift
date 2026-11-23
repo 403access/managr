@@ -6,6 +6,7 @@ struct DashboardView: View {
     @State private var error: String?
     @State private var actionError: String?
     @State private var busyTask: Int?
+    @State private var showAssistant = false
 
     var body: some View {
         ScrollView {
@@ -46,7 +47,15 @@ struct DashboardView: View {
             ToolbarItem(placement: .topBarLeading) {
                 companyMenu
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    showAssistant = true
+                } label: {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(Theme.pine)
+                }
+                .accessibilityLabel(app.t("Assistent öffnen", "Open assistant"))
+
                 Button {
                     Task { await load() }
                 } label: {
@@ -58,6 +67,11 @@ struct DashboardView: View {
         }
         .navigationDestination(for: Int.self) { id in
             InvoiceDetailView(invoiceId: id)
+        }
+        .sheet(isPresented: $showAssistant) {
+            NavigationStack {
+                AssistantView(onClose: { showAssistant = false })
+            }
         }
         .alert(app.t("Aktion fehlgeschlagen", "Action failed"), isPresented: Binding(
             get: { actionError != nil },

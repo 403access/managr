@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppState.self) private var app
     @State private var started = false
+    @State private var assistant = AssistantStore()
 
     var body: some View {
         Group {
@@ -14,7 +15,10 @@ struct RootView: View {
                 ConnectView()
             }
         }
+        .environment(assistant)
+        .onAppear { assistant.app = app }
         .task {
+            assistant.app = app
             guard !started else { return }
             started = true
             await app.autoConnect()

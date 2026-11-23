@@ -35,6 +35,9 @@ enum DeskError: LocalizedError {
 struct DeskClient: Sendable {
     let baseURL: URL
     private let session: URLSession
+    /// A model can think for a while before the first token, so the assistant
+    /// gets a longer budget than the ordinary view and tool calls.
+    private let assistantSession: URLSession
 
     init(baseURL: URL) {
         self.baseURL = baseURL
@@ -44,6 +47,13 @@ struct DeskClient: Sendable {
         configuration.waitsForConnectivity = false
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         self.session = URLSession(configuration: configuration)
+
+        let streaming = URLSessionConfiguration.ephemeral
+        streaming.timeoutIntervalForRequest = 180
+        streaming.timeoutIntervalForResource = 900
+        streaming.waitsForConnectivity = false
+        streaming.requestCachePolicy = .reloadIgnoringLocalCacheData
+        self.assistantSession = URLSession(configuration: streaming)
     }
 
     func view<T: Decodable>(_ name: String, query: [URLQueryItem] = [], as type: T.Type = T.self) async throws -> T {
@@ -71,6 +81,91 @@ struct DeskClient: Sendable {
             return try value.decoded(type)
         } catch {
             throw DeskError.decoding("The answer from \(name) could not be read.")
+        }
+    }
+
+    // MARK: - Assistant
+
+    func assistantSettings() async throws -> AssistantSettings {
+        try await send(try makeRequest(path: "api/assistant"))
+    }
+
+    func assistantCatalog() async throws -> AssistantCatalog {
+        try await send(try makeRequest(path: "api/assistant/models"))
+    }
+
+    func assistantApprove(id: String, approved: [String]) async throws {
+        let body = try JSONEncoder().encode(ApprovalRequest(id: id, approved: approved))
+        var request = try makeRequest(path: "api/assistant/approve")
+        request.httpMethod = "POST"
+        request.httpBody = body
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let _: ApprovalResponse = try await send(request)
+    }
+
+    /// Opens the NDJSON stream of one assistant turn. The caller iterates the
+    /// events on the main actor and keeps the partial turn when it cancels.
+    func assistantEvents(
+        messages: [AssistantTurnInput],
+        selection: AssistantSelection?
+    ) async throws -> AsyncThrowingStream<AssistantStreamEvent, Error> {
+        let body = try JSONEncoder().encode(AssistantRequestBody(messages: messages, selection: selection))
+        var request = try makeRequest(path: "api/assistant")
+        request.httpMethod = "POST"
+        request.httpBody = body
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/x-ndjson", forHTTPHeaderField: "Accept")
+
+        let bytes: URLSession.AsyncBytes
+        let response: URLResponse
+        do {
+            (bytes, response) = try await assistantSession.bytes(for: request)
+        } catch let error as URLError {
+            throw DeskError.transport(error.localizedDescription)
+        } catch {
+            throw DeskError.transport(error.localizedDescription)
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw DeskError.transport("The desk did not answer.")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            var data = Data()
+            do {
+                for try await byte in bytes {
+                    data.append(byte)
+                    if data.count >= 8_192 { break }
+                }
+            } catch {
+                // The status still explains the failure better than the body read.
+            }
+            let parsed = try? JSONDecoder().decode(AssistantErrorBody.self, from: data)
+            let fallback = String(data: data.prefix(400), encoding: .utf8) ?? ""
+            throw AssistantAPIError(
+                message: parsed?.error ?? (fallback.isEmpty ? "HTTP \(http.statusCode)" : fallback),
+                notConfigured: parsed?.notConfigured ?? false,
+                status: http.statusCode,
+                baseUrl: parsed?.baseUrl,
+                model: parsed?.model
+            )
+        }
+
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await line in bytes.lines {
+                        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { continue }
+                        guard let data = trimmed.data(using: .utf8) else { continue }
+                        if let event = try? JSONDecoder().decode(AssistantStreamEvent.self, from: data) {
+                            continuation.yield(event)
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
@@ -122,6 +217,32 @@ struct DeskClient: Sendable {
 private struct ToolRequest: Encodable {
     let name: String
     let arguments: [String: JSONValue]
+}
+
+struct AssistantTurnInput: Encodable, Equatable {
+    let role: String
+    let content: String
+}
+
+private struct AssistantRequestBody: Encodable {
+    let messages: [AssistantTurnInput]
+    let selection: AssistantSelection?
+}
+
+private struct AssistantErrorBody: Decodable {
+    let error: String?
+    let notConfigured: Bool?
+    let baseUrl: String?
+    let model: String?
+}
+
+private struct ApprovalRequest: Encodable {
+    let id: String
+    let approved: [String]
+}
+
+private struct ApprovalResponse: Decodable {
+    let ok: Bool?
 }
 
 private struct ToolEnvelope: Decodable {

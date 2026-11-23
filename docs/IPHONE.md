@@ -18,10 +18,11 @@ The screenshots use the sample company that is loaded on first launch.
 - **Invoices** — list, search, and filter; open an invoice; issue a draft; record a payment against the open amount. The §14 UStG blockers are shown before you issue.
 - **Customers** — list, search, add, and edit; open amount, revenue, time, projects, and that customer's invoices.
 - **Time** — week navigation, totals, entries with activities and working-time warnings; book a new entry; delete an entry (soft delete, restorable on the desk).
+- **Assistant** — chat with the desk's model: streaming answers, the roadmap, every tool call with its arguments and result, and a confirmation card before any write. Pick the provider and model at the top; the last 40 messages stay on the phone. Open it from **More → Assistant** or the sparkles button on the overview.
 - **More** — people, projects, tasks, deadlines, and settings for the connection, language, and company.
 - **Company switcher** and a **German/English** interface.
 
-Not in the app: creating an invoice with time-linked positions, editing a draft, documents and uploads, Qonto, tax filings, the ledger, and the assistant. Use the browser for those.
+Not in the app: creating an invoice with time-linked positions, editing a draft, documents and uploads, Qonto, tax filings, and the ledger. Use the browser for those.
 
 ## How it talks to the desk
 
@@ -50,6 +51,8 @@ Content-Type: application/json
 
 `src/app/api/tools/route.ts` calls `runTool` from `src/server/tools.ts`, the same registry the MCP endpoint and the in-app assistant use. Validation, domain rules, and journal postings are identical. `GET /api/tools` lists the tools and their JSON schemas. Next.js server actions are not used because their ids are build artifacts.
 
+The assistant talks to `GET /api/assistant`, `GET /api/assistant/models`, `POST /api/assistant`, and `POST /api/assistant/approve`. The POST answer is the same NDJSON stream the web panel consumes, so the roadmap, tool steps, and confirmation cards behave identically. Configure the model on the Mac with [opencode](https://opencode.ai) or `MANAGR_AI_MODEL` / `MANAGR_AI_BASE_URL` / `MANAGR_AI_API_KEY`; the phone only chooses among the models the desk offers.
+
 ## Run the desk
 
 ```bash
@@ -73,4 +76,4 @@ A free Apple ID signs for seven days; a paid Apple Developer account signs for a
 
 ## Security
 
-There is no authentication, like the rest of the desk. The views and `/api/tools` are reachable by anything on the same network, so keep the desk on a trusted Wi-Fi and never expose port 3000 to the internet. Requests use plain HTTP on the local network; the app has an ATS exception for local networking. Nothing is sent to a cloud service, and the app stores only the desk address and the language.
+There is no authentication, like the rest of the desk. The views and `/api/tools` are reachable by anything on the same network, so keep the desk on a trusted Wi-Fi and never expose port 3000 to the internet. Requests use plain HTTP on the local network; the app has an ATS exception for local networking. The app stores the desk address, the language, the last 40 assistant messages, an unsent draft, and the model choice. A remote model endpoint receives the conversation and tool results when one is configured on the Mac; a local model keeps them on the Mac.

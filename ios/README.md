@@ -10,12 +10,13 @@ The phone and the Mac have to be on the same Wi-Fi. The Mac runs the desk; the a
 - **Rechnungen / Invoices** — list, search, and filter by status; open an invoice; issue a draft; record a payment against the open amount. Totals, VAT, line items, payments, and blockers come from the same view the browser uses.
 - **Kunden / Customers** — list, search, add, edit; see open amount, revenue, time, projects, and that customer's invoices.
 - **Zeit / Time** — week navigation, totals, entries per day with activities and warnings; book a new entry; delete an entry (soft delete, restorable on the desk).
+- **Assistent / Assistant** — chat with the model the desk is configured with: streaming answers, the roadmap, every tool call with its arguments and result, and a confirmation card before any write. Pick the provider and model at the top, retry the last question, and keep the last 40 messages on the phone. Reachable from **Mehr → Assistent** and the sparkles button on the overview.
 - **Mehr / More** — people, projects, tasks (add and complete), statutory deadlines and custom dates (mark done), and settings.
 - **Settings** — switch the active company, switch between German and English, check or change the connection.
 
 Amounts and dates always use the German format, like the desk.
 
-Not in the app yet: creating an invoice with time-linked positions, draft editing, documents and uploads, Qonto, tax filings, the ledger, and the assistant. Use the browser for those.
+Not in the app yet: creating an invoice with time-linked positions, draft editing, documents and uploads, Qonto, tax filings, and the ledger. Use the browser for those.
 
 ## Requirements
 
@@ -104,6 +105,23 @@ Content-Type: application/json
 
 That route wraps `src/server/tools.ts`, the same registry the MCP endpoint and the in-app assistant use. Validation, domain rules, and journal postings are identical. `GET /api/tools` lists every tool with its JSON schema.
 
+The assistant uses the same desk routes as the browser:
+
+```
+GET  /api/assistant          → configured model and endpoint
+GET  /api/assistant/models   → providers and models from opencode
+POST /api/assistant          → NDJSON stream for one turn
+POST /api/assistant/approve  → confirm or reject proposed writes
+```
+
+The stream is the web protocol unchanged: `model`, `delta`, `reset`, `tool`,
+`tool_result`, `plan`, `proposal`, `reply`, and `error` lines. The phone folds
+them into the same transcript. A write waits in a confirmation card; nothing
+is posted until one of its buttons is tapped. Model configuration lives on the
+Mac, not on the phone: install [opencode](https://opencode.ai) or set
+`MANAGR_AI_MODEL`, `MANAGR_AI_BASE_URL`, and `MANAGR_AI_API_KEY` before
+`bun run dev`. See [docs/MCP-ASSISTANT.md](../docs/MCP-ASSISTANT.md).
+
 Next.js server actions are deliberately not used: their action ids are build artifacts and change on every build.
 
 There is no authentication, like the rest of the desk. The endpoints are reachable by anything on the same network, so keep the desk on a trusted Wi-Fi and never expose port 3000 publicly.
@@ -126,6 +144,7 @@ ios/
       Customers/               list, detail, add/edit
       Time/                    week view and add-time form
       More/                    people, projects, tasks, deadlines
+      Assistant/               chat, stream, roadmap, approvals, Markdown
       Settings/                connection, language, company, about
     Resources/                 Info.plist, asset catalog, app icon
 ```
@@ -166,4 +185,4 @@ Opening the project in Xcode is simpler for a one-off install; the command line 
 
 ## Privacy
 
-The app stores only the desk address and the language in `UserDefaults`. Nothing else is cached; each screen fetches from the desk. Requests are plain HTTP on the local network because that is what the desk serves. There is no analytics and no third-party SDK.
+The app stores the desk address, the language, the last 40 assistant messages, an unsent draft, and the model choice in `UserDefaults`. Nothing else is cached; each screen fetches from the desk. Requests are plain HTTP on the local network because that is what the desk serves. There is no analytics and no third-party SDK. A remote model endpoint receives the conversation and tool results when you configure one on the Mac; a local model keeps them on the Mac.

@@ -31,7 +31,7 @@ Open [http://localhost:3000](http://localhost:3000). The first launch creates `d
 
 ## iPhone app
 
-`ios/` is a native SwiftUI client for the same desk, not a second backend. It reads `GET /api/views/[name]` and writes through `POST /api/tools`, which runs the same tool registry, validation, and journal postings as MCP and the assistant. The phone connects over your Wi-Fi; the Mac still holds the database. No account, no cloud.
+`ios/` is a native SwiftUI client for the same desk, not a second backend. It reads `GET /api/views/[name]`, writes through `POST /api/tools`, and streams the assistant from `/api/assistant`, which runs the same tool registry, validation, and journal postings as the browser and MCP. Writes from the assistant wait in a confirmation card. The phone connects over your Wi-Fi; the Mac still holds the database. No account, no cloud.
 
 ![managr on the iPhone](docs/assets/ios/iphone-strip.png)
 

@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		020E481898BC94BCD94E5318 /* AssistantModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DB8B0828B3525E95821B05E /* AssistantModels.swift */; };
 		0939B684447CF4AF9F66A024 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663D173303AB8CD5D05BA879 /* Theme.swift */; };
+		108A0A64462FFD0BBEC707EC /* AssistantModelPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59686C8AE7C2F7D01A311A22 /* AssistantModelPicker.swift */; };
 		16C71842E74EDFABC88EDE47 /* Status.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92E6A1C88CD03DBE36752D4 /* Status.swift */; };
 		1E28D40DA7AA771AA7F56CE7 /* TasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76E022B5F545ACCA29FDAB4 /* TasksView.swift */; };
 		1EC6F2FF071A4A62780811D1 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A75EB67789BF541A5A4FEB /* RootView.swift */; };
@@ -23,11 +25,14 @@
 		99A4C27E43E26EB33D3C7927 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5577FE44CBD8911086C931FB /* Models.swift */; };
 		AE16AF48FEA8CBCC46F2946C /* InvoiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4DF77C5D99D597DD96A54E /* InvoiceDetailView.swift */; };
 		D06A2AF82C42DCE710E5C8AB /* ManagrApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C76795D71DDFD63A87F0A5 /* ManagrApp.swift */; };
+		D1D3BC733921EABB4DF7D048 /* AssistantStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29C6EAB0EFC383230ECC690 /* AssistantStore.swift */; };
 		D616EE0622D585EEF58692CC /* TimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352349FCFCAA192653ACB464 /* TimeView.swift */; };
 		DEC8C930DA7F9483160FB9F4 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D352FB8E2F916B6722E4058 /* AppState.swift */; };
 		DF2D86FEA5912752CA256181 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01D87CF92CB5112E8E9599B5 /* DashboardView.swift */; };
+		EA559B3A02F91BBF86CDE728 /* AssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D59B38B50FF169FBBEB86FF2 /* AssistantView.swift */; };
 		F6A73994146C5354E9331D36 /* DeskClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA4E3C77D2B8083E016C4D1 /* DeskClient.swift */; };
 		FE596D2924CC6F32F5907F0E /* ObligationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C606C4BE11D11B130C409795 /* ObligationsView.swift */; };
+		FF4A0382EF450CEBD77E6EEC /* AssistantMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DBC33A3B819C5C9CA2DD15C /* AssistantMarkdown.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,8 +41,10 @@
 		229CF3D9C092E9BC4FE0B7B6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		352349FCFCAA192653ACB464 /* TimeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeView.swift; sourceTree = "<group>"; };
 		38CCB0ADA9E23148C7E12DB8 /* PeopleProjectsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleProjectsViews.swift; sourceTree = "<group>"; };
+		4DB8B0828B3525E95821B05E /* AssistantModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantModels.swift; sourceTree = "<group>"; };
 		52C76795D71DDFD63A87F0A5 /* ManagrApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagrApp.swift; sourceTree = "<group>"; };
 		5577FE44CBD8911086C931FB /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		59686C8AE7C2F7D01A311A22 /* AssistantModelPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantModelPicker.swift; sourceTree = "<group>"; };
 		5D352FB8E2F916B6722E4058 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		663D173303AB8CD5D05BA879 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		74E8DE4B9E106AA28C3FC5CE /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
@@ -45,10 +52,13 @@
 		82A75EB67789BF541A5A4FEB /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		85B1F95E5C508C688EB1801E /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		8BD32FE84CED66007F96802C /* InvoicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoicesView.swift; sourceTree = "<group>"; };
+		8DBC33A3B819C5C9CA2DD15C /* AssistantMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantMarkdown.swift; sourceTree = "<group>"; };
+		A29C6EAB0EFC383230ECC690 /* AssistantStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantStore.swift; sourceTree = "<group>"; };
 		C606C4BE11D11B130C409795 /* ObligationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObligationsView.swift; sourceTree = "<group>"; };
 		C76E022B5F545ACCA29FDAB4 /* TasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksView.swift; sourceTree = "<group>"; };
 		C92E6A1C88CD03DBE36752D4 /* Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Status.swift; sourceTree = "<group>"; };
 		CA706E36FC579BC685EFC560 /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
+		D59B38B50FF169FBBEB86FF2 /* AssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantView.swift; sourceTree = "<group>"; };
 		D9C76B18E48C875817B4D25F /* CustomersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomersView.swift; sourceTree = "<group>"; };
 		E425F7FB93C5398991637E3C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FA4DF77C5D99D597DD96A54E /* InvoiceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceDetailView.swift; sourceTree = "<group>"; };
@@ -67,6 +77,7 @@
 		0F48E3C4A5A4BC8A388DFA2B /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				C16D4DB28972ACADD37DF43A /* Assistant */,
 				6D375A844E8F054A0F264BBF /* Connect */,
 				B6C1B90CECC8B79A5ED091AF /* Customers */,
 				D82E2C9B46CD2BCED4D31C05 /* Dashboard */,
@@ -90,6 +101,7 @@
 		34BF449EC3B4621EA1370DB9 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				4DB8B0828B3525E95821B05E /* AssistantModels.swift */,
 				FEA4E3C77D2B8083E016C4D1 /* DeskClient.swift */,
 				85B1F95E5C508C688EB1801E /* Formatting.swift */,
 				8056B5541DF54FE2FC0CA73C /* JSONValue.swift */,
@@ -175,6 +187,17 @@
 				7AD2D73E4337204DAB459AA0 /* Managr */,
 				9EC92DA63EF2310D3003C0A6 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		C16D4DB28972ACADD37DF43A /* Assistant */ = {
+			isa = PBXGroup;
+			children = (
+				8DBC33A3B819C5C9CA2DD15C /* AssistantMarkdown.swift */,
+				59686C8AE7C2F7D01A311A22 /* AssistantModelPicker.swift */,
+				A29C6EAB0EFC383230ECC690 /* AssistantStore.swift */,
+				D59B38B50FF169FBBEB86FF2 /* AssistantView.swift */,
+			);
+			path = Assistant;
 			sourceTree = "<group>";
 		};
 		D82E2C9B46CD2BCED4D31C05 /* Dashboard */ = {
@@ -275,6 +298,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				DEC8C930DA7F9483160FB9F4 /* AppState.swift in Sources */,
+				FF4A0382EF450CEBD77E6EEC /* AssistantMarkdown.swift in Sources */,
+				108A0A64462FFD0BBEC707EC /* AssistantModelPicker.swift in Sources */,
+				020E481898BC94BCD94E5318 /* AssistantModels.swift in Sources */,
+				D1D3BC733921EABB4DF7D048 /* AssistantStore.swift in Sources */,
+				EA559B3A02F91BBF86CDE728 /* AssistantView.swift in Sources */,
 				510C778B13FFD4086276A5D8 /* ConnectView.swift in Sources */,
 				48C800410B6AAF911F8EDFCE /* CustomersView.swift in Sources */,
 				DF2D86FEA5912752CA256181 /* DashboardView.swift in Sources */,

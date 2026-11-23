@@ -40,6 +40,13 @@ struct MoreView: View {
                         icon: "checklist",
                         tint: Theme.pine
                     ) { TasksView() }
+                    divider
+                    navRow(
+                        title: app.t("Assistent", "Assistant"),
+                        detail: app.t("Fragen, planen, buchen", "Ask, plan, post"),
+                        icon: "sparkles",
+                        tint: Theme.pineDeep
+                    ) { AssistantView() }
                 }
 
                 group(title: app.t("Pflichten", "Obligations")) {
