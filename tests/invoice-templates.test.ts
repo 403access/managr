@@ -104,6 +104,8 @@ describe("invoice templates", () => {
       amountDisplay: "net",
       lineGrouping: "date",
       quantityInput: "quantity",
+      showCustomerInLines: false,
+      showProjectInLines: true,
       letter: {
         subject: template.subject,
         salutation: template.salutation,
@@ -112,7 +114,7 @@ describe("invoice templates", () => {
         closing: template.closing,
         signature: template.signature,
       },
-      lines: [{ description: "Leistung", quantity: "1", unitNet: "550,00", vatBps: 1900 }],
+      lines: [{ description: "Leistung", quantity: "1", unitNet: "550,00", vatBps: 1900, descriptionEdited: true }],
     }));
     await saveInvoice(initialState, invoiceForm);
 
@@ -121,12 +123,17 @@ describe("invoice templates", () => {
     expect(stored?.letterPayment).toContain("{betrag}");
     expect(stored?.lineGrouping).toBe("date");
     expect(stored?.quantityInput).toBe("quantity");
+    expect(stored?.showCustomerInLines).toBe(false);
+    expect(stored?.showProjectInLines).toBe(true);
     const edit = stored ? invoiceEditView(stored.id) : null;
     expect(edit?.kind).toBe("draft");
     if (edit?.kind === "draft") {
       expect(edit.draft.lineGrouping).toBe("date");
       expect(edit.defaultLineGrouping).toBe("none");
       expect(edit.draft.quantityInput).toBe("quantity");
+      expect(edit.draft.showCustomerInLines).toBe(false);
+      expect(edit.draft.showProjectInLines).toBe(true);
+      expect(edit.draft.lines[0]?.descriptionEdited).toBe(true);
       expect(edit.defaultQuantityInput).toBe("hoursMinutes");
     }
 

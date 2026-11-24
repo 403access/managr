@@ -35,6 +35,21 @@ describe("action payloads", () => {
     expect(invoicePayloadSchema.safeParse({ ...invoice, quantityInput: "pieces" }).success).toBe(false);
   });
 
+  it("shows customer and project in line descriptions by default and accepts both switches", () => {
+    const parsed = invoicePayloadSchema.safeParse(invoice);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.showCustomerInLines).toBe(true);
+      expect(parsed.data.showProjectInLines).toBe(true);
+    }
+    const hidden = invoicePayloadSchema.safeParse({ ...invoice, showCustomerInLines: false, showProjectInLines: false });
+    expect(hidden.success).toBe(true);
+    if (hidden.success) {
+      expect(hidden.data.showCustomerInLines).toBe(false);
+      expect(hidden.data.showProjectInLines).toBe(false);
+    }
+  });
+
   it("accepts a two-line journal and trims the memo", () => {
     const parsed = journalPayloadSchema.safeParse({
       date: "2026-10-25",

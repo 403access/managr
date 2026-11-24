@@ -15,12 +15,20 @@ export function activityQuantityMilli(minutes: number, activityCount: number): n
   });
 }
 
-/** The project gives the customer the context; the activity stays the line itself. */
-export function invoiceLineDescription(projectName: string, activity: string): string {
-  const project = projectName.trim();
-  const text = activity.trim();
-  if (!project) return text;
-  const combined = `${project}: ${text}`;
+/** The customer and project give the activity its context; the activity stays the line itself. */
+export function invoiceLineDescription(input: {
+  customerName: string;
+  projectName: string;
+  activity: string;
+  showCustomer: boolean;
+  showProject: boolean;
+}): string {
+  const text = input.activity.trim();
+  const customer = input.showCustomer ? input.customerName.trim() : "";
+  const project = input.showProject ? input.projectName.trim() : "";
+  const context = [customer, project].filter(Boolean).join(" – ");
+  if (!context) return text;
+  const combined = `${context}: ${text}`;
   // The invoice line holds at most 400 characters; the activity alone still fits.
   return combined.length <= 400 ? combined : text;
 }

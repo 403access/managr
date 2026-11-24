@@ -6,6 +6,7 @@ import { saveInvoice } from "@/server/actions";
 import { addDays, formatDate } from "@/domain/calendar";
 import { isCustomerKind, type CustomerKind } from "@/domain/customers";
 import { KLEINUNTERNEHMER_NOTE, reviewInvoice, sortInvoicePositions } from "@/domain/invoice";
+import { invoiceLineDescription } from "@/domain/invoice-time";
 import {
   DEFAULT_INVOICE_TEMPLATE,
   EMPTY_INVOICE_LETTER,
@@ -66,6 +67,7 @@ export type TimeActivityOption = {
   id: number;
   timeEntryId: number;
   customerId: number;
+  customerName: string;
   entryDate: string;
   projectName: string;
   description: string;
@@ -88,6 +90,8 @@ type Line = {
   vatBps: number;
   timeEntryId?: number | null;
   timeActivityId?: number | null;
+  /** A description the user typed stays as it is when the context toggles change. */
+  descriptionEdited?: boolean;
   /** The day of the time behind this line; hand-typed lines have none. */
   entryDate?: string | null;
 };
@@ -104,6 +108,8 @@ type Draft = {
   letter: InvoiceLetter;
   lineGrouping: "none" | "date" | null;
   quantityInput: InvoiceQuantityInput | null;
+  showCustomerInLines: boolean;
+  showProjectInLines: boolean;
   lines: Line[];
 };
 
@@ -146,6 +152,8 @@ export function InvoiceForm({
   const [lineGrouping, setLineGrouping] = useState<"global" | InvoiceLineGrouping>(draft?.lineGrouping ?? "global");
   const effectiveLineGrouping: InvoiceLineGrouping = lineGrouping === "global" ? defaultLineGrouping : lineGrouping;
   const [quantityInput, setQuantityInput] = useState<InvoiceQuantityInput>(draft?.quantityInput ?? defaultQuantityInput);
+  const [showCustomerInLines, setShowCustomerInLines] = useState(draft?.showCustomerInLines ?? true);
+  const [showProjectInLines, setShowProjectInLines] = useState(draft?.showProjectInLines ?? true);
   const [lines, setLines] = useState<Line[]>(() =>
     sortInvoicePositions(
       draft?.lines ?? [{ description: "", quantity: "1", unitNet: "", vatBps: seller.kleinunternehmer ? 0 : defaultVatBps }],
@@ -367,12 +375,39 @@ export function InvoiceForm({
     amountDisplay,
     lineGrouping: lineGrouping === "global" ? null : lineGrouping,
     quantityInput,
+    showCustomerInLines,
+    showProjectInLines,
     letter,
     lines: lines.map((line) => ({ ...line, vatBps: seller.kleinunternehmer ? 0 : line.vatBps })),
   });
 
   function updateLine(index: number, patch: Partial<Line>) {
     setLines((current) => current.map((line, lineIndex) => (lineIndex === index ? { ...line, ...patch } : line)));
+  }
+
+  function lineDescriptionFor(activity: TimeActivityOption, showCustomer: boolean, showProject: boolean) {
+    return invoiceLineDescription({
+      customerName: activity.customerName,
+      projectName: activity.projectName,
+      activity: activity.description,
+      showCustomer,
+      showProject,
+    });
+  }
+
+  function changeLineContext(next: { showCustomer?: boolean; showProject?: boolean }) {
+    const customer = next.showCustomer ?? showCustomerInLines;
+    const project = next.showProject ?? showProjectInLines;
+    setShowCustomerInLines(customer);
+    setShowProjectInLines(project);
+    setLines((current) =>
+      current.map((line) => {
+        if (line.timeActivityId === null || line.timeActivityId === undefined || line.descriptionEdited) return line;
+        const activity = timeActivities.find((item) => item.id === line.timeActivityId);
+        if (!activity) return line;
+        return { ...line, description: lineDescriptionFor(activity, customer, project) };
+      }),
+    );
   }
 
   function loadTemplate(key: string) {
@@ -403,7 +438,7 @@ export function InvoiceForm({
         [
           ...base,
           {
-            description: activity.lineDescription,
+            description: lineDescriptionFor(activity, showCustomerInLines, showProjectInLines),
             quantity: activity.quantity,
             unitNet: activity.unitNet,
             vatBps: activity.vatBps,
@@ -658,6 +693,30 @@ export function InvoiceForm({
         </div>
         <p className="text-xs leading-relaxed text-muted">{t("invoices.quantityModeHint")}</p>
       </fieldset>
+      <fieldset className="grid gap-2">
+        <legend className="text-sm font-medium">{t("invoices.lineContext")}</legend>
+        <div className="flex flex-wrap gap-2">
+          <label className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition ${showCustomerInLines ? "border-pine/40 bg-pine/5" : "border-line bg-white hover:border-ink/30"}`}>
+            <input
+              type="checkbox"
+              checked={showCustomerInLines}
+              onChange={(event) => changeLineContext({ showCustomer: event.target.checked })}
+              className="size-4 accent-pine"
+            />
+            <span className="font-medium">{t("invoices.showCustomerInLines")}</span>
+          </label>
+          <label className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition ${showProjectInLines ? "border-pine/40 bg-pine/5" : "border-line bg-white hover:border-ink/30"}`}>
+            <input
+              type="checkbox"
+              checked={showProjectInLines}
+              onChange={(event) => changeLineContext({ showProject: event.target.checked })}
+              className="size-4 accent-pine"
+            />
+            <span className="font-medium">{t("invoices.showProjectInLines")}</span>
+          </label>
+        </div>
+        <p className="text-xs leading-relaxed text-muted">{t("invoices.lineContextHint")}</p>
+      </fieldset>
       <div className="grid gap-3">
         {lines.map((line, index) => (
           <div key={index} className="grid gap-3 rounded-2xl border border-line bg-white p-3 @[34rem]:grid-cols-12">
@@ -669,7 +728,7 @@ export function InvoiceForm({
               }`}
             >
               <span className="font-medium">{t("invoices.description")}</span>
-              <input className={inputClass} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value })} />
+              <input className={inputClass} value={line.description} onChange={(event) => updateLine(index, { description: event.target.value, descriptionEdited: true })} />
             </label>
             {quantityInput === "hoursMinutes" ? (
               <div className="grid gap-1 text-sm @[34rem]:col-span-3">

@@ -16,9 +16,19 @@ describe("invoice time activities", () => {
     expect(activityQuantityMilli(-5, 1)).toEqual([]);
   });
 
-  it("keeps the project name in front of the activity when there is one", () => {
-    expect(invoiceLineDescription("IPR - KI Infrastruktur", "Onboarding")).toBe("IPR - KI Infrastruktur: Onboarding");
-    expect(invoiceLineDescription("  ", " Onboarding ")).toBe("Onboarding");
-    expect(invoiceLineDescription("Projekt", "x".repeat(400))).toBe("x".repeat(400));
+  it("puts the chosen customer and project in front of the activity", () => {
+    const input = {
+      customerName: "Lichtfeld GmbH",
+      projectName: "IPR - KI Infrastruktur",
+      activity: " Onboarding ",
+      showCustomer: true,
+      showProject: true,
+    };
+    expect(invoiceLineDescription(input)).toBe("Lichtfeld GmbH – IPR - KI Infrastruktur: Onboarding");
+    expect(invoiceLineDescription({ ...input, showCustomer: false })).toBe("IPR - KI Infrastruktur: Onboarding");
+    expect(invoiceLineDescription({ ...input, showProject: false })).toBe("Lichtfeld GmbH: Onboarding");
+    expect(invoiceLineDescription({ ...input, showCustomer: false, showProject: false })).toBe("Onboarding");
+    expect(invoiceLineDescription({ ...input, customerName: " ", projectName: " " })).toBe("Onboarding");
+    expect(invoiceLineDescription({ ...input, activity: "x".repeat(400) })).toBe("x".repeat(400));
   });
 });

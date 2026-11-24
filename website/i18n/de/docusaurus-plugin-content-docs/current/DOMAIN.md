@@ -44,6 +44,8 @@ Eine Rechnung weist ihre Beträge als Nettopreise mit zusätzlicher Umsatzsteuer
 
 Die Menge einer Position wird als Dezimalbetrag gespeichert. Der Schreibtisch kann sie in einem Feld (**Menge**) oder getrennt als Stunden und Minuten abfragen. Der Standard für neue Rechnungen steht in `app_settings.invoice_quantity_input`; ein Entwurf trägt seine eigene Wahl in `invoices.quantity_input`, und das Formular zeigt die gewählte Eingabe. Stunden und Minuten sind nur eine Eingabehilfe: Sie werden zu Dezimalstunden, sodass Rechnung, Buchführung und XRechnung dieselbe Menge behalten.
 
+Eine Position aus einer Zeit wird als Tätigkeit mit optionalem Kontext beschrieben: `Kunde – Projekt: Tätigkeit`, `Projekt: Tätigkeit`, `Kunde: Tätigkeit` oder nur die Tätigkeit. Zwei Schalter auf der Rechnung bestimmen, ob Kunde und Projekt erscheinen; die Wahl steht in `invoices.show_customer_in_lines` und `invoices.show_project_in_lines`. Ein Schalter schreibt erzeugte Beschreibungen neu, lässt eine selbst eingetippte Beschreibung aber unverändert.
+
 ## E-Rechnung (XRechnung)
 
 Die E-Rechnung, die dieser Schreibtisch schreibt, ist eine XRechnung-3.0.2-Datei in UBL-Syntax. Das ist eine EN-16931-Rechnung und damit eine E-Rechnung nach §14 UStG. Die Spezifikation steht unter <https://xeinkauf.de/xrechnung/>. Die Datei wird beim Download erzeugt. Sie wird nicht gespeichert und nicht versendet. Der Rechnungsbildschirm kann die erzeugte Datei mit dem auf diesem Computer laufenden KoSIT-Validator prüfen; das Prüfergebnis wird nicht gespeichert. ZUGFeRD wird nicht erzeugt. Eine stornierte Rechnung bleibt eine Gegenjournalzeile; der Schreibtisch schreibt keine Gutschrift.

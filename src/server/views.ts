@@ -522,6 +522,7 @@ export type InvoiceTimeActivity = {
   id: number;
   timeEntryId: number;
   customerId: number;
+  customerName: string;
   entryDate: string;
   projectName: string;
   description: string;
@@ -582,10 +583,17 @@ function invoiceTimeActivities(invoiceId: number | null): InvoiceTimeActivity[] 
         id: activity.id,
         timeEntryId: entry.id,
         customerId,
+        customerName: customerById.get(customerId)?.name ?? "",
         entryDate: entry.entryDate,
         projectName: project?.name ?? "",
         description: activity.description,
-        lineDescription: invoiceLineDescription(project?.name ?? "", activity.description),
+        lineDescription: invoiceLineDescription({
+          customerName: customerById.get(customerId)?.name ?? "",
+          projectName: project?.name ?? "",
+          activity: activity.description,
+          showCustomer: true,
+          showProject: true,
+        }),
         quantity: quantityInput(quantities[index]),
         unitNet: rate ? euroInput(rate.cents) : "",
         hourlyRateCents: rate?.cents ?? null,
@@ -653,6 +661,8 @@ export function invoiceEditView(id: number) {
       amountDisplay: loaded.invoice.amountDisplay,
       lineGrouping,
       quantityInput: draftQuantityInput,
+      showCustomerInLines: loaded.invoice.showCustomerInLines,
+      showProjectInLines: loaded.invoice.showProjectInLines,
       letter: invoiceLetterFromInvoice(loaded.invoice),
       lines: sortInvoicePositions(
         loaded.lines.map((line) => ({
@@ -660,6 +670,7 @@ export function invoiceEditView(id: number) {
           quantity: quantityInput(line.quantityMilli),
           unitNet: euroInput(line.unitNetCents),
           vatBps: line.vatBps,
+          descriptionEdited: line.descriptionEdited,
           timeEntryId: line.timeEntryId,
           timeActivityId: line.timeActivityId,
           entryDate: line.timeEntryId === null ? null : entryDates.get(line.timeEntryId) ?? null,

@@ -124,6 +124,8 @@ export const invoices = sqliteTable("invoices", {
   lineGrouping: text("line_grouping"),
   /** The quantity entry chosen for this draft; null uses the desk default. */
   quantityInput: text("quantity_input"),
+  showCustomerInLines: integer("show_customer_in_lines", { mode: "boolean" }).notNull().default(true),
+  showProjectInLines: integer("show_project_in_lines", { mode: "boolean" }).notNull().default(true),
   journalEntryId: integer("journal_entry_id").references(() => journalEntries.id),
   deletedAt: text("deleted_at"),
 }, (table) => [uniqueIndex("invoices_company_number_unique").on(table.companyId, table.number)]);
@@ -148,6 +150,8 @@ export const invoiceLines = sqliteTable("invoice_lines", {
   quantityMilli: integer("quantity_milli").notNull(),
   unitNetCents: integer("unit_net_cents").notNull(),
   vatBps: integer("vat_bps").notNull(),
+  /** A description the user typed stays as it is when the context switches change. */
+  descriptionEdited: integer("description_edited", { mode: "boolean" }).notNull().default(false),
   /** The time entry and activity this line bills, when the line came from time. */
   timeEntryId: integer("time_entry_id").references(() => timeEntries.id),
   timeActivityId: integer("time_activity_id").references(() => timeEntryActivities.id),

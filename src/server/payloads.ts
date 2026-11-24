@@ -33,6 +33,8 @@ export const invoicePayloadSchema = z.object({
   amountDisplay: z.enum(["net", "gross"]).default("net"),
   lineGrouping: z.enum(["none", "date"]).nullable().default(null),
   quantityInput: z.enum(INVOICE_QUANTITY_INPUTS).optional(),
+  showCustomerInLines: z.boolean().default(true),
+  showProjectInLines: z.boolean().default(true),
   letter: invoiceLetterSchema.optional(),
   lines: z
     .array(
@@ -41,6 +43,7 @@ export const invoicePayloadSchema = z.object({
         quantity: z.string().trim().max(20),
         unitNet: z.string().trim().max(20),
         vatBps: z.number().int(),
+        descriptionEdited: z.boolean().default(false),
         timeEntryId: z.number().int().positive().nullable().default(null),
         timeActivityId: z.number().int().positive().nullable().default(null),
       }),

@@ -10,6 +10,7 @@ import { invoiceEditView, invoiceNewView } from "@/server/views";
 const repo = process.cwd();
 let dir = "";
 let customerId = 0;
+let customerName = "";
 let entryId = 0;
 let firstActivityId = 0;
 let secondActivityId = 0;
@@ -23,6 +24,7 @@ beforeAll(() => {
   const company = db.select().from(companies).where(eq(companies.isActive, true)).get()!;
   const customer = db.select().from(customers).where(eq(customers.companyId, company.id)).get()!;
   customerId = customer.id;
+  customerName = customer.name;
   db.update(customers).set({ hourlyRateCents: 3_000 }).where(eq(customers.id, customer.id)).run();
   const projectId = Number(
     db.insert(projects).values({ companyId: company.id, customerId, name: "Projekt", startedOn: "2026-10-01" }).run().lastInsertRowid,
@@ -57,7 +59,8 @@ describe("invoice time picker", () => {
     expect(mine.map((activity) => activity.quantity)).toEqual(["0,5", "0,5"]);
     expect(mine.every((activity) => activity.unitNet === "30,00")).toBe(true);
     expect(mine.every((activity) => activity.customerId === customerId)).toBe(true);
-    expect(mine[0]?.lineDescription).toBe("Projekt: Konzept");
+    expect(mine[0]?.customerName).toBe(customerName);
+    expect(mine[0]?.lineDescription).toBe(`${customerName} – Projekt: Konzept`);
   });
 
   it("leaves out an activity that a draft already carries, and shows it again on that draft", () => {

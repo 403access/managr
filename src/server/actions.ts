@@ -185,6 +185,7 @@ function pricedLines(lines: InvoicePayload["lines"], klein: boolean) {
       unitNetCents,
       vatBps,
       netCents: lineNetCents(quantityMilli, unitNetCents),
+      descriptionEdited: line.descriptionEdited,
       timeEntryId: line.timeEntryId,
       timeActivityId: line.timeActivityId,
     };
@@ -951,6 +952,8 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
         amountDisplay: payload.amountDisplay,
         lineGrouping: payload.lineGrouping,
         quantityInput: payload.quantityInput ?? null,
+        showCustomerInLines: payload.showCustomerInLines,
+        showProjectInLines: payload.showProjectInLines,
         letterSubject: letter.subject,
         letterSalutation: letter.salutation,
         letterIntro: letter.intro,
@@ -982,6 +985,7 @@ export async function saveInvoice(_state: ActionState, formData: FormData): Prom
             quantityMilli: line.quantityMilli,
             unitNetCents: line.unitNetCents,
             vatBps: line.vatBps,
+            descriptionEdited: line.descriptionEdited,
             timeEntryId: line.timeEntryId,
             timeActivityId: line.timeActivityId,
           })
