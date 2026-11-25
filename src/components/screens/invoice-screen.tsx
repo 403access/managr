@@ -43,6 +43,11 @@ export function InvoiceScreen({ id }: { id: number }) {
         }));
         const groups = groupInvoicePositions(groupedLines, effectiveLineGrouping);
         const showGroups = effectiveLineGrouping === "date";
+        const canDownloadXRechnung =
+          !loaded.eInvoiceNotApplicable &&
+          invoice.status !== "draft" &&
+          invoice.status !== "void" &&
+          loaded.eInvoiceBlockers.length === 0;
         return (
           <>
             <PageHeader
@@ -52,6 +57,11 @@ export function InvoiceScreen({ id }: { id: number }) {
               action={
                 <span className="flex flex-wrap gap-2">
                   <Pill tone={status}>{label(status)}</Pill>
+                  {canDownloadXRechnung ? (
+                    <a className={buttonClass("quiet")} href={`/invoices/${invoice.id}/xrechnung`} download>
+                      {t("invoices.downloadXrechnung")}
+                    </a>
+                  ) : null}
                   <LinkButton href={`/invoices/${invoice.id}/print`} tone="quiet">{t("common.print")}</LinkButton>
                 </span>
               }
