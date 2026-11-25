@@ -13,9 +13,17 @@ import {
   type SupportedLocales,
   type TotalsCalculatorInputType,
 } from "factur-x-kit";
-import { parseIso } from "@/domain/calendar";
+import { formatDate, parseIso } from "@/domain/calendar";
 import { isCorporation, legalFormLabel } from "@/domain/company";
 import { normalizeCustomerKind } from "@/domain/customers";
+import {
+  hasInvoiceLetter,
+  invoiceLetterFromInvoice,
+  invoicePaymentDays,
+  type InvoiceLetter,
+  type InvoiceLetterVariables,
+} from "@/domain/invoice-letter";
+import { formatEuro } from "@/domain/money";
 import {
   BUYER_REFERENCE_FALLBACK,
   countryCode,
@@ -25,7 +33,7 @@ import {
 } from "@/domain/xrechnung";
 import { loadInvoice } from "./queries";
 import { toXRechnungInput } from "./xrechnung";
-import { zugferdPdfTemplate } from "./zugferd-pdf";
+import { createZugferdPdfTemplate } from "./zugferd-pdf";
 
 type Company = NonNullable<ReturnType<typeof loadInvoice>>["company"];
 type Loaded = NonNullable<ReturnType<typeof loadInvoice>>;
@@ -152,21 +160,35 @@ export function zugferdFilename(number: string): string {
 export type ZugferdResult = { filename: string; pdf: Uint8Array } | { blockers: string[] };
 
 /** Renders the CII XML and the PDF/A-3 invoice that carries it. */
-export async function zugferdPdf(input: XRechnungInput, locale: SupportedLocales): Promise<ZugferdResult> {
+export async function zugferdPdf(
+  input: XRechnungInput,
+  locale: SupportedLocales,
+  letter: InvoiceLetter | null = null,
+): Promise<ZugferdResult> {
   const review = reviewXRechnung(input);
   if (review.blockers.length > 0) return { blockers: review.blockers };
   const profile = totalsCalculator(toZugferdInput(input, locale));
   const mismatch = totalsMismatch(input, profile);
   if (mismatch) return { blockers: [mismatch] };
   const facturX = await FacturX.fromObject(profile);
-  const pdf = await facturX.getPDF({ locale, pdfTemplate: zugferdPdfTemplate });
+  const letterData = letter && hasInvoiceLetter(letter) ? { letter, variables: letterVariables(input, letter) } : null;
+  const pdf = await facturX.getPDF({ locale, pdfTemplate: createZugferdPdfTemplate(letterData) });
   return { filename: zugferdFilename(input.number), pdf };
 }
 
 export async function zugferdFile(company: Company, loaded: Loaded, locale: SupportedLocales): Promise<ZugferdResult> {
   const status = xrechnungStatusBlocker(loaded.invoice.status);
   if (status) return { blockers: [status] };
-  return zugferdPdf(toXRechnungInput(company, loaded), locale);
+  return zugferdPdf(toXRechnungInput(company, loaded), locale, invoiceLetterFromInvoice(loaded.invoice));
+}
+
+function letterVariables(input: XRechnungInput, letter: InvoiceLetter): InvoiceLetterVariables {
+  return {
+    subject: letter.subject,
+    amount: formatEuro(input.grossCents),
+    days: invoicePaymentDays(input.issueDate, input.dueDate),
+    dueDate: formatDate(input.dueDate),
+  };
 }
 
 function paymentTerms(dueDate: string, locale: SupportedLocales): string {

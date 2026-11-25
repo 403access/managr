@@ -46,11 +46,16 @@ Die Menge einer Position wird als Dezimalbetrag gespeichert. Der Schreibtisch ka
 
 Eine Position aus einer Zeit wird als Tätigkeit mit optionalem Kontext beschrieben: `Kunde – Projekt: Tätigkeit`, `Projekt: Tätigkeit`, `Kunde: Tätigkeit` oder nur die Tätigkeit. Zwei Schalter auf der Rechnung bestimmen, ob Kunde und Projekt erscheinen; die Wahl steht in `invoices.show_customer_in_lines` und `invoices.show_project_in_lines`. Ein Schalter schreibt erzeugte Beschreibungen neu, lässt eine selbst eingetippte Beschreibung aber unverändert.
 
-## E-Rechnung (XRechnung)
+Eine Rechnung kann ein Anschreiben in `invoices.letter_subject`, `letter_salutation`, `letter_intro`, `letter_payment`, `letter_closing` und `letter_signature` tragen. Die Druckansicht und das ZUGFeRD-PDF zeigen es um die Positionen und füllen die dokumentierten Platzhalter (`{betreff}`, `{betrag}`, `{frist}`, `{faellig}`) mit `fillInvoiceLetter`.
 
-Die E-Rechnung, die dieser Schreibtisch schreibt, ist eine XRechnung-3.0.2-Datei in UBL-Syntax. Das ist eine EN-16931-Rechnung und damit eine E-Rechnung nach §14 UStG. Die Spezifikation steht unter <https://xeinkauf.de/xrechnung/>. Die Datei wird beim Download erzeugt. Sie wird nicht gespeichert und nicht versendet. Der Rechnungsbildschirm kann die erzeugte Datei mit dem auf diesem Computer laufenden KoSIT-Validator prüfen; das Prüfergebnis wird nicht gespeichert. ZUGFeRD wird nicht erzeugt. Eine stornierte Rechnung bleibt eine Gegenjournalzeile; der Schreibtisch schreibt keine Gutschrift.
+## E-Rechnung (XRechnung und ZUGFeRD)
 
-Implementierung: `src/domain/xrechnung.ts`. Spezifikationskennungen: `XRECHNUNG_CUSTOMIZATION_ID`, `XRECHNUNG_PROFILE_ID`. Die Menge verwendet `XRECHNUNG_UNIT_CODE` (UNECE Rec 20 Code C62, „one“). Die Rechnung hat keine Maßeinheit.
+Der Schreibtisch schreibt zwei Formen derselben EN-16931-Rechnung nach §14 UStG. Beide werden beim Download erzeugt, nicht gespeichert und nicht versendet.
+
+- **XRechnung 3.0.2** ist eine UBL-XML-Datei. Die Spezifikation steht unter <https://xeinkauf.de/xrechnung/>. Der Rechnungsbildschirm kann die erzeugte Datei mit dem auf diesem Computer laufenden KoSIT-Validator prüfen; das Prüfergebnis wird nicht gespeichert.
+- **ZUGFeRD 2.4** ist eine PDF/A-3-Datei mit der menschenlesbaren Rechnung und einer CII-XML als Anhang (`factur-x.xml`) im Comfort-Profil (EN 16931). Dieselben Rechnungsdaten erzeugen PDF und XML. Die CII-XML trägt dieselbe Käuferreferenz, Steueraufteilung und Summen wie die XRechnung.
+
+Implementierung: `src/domain/xrechnung.ts` erzeugt die gemeinsame Eingabe, `src/server/xrechnung.ts` rendert UBL, und `src/server/zugferd.ts` sowie `src/server/zugferd-pdf.ts` rendern das Hybrid-PDF. Spezifikationskennungen: `XRECHNUNG_CUSTOMIZATION_ID`, `XRECHNUNG_PROFILE_ID`. Die Menge verwendet `XRECHNUNG_UNIT_CODE` (UNECE Rec 20 Code C62, „one“). Die Rechnung hat keine Maßeinheit.
 
 Die Ausstellung folgt weiterhin nur §14 und §35a. Die zusätzlichen XRechnung-Felder blockieren die Ausstellung nicht. Sie blockieren die Datei.
 
@@ -60,7 +65,7 @@ Der Kundentyp entscheidet, was BT-10 enthalten muss. `customers.kind` ist `busin
 - Bei einer öffentlichen Auftraggeberin muss BT-10 eine Leitweg-ID sein. Der Schreibtisch prüft den Aufbau nach der Leitweg-ID-Formatspezifikation v2.0.2 und die Prüfziffern nach ISO/IEC 7064 MOD 97-10. KoSIT selbst prüft nur, dass BT-10 vorhanden ist.
 - Bei einem Unternehmen ist BT-10 die vom Kunden vorgegebene Referenz, etwa eine Bestell- oder Projektnummer, oder `nicht zutreffend`, wenn es keine gibt.
 - Eine Privatperson (B2C) braucht keine E-Rechnung. Der Schreibtisch erzeugt für diese Rechnung keine XRechnung und sagt das auf dem Rechnungsbildschirm.
-- Die Käuferreferenz (BT-10) wird auf der Rechnung gespeichert. ZUGFeRD wird nicht erzeugt, daher gibt es keinen Profilwechsel.
+- Die Käuferreferenz (BT-10) wird auf der Rechnung gespeichert.
 - Die elektronischen Adressen von Verkäufer und Käufer sind die E-Mail-Adressen, Schema EM (BT-34, BT-49).
 - Der Verkäuferkontakt ist die Geschäftsführung, die Telefonnummer der Gesellschaft und die E-Mail-Adresse der Gesellschaft.
 - Die Zahlung ist eine SEPA-Überweisung (Code 58) mit einer prüfsummengültigen IBAN. Eine BIC wird nur aufgenommen, wenn sie vorhanden und wohlgeformt ist.

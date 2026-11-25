@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { FacturX } from "factur-x-kit";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFPage } from "pdf-lib";
+import { formatDate } from "@/domain/calendar";
 import { KLEINUNTERNEHMER_NOTE } from "@/domain/invoice";
+import { fillInvoiceLetter, type InvoiceLetter } from "@/domain/invoice-letter";
+import { formatEuro } from "@/domain/money";
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
 import { summarizeVat } from "@/domain/vat";
 import { BUYER_REFERENCE_FALLBACK, type XRechnungInput } from "@/domain/xrechnung";
@@ -175,5 +178,49 @@ describe("ZUGFeRD PDF", () => {
     expect(document.getPageCount()).toBeGreaterThan(1);
     const xml = await (await FacturX.fromPDF(result.pdf)).getXML();
     expect(xml.match(/<ram:LineID>/g)).toHaveLength(60);
+  });
+});
+
+describe("ZUGFeRD letter", () => {
+  it("draws the Anschreiben with the same placeholders as the print view", async () => {
+    const letter: InvoiceLetter = {
+      subject: "Softwareentwicklung",
+      salutation: "Sehr geehrte Damen und Herren,",
+      intro: "für {betreff} berechne ich Ihnen {betrag} bis {faellig} ({frist} Tage).",
+      payment: "Bitte überweisen Sie {betrag}.",
+      closing: "Vielen Dank für Ihren Auftrag.",
+      signature: "Mit freundlichen Grüßen",
+    };
+    const variables = {
+      subject: letter.subject,
+      amount: formatEuro(11_900),
+      days: 14,
+      dueDate: formatDate("2026-11-16"),
+    };
+
+    const drawn: string[] = [];
+    const prototype = PDFPage.prototype as unknown as {
+      drawText: (this: PDFPage, text: string, options?: unknown) => PDFPage;
+    };
+    const original = prototype.drawText;
+    prototype.drawText = function (text, options) {
+      drawn.push(text);
+      return original.call(this, text, options);
+    };
+
+    try {
+      const result = await zugferdPdf(ready(), "de-DE", letter);
+      expect("pdf" in result).toBe(true);
+    } finally {
+      prototype.drawText = original;
+    }
+
+    expect(drawn).toContain(`Betreff: ${letter.subject}`);
+    expect(drawn).toContain(letter.salutation);
+    expect(drawn).toContain(fillInvoiceLetter(letter.intro, variables));
+    expect(drawn).toContain(fillInvoiceLetter(letter.payment, variables));
+    expect(drawn).toContain(fillInvoiceLetter(letter.closing, variables));
+    expect(drawn).toContain(fillInvoiceLetter(letter.signature, variables));
+    expect(drawn).toContain(seller.managingDirector);
   });
 });

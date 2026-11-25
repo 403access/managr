@@ -48,6 +48,8 @@ An invoice states its amounts as net prices with VAT added, or as gross prices w
 
 The invoice form renders the same document component as the print page (`src/components/invoice-document.tsx`) as a live preview. Saving a draft or issuing an invoice opens that preview again and requires confirmation, so no invoice is created unseen.
 
+An invoice can carry a business letter in `invoices.letter_subject`, `letter_salutation`, `letter_intro`, `letter_payment`, `letter_closing`, and `letter_signature`. The print view and the ZUGFeRD PDF show it around the positions, and both fill the documented placeholders (`{betreff}`, `{betrag}`, `{frist}`, `{faellig}`) with `fillInvoiceLetter`.
+
 A line's quantity is stored as a decimal amount. The desk can ask for it in one field (**Menge**) or as separate hours and minutes. The default for new invoices lives in `app_settings.invoice_quantity_input`; a draft carries its own choice in `invoices.quantity_input` and the form shows the selected mode. Hours and minutes are only an entry aid: they become decimal hours, so the invoice, the ledger, and the XRechnung keep the same quantity.
 
 A line taken from time is described as the activity with optional context: `customer – project: activity`, `project: activity`, `customer: activity`, or just the activity. Two switches on the invoice choose whether the customer and the project appear; the choice is stored in `invoices.show_customer_in_lines` and `invoices.show_project_in_lines`. Changing a switch rewrites generated descriptions but leaves a description the user typed by hand alone.

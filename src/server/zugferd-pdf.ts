@@ -12,6 +12,7 @@ import {
   addTitleBlock,
   dinA4Height,
   drawTable,
+  getNumberOfLines,
   mmToPt,
   unitSymbols,
   type ComfortProfile,
@@ -19,7 +20,8 @@ import {
   type SupportedLocales,
   type TableSchemeType,
 } from "factur-x-kit";
-import { PageSizes, rgb, type PDFDocument, type PDFFont } from "pdf-lib";
+import { PageSizes, rgb, type PDFDocument, type PDFFont, type PDFPage } from "pdf-lib";
+import { fillInvoiceLetter, type InvoiceLetter, type InvoiceLetterVariables } from "@/domain/invoice-letter";
 
 type LineItem = ComfortProfile["invoiceLines"][number];
 
@@ -148,113 +150,194 @@ function tableScheme(profile: ComfortProfile, locale: SupportedLocales): TableSc
   ];
 }
 
+/** The letter fields are not part of EN 16931, so the template receives them alongside the profile. */
+export type ZugferdLetter = {
+  letter: InvoiceLetter;
+  variables: InvoiceLetterVariables;
+};
+
 /**
  * Factur-X ships a two-page template that stops at the first page of line items.
- * This template paginates the table and repeats the summary only when it fits.
+ * This template paginates the table, repeats the summary only when it fits, and
+ * keeps the invoice letter around the positions like the print view does.
  */
-export const zugferdPdfTemplate: FacturXKitPDFTemplate = async (data, pdfDoc, locale) => {
-  const profile = data as ComfortProfile;
-  const { regular, bold } = await embedFonts(pdfDoc);
-  const scheme = tableScheme(profile, locale);
-  const first = pdfDoc.addPage(PageSizes.A4);
-  const pages = [first];
+export function createZugferdPdfTemplate(letter: ZugferdLetter | null = null): FacturXKitPDFTemplate {
+  return async (data, pdfDoc, locale) => {
+    const profile = data as ComfortProfile;
+    const { regular, bold } = await embedFonts(pdfDoc);
+    const scheme = tableScheme(profile, locale);
+    const first = pdfDoc.addPage(PageSizes.A4);
+    const pages = [first];
+    const textWidth = first.getWidth() - LEFT - RIGHT;
+    const textColor = rgb(0, 0, 0);
+    const fontSize = 10;
+    const lineHeight = fontSize * 1.25;
 
-  await addSenderLineBlock(data, first, regular, locale);
-  const yCustomer = await addCustomerAddressBlock(data, first, regular, locale);
-  const yMeta = await addMetaBlock(data, first, regular, bold, locale);
-  const yTitle = await addTitleBlock(data, first, bold, locale, {
-    position: { y: Math.min(yCustomer - 50, yMeta - 20) },
-  });
-  const yIntro = await addIntroTextBlock(data, first, regular, locale, { position: { y: yTitle - 20 } });
-  first.drawLine({
-    start: { x: LEFT, y: yIntro - 15 },
-    end: { x: first.getWidth() - RIGHT, y: yIntro - 15 },
-    thickness: 0.5,
-    color: rgb(0, 0, 0),
-  });
+    const addPage = (): PDFPage => {
+      const next = pdfDoc.addPage(PageSizes.A4);
+      pages.push(next);
+      return next;
+    };
 
-  let page = first;
-  let y = yIntro - 15;
-  let remaining = [...profile.invoiceLines];
+    const drawTextBlock = (target: PDFPage, text: string, y: number, font: PDFFont, gapAfter = 0): number => {
+      const value = text.trim();
+      if (!value) return y;
+      const lines = getNumberOfLines(value, fontSize, font, textWidth);
+      target.drawText(value, {
+        x: LEFT,
+        y,
+        font,
+        size: fontSize,
+        lineHeight,
+        maxWidth: textWidth,
+        color: textColor,
+      });
+      return y - lines * lineHeight - gapAfter;
+    };
 
-  const endOfTable = async (rows: LineItem[], startY: number): Promise<number> => {
-    const scratch = pdfDoc.addPage(PageSizes.A4);
-    const [end] = await drawTable(scratch, rows, scheme, LEFT, startY, regular, bold);
-    pdfDoc.removePage(pdfDoc.getPageCount() - 1);
-    return end;
-  };
-
-  while (remaining.length > 0) {
-    let count = remaining.length;
-    if ((await endOfTable(remaining, y)) < BOTTOM) {
-      let low = 1;
-      let high = remaining.length - 1;
-      count = 1;
-      while (low <= high) {
-        const middle = Math.floor((low + high) / 2);
-        if ((await endOfTable(remaining.slice(0, middle), y)) >= BOTTOM) {
-          count = middle;
-          low = middle + 1;
-        } else {
-          high = middle - 1;
-        }
-      }
-    }
-    const chunk = remaining.slice(0, count);
-    [y] = await drawTable(page, chunk, scheme, LEFT, y, regular, bold);
-    remaining = remaining.slice(count);
-    if (remaining.length > 0) {
-      page = pdfDoc.addPage(PageSizes.A4);
-      pages.push(page);
-      y = (dinA4Height - 25) * mmToPt;
-    }
-  }
-
-  const summaryTop = y - 20;
-  const measure = pdfDoc.addPage(PageSizes.A4);
-  const summaryEnd = await addMonetarySummary(data, measure, regular, bold, locale, {
-    position: { y: summaryTop },
-  });
-  const outroEnd = await addOutroTextBlock(data, measure, regular, bold, locale, {
-    position: { y: summaryEnd - 30 },
-  });
-  pdfDoc.removePage(pdfDoc.getPageCount() - 1);
-
-  if (outroEnd < BOTTOM) {
-    page = pdfDoc.addPage(PageSizes.A4);
-    pages.push(page);
-    y = (dinA4Height - 30) * mmToPt;
-  } else {
-    y = summaryTop;
-  }
-
-  y = await addMonetarySummary(data, page, regular, bold, locale, { position: { y } });
-  page.drawLine({
-    start: { x: LEFT, y: y - 6 },
-    end: { x: page.getWidth() - RIGHT, y: y - 6 },
-    thickness: 0.5,
-    color: rgb(0, 0, 0),
-  });
-  await addOutroTextBlock(data, page, regular, bold, locale, { position: { y: y - 30 } });
-
-  for (const [index, item] of pages.entries()) {
-    await addFooter(data, item, regular, locale, {
-      position: { x: 15 * mmToPt, y: FOOTER_HEIGHT },
-      fontSize: 8,
-      color: rgb(0, 0, 0),
+    await addSenderLineBlock(data, first, regular, locale);
+    const yCustomer = await addCustomerAddressBlock(data, first, regular, locale);
+    const yMeta = await addMetaBlock(data, first, regular, bold, locale);
+    const yTitle = await addTitleBlock(data, first, bold, locale, {
+      position: { y: Math.min(yCustomer - 50, yMeta - 20) },
     });
-    if (pages.length > 1) {
-      const label = locale === "de-DE" ? `Seite ${index + 1} von ${pages.length}` : `Page ${index + 1} of ${pages.length}`;
-      const width = regular.widthOfTextAtSize(label, 8);
-      item.drawText(label, {
-        x: item.getWidth() - 15 * mmToPt - width,
-        y: 70,
-        font: regular,
-        size: 8,
-        color: rgb(0.35, 0.35, 0.35),
+
+    let introPage = first;
+    let introY = yTitle - 20;
+    const drawIntro = (text: string, font: PDFFont, gapAfter: number) => {
+      const value = text.trim();
+      if (!value) return;
+      const lines = getNumberOfLines(value, fontSize, font, textWidth);
+      if (introY - lines * lineHeight < BOTTOM + 20) {
+        introPage = addPage();
+        introY = (dinA4Height - 25) * mmToPt;
+      }
+      introPage.drawText(value, {
+        x: LEFT,
+        y: introY,
+        font,
+        size: fontSize,
+        lineHeight,
+        maxWidth: textWidth,
+        color: textColor,
+      });
+      introY = introY - lines * lineHeight - gapAfter;
+    };
+
+    if (letter) {
+      if (letter.letter.subject.trim()) {
+        drawIntro(`Betreff: ${letter.letter.subject.trim()}`, bold, 8);
+      }
+      drawIntro(letter.letter.salutation, regular, 8);
+      drawIntro(fillInvoiceLetter(letter.letter.intro, letter.variables), regular, 0);
+    }
+    introY = await addIntroTextBlock(data, introPage, regular, locale, { position: { y: introY } });
+
+    let page = introPage;
+    let y = introY - 15;
+    if (y < BOTTOM + 60) {
+      page = addPage();
+      y = (dinA4Height - 25) * mmToPt;
+    } else {
+      page.drawLine({
+        start: { x: LEFT, y },
+        end: { x: page.getWidth() - RIGHT, y },
+        thickness: 0.5,
+        color: textColor,
       });
     }
-  }
 
-  return pdfDoc;
-};
+    let remaining = [...profile.invoiceLines];
+
+    const endOfTable = async (rows: LineItem[], startY: number): Promise<number> => {
+      const scratch = pdfDoc.addPage(PageSizes.A4);
+      const [end] = await drawTable(scratch, rows, scheme, LEFT, startY, regular, bold);
+      pdfDoc.removePage(pdfDoc.getPageCount() - 1);
+      return end;
+    };
+
+    while (remaining.length > 0) {
+      let count = remaining.length;
+      if ((await endOfTable(remaining, y)) < BOTTOM) {
+        let low = 1;
+        let high = remaining.length - 1;
+        count = 1;
+        while (low <= high) {
+          const middle = Math.floor((low + high) / 2);
+          if ((await endOfTable(remaining.slice(0, middle), y)) >= BOTTOM) {
+            count = middle;
+            low = middle + 1;
+          } else {
+            high = middle - 1;
+          }
+        }
+      }
+      const chunk = remaining.slice(0, count);
+      [y] = await drawTable(page, chunk, scheme, LEFT, y, regular, bold);
+      remaining = remaining.slice(count);
+      if (remaining.length > 0) {
+        page = addPage();
+        y = (dinA4Height - 25) * mmToPt;
+      }
+    }
+
+    const drawLetterOutro = (target: PDFPage, startY: number): number => {
+      if (!letter) return startY;
+      let current = startY;
+      current = drawTextBlock(target, fillInvoiceLetter(letter.letter.payment, letter.variables), current, regular, 18);
+      current = drawTextBlock(target, fillInvoiceLetter(letter.letter.closing, letter.variables), current, regular, 18);
+      current = drawTextBlock(target, fillInvoiceLetter(letter.letter.signature, letter.variables), current, regular, 14);
+      const person = "tradeContact" in profile.seller ? profile.seller.tradeContact?.[0]?.personName ?? "" : "";
+      return drawTextBlock(target, person, current, bold);
+    };
+
+    const summaryTop = y - 20;
+    const measure = pdfDoc.addPage(PageSizes.A4);
+    const summaryEnd = await addMonetarySummary(data, measure, regular, bold, locale, {
+      position: { y: summaryTop },
+    });
+    const outroEnd = await addOutroTextBlock(data, measure, regular, bold, locale, {
+      position: { y: summaryEnd - 30 },
+    });
+    const letterOutroEnd = drawLetterOutro(measure, outroEnd - 24);
+    pdfDoc.removePage(pdfDoc.getPageCount() - 1);
+
+    if (letterOutroEnd < BOTTOM) {
+      page = addPage();
+      y = (dinA4Height - 30) * mmToPt;
+    } else {
+      y = summaryTop;
+    }
+
+    y = await addMonetarySummary(data, page, regular, bold, locale, { position: { y } });
+    page.drawLine({
+      start: { x: LEFT, y: y - 6 },
+      end: { x: page.getWidth() - RIGHT, y: y - 6 },
+      thickness: 0.5,
+      color: textColor,
+    });
+    const renderedOutroEnd = await addOutroTextBlock(data, page, regular, bold, locale, { position: { y: y - 30 } });
+    drawLetterOutro(page, renderedOutroEnd - 24);
+
+    for (const [index, item] of pages.entries()) {
+      await addFooter(data, item, regular, locale, {
+        position: { x: 15 * mmToPt, y: FOOTER_HEIGHT },
+        fontSize: 8,
+        color: rgb(0, 0, 0),
+      });
+      if (pages.length > 1) {
+        const label = locale === "de-DE" ? `Seite ${index + 1} von ${pages.length}` : `Page ${index + 1} of ${pages.length}`;
+        const width = regular.widthOfTextAtSize(label, 8);
+        item.drawText(label, {
+          x: item.getWidth() - 15 * mmToPt - width,
+          y: 70,
+          font: regular,
+          size: 8,
+          color: rgb(0.35, 0.35, 0.35),
+        });
+      }
+    }
+
+    return pdfDoc;
+  };
+}
