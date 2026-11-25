@@ -16,14 +16,16 @@ export { isValidBic, isValidIban } from "./iban";
  * 0% is category E. The exemption sentence is BT-120.
  * BR-DE-15 makes the buyer reference mandatory for a business or public-sector
  * customer. A public authority uses the Leitweg-ID there; a private customer (B2C)
- * does not need an e-invoice at all.
+ * does not need an e-invoice at all. A business invoice without a reference writes
+ * the fallback "-" into BT-10; the fallback is never stored on the invoice.
  */
 export const XRECHNUNG_CUSTOMIZATION_ID = "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0";
 export const XRECHNUNG_PROFILE_ID = "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0";
 export const XRECHNUNG_UNIT_CODE = "C62";
 export const XRECHNUNG_NUMBER_BLOCKER = "The e-invoice needs an invoice number (BT-1).";
 
-const BUYER_REFERENCE_REQUIRED = "The e-invoice needs a buyer reference (BT-10). For a public-sector customer this is the Leitweg-ID.";
+/** BT-10 for a business invoice that carries no reference. Written on render, never stored. */
+export const BUYER_REFERENCE_FALLBACK = "-";
 const LEITWEG_REQUIRED = "The e-invoice needs the Leitweg-ID as buyer reference (BT-10) for a public-sector customer.";
 const LEITWEG_FORMAT = "The Leitweg-ID is not in the official format (coarse address, optional fine address, and two check digits, e.g. 04011000-1234512345-06).";
 const LEITWEG_CHECK = "The Leitweg-ID check digit is wrong.";
@@ -102,11 +104,14 @@ export function leitwegIdProblem(value: string): string | null {
   return remainder === 1 ? null : LEITWEG_CHECK;
 }
 
-/** BT-10 on an XRechnung: required for B2B and B2G, and a Leitweg-ID for B2G. */
+/**
+ * BT-10 on an XRechnung: a Leitweg-ID is required for B2G. A business invoice may
+ * omit the reference; `buildXRechnung` then writes {@link BUYER_REFERENCE_FALLBACK}.
+ */
 export function invoiceBuyerReferenceProblem(kind: CustomerKind, value: string): string | null {
   const reference = value.trim();
   if (kind === "private") return null;
-  if (!reference) return kind === "public" ? LEITWEG_REQUIRED : BUYER_REFERENCE_REQUIRED;
+  if (!reference) return kind === "public" ? LEITWEG_REQUIRED : null;
   return kind === "public" ? leitwegIdProblem(reference) : buyerReferenceProblem(reference);
 }
 
@@ -268,6 +273,7 @@ export function buildXRechnung(input: XRechnungInput): string {
   const bic = input.seller.bic.replace(/\s/g, "").toUpperCase();
   const rates = [...input.byRate].sort((a, b) => a.vatBps - b.vatBps);
   const payable = input.grossCents - input.prepaidCents;
+  const buyerReference = input.buyerReference.trim() || (input.customerKind === "business" ? BUYER_REFERENCE_FALLBACK : "");
   const form = input.seller.legalForm ?? "ug";
   const legal = isCorporation(form)
     ? [
@@ -291,7 +297,7 @@ export function buildXRechnung(input: XRechnungInput): string {
     tag(1, "cbc:InvoiceTypeCode", "380"),
     ...(input.notes.trim() ? [tag(1, "cbc:Note", input.notes.trim())] : []),
     tag(1, "cbc:DocumentCurrencyCode", "EUR"),
-    tag(1, "cbc:BuyerReference", input.buyerReference.trim()),
+    tag(1, "cbc:BuyerReference", buyerReference),
     party(1, "cac:AccountingSupplierParty", {
       name: input.seller.name.trim(),
       street: input.seller.street.trim(),

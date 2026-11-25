@@ -64,9 +64,9 @@ Issue still follows §14 and §35a only. The extra XRechnung fields do not block
 
 The customer type decides what BT-10 has to contain. `customers.kind` is `business` (B2B), `public` (B2G), or `private` (B2C); rows from before the column existed are treated as `business`.
 
-- XRechnung (BR-DE-15) requires BT-10 for B2B and B2G. The e-invoice review enforces it; the invoice form shows it as a warning without blocking issue.
+- XRechnung (BR-DE-15) requires BT-10 for B2B and B2G. The file always carries it; the invoice form shows missing fields as a warning without blocking issue.
 - A public-sector customer's BT-10 must be a Leitweg-ID. The desk checks the structure from the Leitweg-ID format specification v2.0.2 and the ISO/IEC 7064 MOD 97-10 check digits. KoSIT itself only checks that BT-10 is present.
-- A business customer's BT-10 is the reference the customer gave, such as an order or project number, or `nicht zutreffend` when there is none.
+- A business customer's BT-10 is the reference the customer gave, such as an order or project number. When the invoice carries none, the renderer writes `-` into BT-10 (`BUYER_REFERENCE_FALLBACK`). The placeholder is not stored on the invoice; it is inserted only while the XML is built.
 - A private customer (B2C) needs no e-invoice. The desk does not render an XRechnung for that invoice and says so on the invoice screen.
 - The buyer reference (BT-10) is stored on the invoice. ZUGFeRD is not produced, so there is no profile switch.
 - Seller and buyer electronic addresses are the e-mail addresses, scheme EM (BT-34, BT-49).

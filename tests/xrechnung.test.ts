@@ -8,6 +8,7 @@ import { KLEINUNTERNEHMER_NOTE } from "@/domain/invoice";
 import { REDUCED_VAT_BPS, STANDARD_VAT_BPS } from "@/domain/rates-2026";
 import { lineNetCents, summarizeVat } from "@/domain/vat";
 import {
+  BUYER_REFERENCE_FALLBACK,
   XRECHNUNG_CUSTOMIZATION_ID,
   XRECHNUNG_NUMBER_BLOCKER,
   XRECHNUNG_PROFILE_ID,
@@ -162,6 +163,10 @@ describe("XRechnung review", () => {
       "The Leitweg-ID is not in the official format (coarse address, optional fine address, and two check digits, e.g. 04011000-1234512345-06).",
     );
     expect(reviewXRechnung(ready({ customerKind: "business", buyerReference: "nicht zutreffend" })).blockers).toEqual([]);
+    expect(reviewXRechnung(ready({ customerKind: "business", buyerReference: "" })).blockers).toEqual([]);
+    expect(buildXRechnung(ready({ customerKind: "business", buyerReference: "" }))).toContain(
+      `<cbc:BuyerReference>${BUYER_REFERENCE_FALLBACK}</cbc:BuyerReference>`,
+    );
     expect(reviewXRechnung(ready({ customerKind: "private", buyerReference: "" })).blockers).toContain(
       "XRechnung is for business and public-sector customers (B2B/B2G). A private customer's invoice is not an e-invoice under §14 UStG.",
     );
@@ -171,9 +176,10 @@ describe("XRechnung review", () => {
     expect(customerBuyerReferenceProblem("business", "")).toBeNull();
   });
 
-  it("requires the buyer reference, electronic addresses, phone, IBAN, and a German VAT id", () => {
-    expect(reviewXRechnung(ready({ buyerReference: " " })).blockers).toContain(
-      "The e-invoice needs a buyer reference (BT-10). For a public-sector customer this is the Leitweg-ID.",
+  it("fills a missing business buyer reference with the fallback and requires the other particulars", () => {
+    expect(reviewXRechnung(ready({ buyerReference: " " })).blockers).toEqual([]);
+    expect(buildXRechnung(ready({ buyerReference: " " }))).toContain(
+      `<cbc:BuyerReference>${BUYER_REFERENCE_FALLBACK}</cbc:BuyerReference>`,
     );
     expect(reviewXRechnung(ready({ seller: { ...ready().seller, email: "hallo@" } })).blockers).toContain(
       "The seller e-mail address is missing or not usable as an electronic address (BT-34).",
@@ -204,7 +210,7 @@ describe("XRechnung review", () => {
     );
     expect(buyerReferenceProblem("x".repeat(101))).toMatch(/too long/);
     expect(reviewXRechnung(ready({ number: "" })).blockers).toContain(XRECHNUNG_NUMBER_BLOCKER);
-    expect(tx("de", "The e-invoice needs a buyer reference (BT-10). For a public-sector customer this is the Leitweg-ID.")).toContain("Leitweg-ID");
+    expect(tx("de", "The e-invoice needs the Leitweg-ID as buyer reference (BT-10) for a public-sector customer.")).toContain("Leitweg-ID");
     expect(tx("de", "A void invoice is a ledger reversal. The desk does not write a credit note.")).toContain("Gutschrift");
   });
 
@@ -308,11 +314,14 @@ describe("XRechnung XML", () => {
     expect(xml.match(/<cbc:TaxExemptionReason>/g)).toHaveLength(1);
   });
 
-  it("escapes a description and refuses to build a blocked invoice", () => {
+  it("escapes a description and writes the fallback for a missing business reference", () => {
     const lines = [{ description: "Beratung & Konzept <Workshop>", quantityMilli: 1000, unitNetCents: 10_000, netCents: 10_000, vatBps: STANDARD_VAT_BPS }];
     const xml = buildXRechnung(ready({ lines }));
     expect(xml).toContain("Beratung &amp; Konzept &lt;Workshop&gt;");
-    expect(() => buildXRechnung(ready({ buyerReference: "" }))).toThrow(/BT-10/);
+    expect(buildXRechnung(ready({ buyerReference: "" }))).toContain(
+      `<cbc:BuyerReference>${BUYER_REFERENCE_FALLBACK}</cbc:BuyerReference>`,
+    );
+    expect(() => buildXRechnung(ready({ customerKind: "public", buyerReference: "" }))).toThrow(/Leitweg-ID/);
   });
 });
 

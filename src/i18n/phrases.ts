@@ -277,7 +277,6 @@ const exact: Record<string, string> = {
   "Issue the invoice before writing an e-invoice.": "Die Rechnung stellen, bevor eine E-Rechnung geschrieben wird.",
   "A void invoice is a ledger reversal. The desk does not write a credit note.": "Eine stornierte Rechnung ist eine Stornobuchung. Eine Gutschrift wird nicht geschrieben.",
   "This invoice cannot be written as an e-invoice.": "Diese Rechnung kann nicht als E-Rechnung geschrieben werden.",
-  "The e-invoice needs a buyer reference (BT-10). For a public-sector customer this is the Leitweg-ID.": "Die E-Rechnung braucht eine Käuferreferenz (BT-10). Bei einem öffentlichen Auftraggeber ist das die Leitweg-ID.",
   "The e-invoice needs the Leitweg-ID as buyer reference (BT-10) for a public-sector customer.": "Die E-Rechnung braucht die Leitweg-ID als Käuferreferenz (BT-10) bei einer öffentlichen Auftraggeberin.",
   "The Leitweg-ID is not in the official format (coarse address, optional fine address, and two check digits, e.g. 04011000-1234512345-06).": "Die Leitweg-ID entspricht nicht dem offiziellen Format (Grobadressierung, optionale Feinadressierung und zwei Prüfziffern, z. B. 04011000-1234512345-06).",
   "The Leitweg-ID check digit is wrong.": "Die Prüfziffer der Leitweg-ID ist falsch.",

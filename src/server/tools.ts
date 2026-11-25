@@ -1136,7 +1136,7 @@ export const tools: DeskTool[] = [
   // ------------------------------------------------------------- invoices
   tool({
     name: "save_customer",
-    description: "Create a customer, or update one when customerId is given. The customer type decides whether an XRechnung applies: public uses the Leitweg-ID as BT-10, business needs the buyer's reference, private needs no e-invoice.",
+    description: "Create a customer, or update one when customerId is given. The customer type decides whether an XRechnung applies: public uses the Leitweg-ID as BT-10, business may carry the buyer's reference, private needs no e-invoice.",
     input: {
       customerId: z.number().int().positive().optional(),
       kind: z.enum(CUSTOMER_KINDS).optional().describe("business (B2B), public (B2G), or private (B2C). Defaults to business for a new customer; an update keeps the stored type."),
@@ -1322,7 +1322,7 @@ export const tools: DeskTool[] = [
   }),
   tool({
     name: "update_buyer_reference",
-    description: "Set the buyer reference (BT-10) on an issued invoice. A public customer needs a valid Leitweg-ID; a business customer needs a reference or 'nicht zutreffend'.",
+    description: "Set the buyer reference (BT-10) on an issued invoice. A public customer needs a valid Leitweg-ID. A business customer may clear it; the XRechnung then writes '-'.",
     input: { invoiceId: z.number().int().positive(), buyerReference: z.string().trim().max(100) },
     run: (input) => {
       const loaded = requireInvoice(input.invoiceId);
