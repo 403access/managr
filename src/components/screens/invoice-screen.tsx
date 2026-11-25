@@ -43,7 +43,7 @@ export function InvoiceScreen({ id }: { id: number }) {
         }));
         const groups = groupInvoicePositions(groupedLines, effectiveLineGrouping);
         const showGroups = effectiveLineGrouping === "date";
-        const canDownloadXRechnung =
+        const canDownloadEInvoice =
           !loaded.eInvoiceNotApplicable &&
           invoice.status !== "draft" &&
           invoice.status !== "void" &&
@@ -57,10 +57,15 @@ export function InvoiceScreen({ id }: { id: number }) {
               action={
                 <span className="flex flex-wrap gap-2">
                   <Pill tone={status}>{label(status)}</Pill>
-                  {canDownloadXRechnung ? (
-                    <a className={buttonClass("quiet")} href={`/invoices/${invoice.id}/xrechnung`} download>
-                      {t("invoices.downloadXrechnung")}
-                    </a>
+                  {canDownloadEInvoice ? (
+                    <>
+                      <a className={buttonClass("quiet")} href={`/invoices/${invoice.id}/xrechnung`} download>
+                        {t("invoices.downloadXrechnung")}
+                      </a>
+                      <a className={buttonClass("quiet")} href={`/invoices/${invoice.id}/zugferd`} download>
+                        {t("invoices.downloadZugferd")}
+                      </a>
+                    </>
                   ) : null}
                   <LinkButton href={`/invoices/${invoice.id}/print`} tone="quiet">{t("common.print")}</LinkButton>
                 </span>
@@ -132,6 +137,9 @@ export function InvoiceScreen({ id }: { id: number }) {
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         <a className={buttonClass()} href={`/invoices/${invoice.id}/xrechnung`} download>
                           {t("invoices.downloadXrechnung")}
+                        </a>
+                        <a className={buttonClass("quiet")} href={`/invoices/${invoice.id}/zugferd`} download>
+                          {t("invoices.downloadZugferd")}
                         </a>
                         <XRechnungCheck invoiceId={invoice.id} />
                       </div>

@@ -54,11 +54,14 @@ A line taken from time is described as the activity with optional context: `cust
 
 For a chosen customer the form lists the activities of their billable time entries that no live invoice carries yet. Each activity becomes one line, described as `project: activity`, priced at the effective hourly rate. The entry's duration is split evenly across its activities (`activityQuantityMilli` in `src/domain/invoice-time.ts`); cumulative rounding keeps the entry's total exact to the milli-hour. `invoice_lines.time_entry_id` and `time_activity_id` keep the link, so a draft or issued invoice reserves its activities and a void invoice or deleted draft releases them again. The save refuses an activity that another invoice already carries. A line keeps the text and price it had when written; later changes to the time entry do not rewrite an issued invoice.
 
-## E-Rechnung (XRechnung)
+## E-Rechnung (XRechnung and ZUGFeRD)
 
-The e-invoice this desk writes is an XRechnung 3.0.2 file in UBL syntax. That is an EN 16931 invoice and therefore an e-invoice under §14 UStG. The specification is at <https://xeinkauf.de/xrechnung/>. The file is rendered on download. It is not stored and not sent. The invoice screen can check the rendered file with the KoSIT validator running on this computer; the check result is not stored. ZUGFeRD is not produced. A void invoice stays a reversing journal entry; the desk does not write a credit note.
+The desk writes two forms of the same EN 16931 e-invoice under §14 UStG. Both are rendered on download, not stored, and not sent.
 
-Implementation: `src/domain/xrechnung.ts`. Specification identifiers: `XRECHNUNG_CUSTOMIZATION_ID`, `XRECHNUNG_PROFILE_ID`. Quantity uses `XRECHNUNG_UNIT_CODE` (UNECE Rec 20 code C62, "one"). The invoice has no unit of measure.
+- **XRechnung 3.0.2** is a UBL XML file. The specification is at <https://xeinkauf.de/xrechnung/>. The invoice screen can check the rendered file with the KoSIT validator running on this computer; the check result is not stored.
+- **ZUGFeRD 2.4** is a PDF/A-3 file with the human-readable invoice and a CII XML attachment (`factur-x.xml`) in the Comfort profile (EN 16931). The same invoice data drives both the PDF and the XML. The CII XML carries the same buyer reference, tax breakdown, and totals as the XRechnung.
+
+Implementation: `src/domain/xrechnung.ts` builds the shared input, `src/server/xrechnung.ts` renders UBL, and `src/server/zugferd.ts` plus `src/server/zugferd-pdf.ts` render the hybrid PDF. Specification identifiers: `XRECHNUNG_CUSTOMIZATION_ID`, `XRECHNUNG_PROFILE_ID`. Quantity uses `XRECHNUNG_UNIT_CODE` (UNECE Rec 20 code C62, "one"). The invoice has no unit of measure. A void invoice stays a reversing journal entry; the desk does not write a credit note.
 
 Issue still follows §14 and §35a only. The extra XRechnung fields do not block issue. They block the file.
 
@@ -68,7 +71,7 @@ The customer type decides what BT-10 has to contain. `customers.kind` is `busine
 - A public-sector customer's BT-10 must be a Leitweg-ID. The desk checks the structure from the Leitweg-ID format specification v2.0.2 and the ISO/IEC 7064 MOD 97-10 check digits. KoSIT itself only checks that BT-10 is present.
 - A business customer's BT-10 is the reference the customer gave, such as an order or project number. When the invoice carries none, the renderer writes `-` into BT-10 (`BUYER_REFERENCE_FALLBACK`). The placeholder is not stored on the invoice; it is inserted only while the XML is built.
 - A private customer (B2C) needs no e-invoice. The desk does not render an XRechnung for that invoice and says so on the invoice screen.
-- The buyer reference (BT-10) is stored on the invoice. ZUGFeRD is not produced, so there is no profile switch.
+- The buyer reference (BT-10) is stored on the invoice and used by both formats; there is no profile switch.
 - Seller and buyer electronic addresses are the e-mail addresses, scheme EM (BT-34, BT-49).
 - The seller contact is the managing director, the company phone, and the company e-mail.
 - Payment is a SEPA credit transfer (code 58) with a checksum-valid IBAN. A BIC is included only when it is present and well formed.
