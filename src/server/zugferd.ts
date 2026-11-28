@@ -192,13 +192,14 @@ function letterVariables(input: XRechnungInput, letter: InvoiceLetter): InvoiceL
 }
 
 function paymentTerms(dueDate: string, locale: SupportedLocales): string {
+  const formatted = formatDate(dueDate, locale);
   switch (locale) {
     case "de-DE":
-      return `Zahlbar bis ${dueDate} ohne Abzug.`;
+      return `Zahlbar bis ${formatted} ohne Abzug.`;
     case "fr-FR":
-      return `Payable jusqu'au ${dueDate} sans escompte.`;
+      return `Payable jusqu'au ${formatted} sans escompte.`;
     default:
-      return `Payable by ${dueDate} without deduction.`;
+      return `Payable by ${formatted} without deduction.`;
   }
 }
 

@@ -117,9 +117,9 @@ export function thirdLastBankingDay(year: number, month: number): string {
   throw new Error(`No banking day in ${year}-${month}`);
 }
 
-export function formatDate(isoDate: string): string {
+export function formatDate(isoDate: string, locale = "de-DE"): string {
   const { y, m, d } = parseIso(isoDate);
-  return new Intl.DateTimeFormat("de-DE", { timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
+  return new Intl.DateTimeFormat(locale, { timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
 export type Recurrence = "none" | "monthly" | "quarterly" | "yearly";

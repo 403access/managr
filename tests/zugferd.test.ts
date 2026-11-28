@@ -89,6 +89,16 @@ describe("ZUGFeRD input", () => {
       payeeBankAccount: { iban: "DE89370400440532013000", bic: "COBADEFFXXX" },
     });
     expect(input.paymentInformation.paymentTerms?.dueDate).toEqual({ year: 2026, month: 11, day: 16 });
+    expect(input.paymentInformation.paymentTerms?.description).toBe(`Zahlbar bis ${formatDate("2026-11-16")} ohne Abzug.`);
+  });
+
+  it("writes the due date in the language of the PDF", () => {
+    expect(toZugferdInput(ready(), "en-US").paymentInformation.paymentTerms?.description).toBe(
+      "Payable by 11/16/2026 without deduction.",
+    );
+    expect(toZugferdInput(ready(), "fr-FR").paymentInformation.paymentTerms?.description).toBe(
+      "Payable jusqu'au 16/11/2026 sans escompte.",
+    );
   });
 
   it("carries prepaid amounts, the 7% rate, and the exemption reason", () => {
