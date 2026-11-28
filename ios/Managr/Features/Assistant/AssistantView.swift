@@ -94,7 +94,9 @@ struct AssistantView: View {
             let place = model.local ? app.t("lokal", "local") : app.t("extern", "remote")
             let wire = model.protocolName == "anthropic"
                 ? app.t("Anthropic-Format", "Anthropic format")
-                : app.t("OpenAI-Format", "OpenAI format")
+                : model.protocolName == "agy"
+                    ? app.t("Antigravity-Format", "Antigravity format")
+                    : app.t("OpenAI-Format", "OpenAI format")
             return "\(model.name) · \(place) · \(wire)"
         }
         if let settings = store.settings, settings.configured {
@@ -989,7 +991,12 @@ private struct AssistantDetailsView: View {
         if let model = details.model { rows.append((app.t("Modell", "Model"), model)) }
         if let provider = details.provider { rows.append((app.t("Anbieter", "Provider"), provider)) }
         if let wire = details.protocolName {
-            rows.append((app.t("Protokoll", "Protocol"), wire == "anthropic" ? app.t("Anthropic-Format", "Anthropic format") : app.t("OpenAI-Format", "OpenAI format")))
+            let label = wire == "anthropic"
+                ? app.t("Anthropic-Format", "Anthropic format")
+                : wire == "agy"
+                    ? app.t("Antigravity-Format", "Antigravity format")
+                    : app.t("OpenAI-Format", "OpenAI format")
+            rows.append((app.t("Protokoll", "Protocol"), label))
         }
         if let baseUrl = details.baseUrl {
             rows.append((app.t("Endpunkt", "Endpoint"), "\(baseUrl) · \(details.local == true ? app.t("lokal", "local") : app.t("extern", "remote"))"))

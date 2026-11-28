@@ -32,8 +32,9 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  // The suite tests the environment fallback, not whichever opencode is installed.
+  // The suite tests the environment fallback, not whichever CLI is installed.
   vi.stubEnv("MANAGR_OPENCODE", "0");
+  vi.stubEnv("MANAGR_AGY", "0");
 });
 
 afterEach(() => {

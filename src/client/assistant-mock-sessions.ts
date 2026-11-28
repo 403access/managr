@@ -12,7 +12,7 @@ export type MockSession = {
   title: Copy;
   note: Copy;
   prompt: Copy;
-  model: { name: string; provider: string; protocol: "openai" | "anthropic"; baseUrl: string; local: boolean };
+  model: { name: string; provider: string; protocol: "openai" | "anthropic" | "agy"; baseUrl: string; local: boolean };
   /** How often the prompt was already sent; the details show the retry line. */
   retries?: number;
   events: MockEvent[];

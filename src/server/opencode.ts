@@ -37,8 +37,8 @@ export type OpencodeCredential = {
   value?: { type?: string; key?: string; access?: string; expires?: number };
 };
 
-/** How managr talks to a provider. Both protocols carry the same tool calls. */
-export type ChatProtocol = "openai" | "anthropic";
+/** How managr talks to a provider. All protocols carry the same desk tools. */
+export type ChatProtocol = "openai" | "anthropic" | "agy";
 
 export type AssistantProvider = {
   id: string;

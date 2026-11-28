@@ -10,7 +10,7 @@ export type Settings = { configured: boolean; model: string; baseUrl: string; lo
 export type Selection = { providerID: string; modelID: string };
 
 /** How managr talks to a provider. */
-export type ChatProtocol = "openai" | "anthropic";
+export type ChatProtocol = "openai" | "anthropic" | "agy";
 
 export type CatalogProvider = {
   id: string;

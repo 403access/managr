@@ -11,6 +11,7 @@ import { formatEuro } from "@/domain/money";
 import type { ChatMessageDetails } from "@/client/chat-history";
 import {
   MCP_SERVER,
+  type ChatProtocol,
   type Message,
   type Proposal,
   type ProposalChange,
@@ -299,8 +300,10 @@ function contextHint(tokens?: number): string | undefined {
 }
 
 /** The protocol is a property of the provider, so the panel can name it plainly. */
-function protocolLabel(protocol: "openai" | "anthropic", t: Translate): string {
-  return protocol === "anthropic" ? t("assistant.protocolAnthropic") : t("assistant.protocolOpenai");
+export function protocolLabel(protocol: ChatProtocol, t: Translate): string {
+  if (protocol === "anthropic") return t("assistant.protocolAnthropic");
+  if (protocol === "agy") return t("assistant.protocolAgy");
+  return t("assistant.protocolOpenai");
 }
 
 /**

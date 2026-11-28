@@ -6,7 +6,7 @@ import type { ChatMessage, ChatMessageDetails } from "@/client/chat-history";
 import { MOCK_SESSIONS, type MockSession } from "@/client/assistant-mock-sessions";
 import { applyStreamEvent, emptyReplay, streamingState, type ReplayState } from "@/client/assistant-stream";
 import { MCP_SERVER } from "@/client/assistant-types";
-import { AssistantStreamingTurn, AssistantTurn } from "@/components/assistant";
+import { AssistantStreamingTurn, AssistantTurn, protocolLabel } from "@/components/assistant";
 import { useI18n } from "@/components/locale-provider";
 import { buttonClass } from "@/components/ui";
 import { useFollowBottom } from "@/components/use-follow-bottom";
@@ -164,7 +164,7 @@ export function AssistantTestScreen() {
 
   const listRef = useFollowBottom<HTMLDivElement>([messages, stream]);
 
-  const protocol = session.model.protocol === "anthropic" ? t("assistant.protocolAnthropic") : t("assistant.protocolOpenai");
+  const protocol = protocolLabel(session.model.protocol, t);
   const calls = session.events.filter((item) => item.event.type === "tool").length;
 
   return (

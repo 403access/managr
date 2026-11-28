@@ -285,9 +285,9 @@ struct AssistantModelPicker: View {
     }
 
     private func protocolLabel(_ value: String) -> String {
-        value == "anthropic"
-            ? app.t("Anthropic-Format", "Anthropic format")
-            : app.t("OpenAI-Format", "OpenAI format")
+        if value == "anthropic" { return app.t("Anthropic-Format", "Anthropic format") }
+        if value == "agy" { return app.t("Antigravity-Format", "Antigravity format") }
+        return app.t("OpenAI-Format", "OpenAI format")
     }
 
     /// The compact context length the web panel shows beside a model.

@@ -1,6 +1,13 @@
 import "server-only";
 import { todayIso } from "@/domain/calendar";
 import {
+  AGY_PROVIDER_ID,
+  AGY_PROVIDER_NAME,
+  agySnapshot,
+  resolveAgyModel,
+  streamAgyAssistant,
+} from "./agy";
+import {
   anthropicMaxTokens,
   isLocalBaseUrl,
   opencodeSnapshot,
@@ -29,7 +36,7 @@ export type AssistantSettings = {
 
 export type ResolvedAssistantSettings = AssistantSettings & {
   displayName: string;
-  source: "env" | "opencode";
+  source: "env" | "opencode" | "agy";
   providerID?: string;
   modelID?: string;
   /** The wire protocol of the endpoint. The environment setting is OpenAI-only. */
@@ -38,6 +45,8 @@ export type ResolvedAssistantSettings = AssistantSettings & {
   maxOutput?: number;
   apiKey?: string;
   headers?: Record<string, string>;
+  /** Explicit binary path when source is `agy`. */
+  binary?: string;
 };
 
 export type AssistantTurn = { role: "user" | "assistant"; content: string };
@@ -99,16 +108,38 @@ function fromOpencode(model: ResolvedOpencodeModel): ResolvedAssistantSettings {
   };
 }
 
+function fromAgy(model: { modelID: string; name: string }, binary?: string): ResolvedAssistantSettings {
+  return {
+    baseUrl: AGY_PROVIDER_ID,
+    model: model.modelID,
+    hasKey: true,
+    local: false,
+    displayName: model.name,
+    source: "agy",
+    providerID: AGY_PROVIDER_ID,
+    modelID: model.modelID,
+    protocol: "agy",
+    binary,
+  };
+}
+
 /**
  * Prefer an explicit choice from the panel, then the environment, then the local
- * opencode installation. The environment stays a working fallback when opencode
- * is not installed, for example inside the Docker image.
+ * opencode or agy installation. The environment stays a working fallback when
+ * neither CLI is installed, for example inside the Docker image.
  */
 export async function resolveAssistantSettings(selection?: AssistantSelection): Promise<ResolvedAssistantSettings> {
   if (selection?.providerID === "env") {
     const env = envResolved();
     if (env) return env;
     throw new AssistantNotConfigured("No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.");
+  }
+
+  if (selection?.providerID === AGY_PROVIDER_ID) {
+    const agy = await agySnapshot();
+    const model = resolveAgyModel(agy.models, selection);
+    if (!model) throw new AssistantModelNotFound("The selected model is not available in agy.");
+    return fromAgy(model, agy.binary);
   }
 
   if (selection) {
@@ -121,24 +152,35 @@ export async function resolveAssistantSettings(selection?: AssistantSelection): 
   const env = envResolved();
   if (env) return env;
 
-  const snapshot = await opencodeSnapshot();
+  const [snapshot, agy] = await Promise.all([opencodeSnapshot(), agySnapshot()]);
   const fallback = snapshot.catalog.default;
   if (fallback) {
     const model = resolveOpencodeModel(snapshot.models, snapshot.providers, snapshot.credentials, fallback);
     if (model) return fromOpencode(model);
   }
-  if (!snapshot.available) {
-    throw new AssistantNotConfigured("opencode is not available. Start opencode or set MANAGR_AI_MODEL.");
+  const agyFallback = agy.catalog.default;
+  if (agyFallback) {
+    const model = resolveAgyModel(agy.models, agyFallback);
+    if (model) return fromAgy(model, agy.binary);
+  }
+  if (!snapshot.available && !agy.available) {
+    throw new AssistantNotConfigured("opencode and agy are not available. Start opencode, install agy, or set MANAGR_AI_MODEL.");
   }
   throw new AssistantNotConfigured("No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.");
 }
 
 /** The catalog the panel shows. It never contains a credential. */
 export async function assistantCatalog(): Promise<AssistantCatalog> {
-  const snapshot = await opencodeSnapshot();
+  const [snapshot, agy] = await Promise.all([opencodeSnapshot(), agySnapshot()]);
   const env = envResolved();
-  const providers = snapshot.catalog.providers.filter((provider) => provider.id !== "env");
+  const providers = snapshot.catalog.providers.filter(
+    (provider) => provider.id !== "env" && provider.id !== AGY_PROVIDER_ID,
+  );
   const models = [...snapshot.catalog.models];
+  if (agy.available) {
+    providers.push(...agy.catalog.providers);
+    models.push(...agy.catalog.models);
+  }
   if (env) {
     providers.unshift({ id: "env", name: "MANAGR_AI_*", protocol: "openai", local: env.local, modelCount: 1 });
     models.unshift({
@@ -151,12 +193,13 @@ export async function assistantCatalog(): Promise<AssistantCatalog> {
       local: env.local,
     });
   }
+  const available = snapshot.available || agy.available || Boolean(env);
   return {
-    available: snapshot.available || Boolean(env),
-    error: snapshot.available || env ? undefined : snapshot.error,
+    available,
+    error: available ? undefined : snapshot.error ?? agy.error,
     providers,
     models,
-    default: env ? { providerID: "env", modelID: env.model } : snapshot.catalog.default,
+    default: env ? { providerID: "env", modelID: env.model } : snapshot.catalog.default ?? agy.catalog.default,
   };
 }
 
@@ -501,6 +544,19 @@ export async function* streamAssistant(
   const settings = resolved ?? (await resolveAssistantSettings());
   if (!settings.model) {
     throw new AssistantNotConfigured("No model is configured. Set MANAGR_AI_MODEL and, if needed, MANAGR_AI_BASE_URL.");
+  }
+  if (settings.protocol === "agy") {
+    yield* streamAgyAssistant({
+      modelID: settings.model,
+      system: systemPrompt(),
+      turns,
+      signal,
+      gate,
+      binary: settings.binary,
+      toolContent,
+      uiData,
+    });
+    return;
   }
   const history: HistoryTurn[] = turns
     .slice(-MAX_MESSAGES)

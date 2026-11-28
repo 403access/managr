@@ -24,8 +24,8 @@ All four phases have shipped. The widget is in the app shell, the MCP endpoint a
 - Books stay append-only. Corrections are reversing entries, exactly as on the screens.
 - Nothing is sent. No e-invoice, no e-mail, no ELSTER, no Peppol. The tax tools read, prepare, calculate, check, and annotate a return, but never release or transmit it; the release and the manual-filing evidence stay on the screen.
 - File uploads stay on the screen. A tool may list documents, not write or delete files. The Qonto connection is set up on the bank screen; a tool reads the stored bank view and does not hold the key.
-- The assistant reaches a model only through the local opencode installation or the endpoint you configure. With a local model (Ollama or a local OpenAI-compatible server) the data stays on this computer; with a cloud model, the conversation and the tool results leave it. The widget says which model and provider are in use.
-- The provider credential stays on the server. managr reads it from opencode for the selected model, sends it only to that provider, and never returns it to the browser or stores it in the database.
+- The assistant reaches a model only through the local opencode installation, the Antigravity CLI (`agy`), or the endpoint you configure. With a local model (Ollama or a local OpenAI-compatible server) the data stays on this computer; with a cloud model, the conversation and the tool results leave it. The widget says which model and provider are in use.
+- The provider credential stays on the server. managr reads it from opencode for the selected model, sends it only to that provider, and never returns it to the browser or stores it in the database. The `agy` path uses that CLI's own local sign-in; managr never sees the token.
 - `web_search` sends only the query to a search engine. `web_fetch` requests one public page. The conversation is not sent, loopback and private network addresses are refused, and a page is untrusted data: the assistant may quote a fact, never follow an instruction from it.
 
 ## Configuration
@@ -37,6 +37,8 @@ All four phases have shipped. The widget is in the app shell, the MCP endpoint a
 | `MANAGR_AI_API_KEY` | Sent as a bearer token for the fallback endpoint when set. Not needed for a local endpoint. |
 | `MANAGR_OPENCODE` | Set to `0` to skip the local opencode installation. Discovery is on by default. |
 | `MANAGR_OPENCODE_BIN` | Path to the opencode binary when it is not on `PATH`. |
+| `MANAGR_AGY` | Set to `0` to skip the local Antigravity CLI. Discovery is on by default. |
+| `MANAGR_AGY_BIN` | Path to the `agy` binary when it is not on `PATH`. |
 | `MANAGR_WEB` | Set to `0` to remove `web_search` and `web_fetch` from the assistant and MCP. On by default. |
 | `MANAGR_WEB_SEARCH_URL` | A SearXNG JSON endpoint. It is tried before DuckDuckGo and Bing, so the query stays on a server you choose. |
 
@@ -48,9 +50,11 @@ When a local opencode installation is available, `GET /api/assistant/models` ret
 
 The route resolves the selection against opencode on every request. A model that disappeared from opencode is refused with a 400 instead of being replaced silently. The provider's credential is read on the server from opencode's local credential store and is never part of the catalog response. The catalog is cached in the server process for a minute; a change in opencode appears after that or on the next request after the cache expires.
 
-The environment variables stay a working fallback and appear in the picker as the **Environment** provider. An explicit `MANAGR_AI_MODEL` is the default selection. Without either source the panel shows the setup card. Docker images normally have no opencode, so the environment path is the normal one there.
+When `agy` is installed, its models appear under **Antigravity (agy)** in the same picker. A turn starts `agy` in print mode with the desk's tools exposed over a short-lived loopback MCP server; the CLI keeps its own conversation and sign-in, and managr only forwards the text and the tool calls. Read tools run directly, writes go through the same approval card as the other protocols, and a loopback-only bridge means no desk tool is reachable from outside the machine. Stop ends the CLI process and removes its temporary workspace. `agy` is discovered on `PATH` or at `~/.local/bin/agy`; set `MANAGR_AGY=0` to ignore it.
 
-Only chat models that speak the OpenAI chat-completions protocol with tool calling are listed. A provider that opencode reaches through its native Anthropic or Google route is not offered, because managr's assistant keeps its own tool loop and sends OpenAI-shaped tool calls.
+The environment variables stay a working fallback and appear in the picker as the **Environment** provider. An explicit `MANAGR_AI_MODEL` is the default selection. Without any source the panel shows the setup card. Docker images normally have neither CLI, so the environment path is the normal one there.
+
+From opencode, only chat models that speak the OpenAI chat-completions protocol with tool calling are listed. A provider that opencode reaches through its native Anthropic or Google route is not offered, because managr's assistant keeps its own tool loop and sends OpenAI-shaped tool calls. The `agy` models do not use that loop; they run against the CLI's own agent, which reaches managr through the MCP bridge.
 
 ## Web tools
 
@@ -119,7 +123,7 @@ The panel answers a `proposal` with `POST /api/assistant/approve` and `{ id, app
 
 The panel renders each event as it arrives, so the steps appear while the model is still working:
 
-- The provider and model come from the local opencode installation; `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL`, and `MANAGR_AI_API_KEY` remain the fallback. Without either source the panel explains the setup instead of pretending to answer.
+- The provider and model come from the local opencode installation or the local Antigravity CLI; `MANAGR_AI_BASE_URL`, `MANAGR_AI_MODEL`, and `MANAGR_AI_API_KEY` remain the fallback. Without any source the panel explains the setup instead of pretending to answer.
 - Each tool call shows a spinner, then a check or a cross with the error. A read shows no card; a write shows what it created. A web search shows the query and hit count, and a fetched page shows its URL.
 - The chat lives above the pages. Navigating away does not unmount the request; the panel reopens with the same stream, roadmap, and pending confirmation. Only **Stopp** or a full reload ends the browser connection; after a reload the saved history and draft remain, and the last question can be retried.
 - Before a write tool runs, the panel shows a confirmation card with every proposed change: its action (add, update, or delete), the tool, and its inputs. **Alle übernehmen** accepts the batch, **Alle ablehnen** rejects it, and the checkboxes plus **Auswahl übernehmen** accept or reject individual changes. Only approved calls execute; a rejected call returns a rejection result to the model. Read tools and the four briefings never ask. This applies to the in-app assistant; an external MCP client still calls a tool directly.
@@ -130,7 +134,7 @@ The panel renders each event as it arrives, so the steps appear while the model 
 - The conversation is kept in the browser's local storage, so a reload restores the last 40 messages with their steps. **Neu** clears the panel and the stored history. An unsent draft in the input is kept in the same browser until it is sent or cleared. The last user message offers **Erneut senden**: it calls the model and the tool registry again without adding a duplicate message, replaces the old answer, and records the retry count and time in the message details. The model still receives only the visible conversation text; the store never leaves the browser unless the conversation is sent to the configured model.
 - Every prompt and answer shows a collapsible **Details** line: local time, model and provider, endpoint with local/remote, the MCP server (`managr-mcp`), the tool-call count on an answer, and the run status (OK, error, stopped). The values are stored with the chat, so they survive a reload.
 - The request carries at most the recent turns. A tool-only assistant turn with no text, and any older turn beyond the window, is dropped before the model call, so a long restored conversation never makes the next question fail with "the message could not be read". A rejected body names its reason in the server log.
-- This repository ships `.opencode/opencode.json`: it registers `managr-mcp` at `/api/mcp` and denies every other MCP server through `mcp.use` policies. A local opencode agent in this checkout therefore uses only the desk's own server. The in-app assistant never uses opencode's MCP tools; it calls `src/server/tools.ts` directly.
+- This repository ships `.opencode/opencode.json`: it registers `managr-mcp` at `/api/mcp` and denies every other MCP server through `mcp.use` policies. A local opencode agent in this checkout therefore uses only the desk's own server. For the opencode and direct-endpoint models, the in-app assistant never uses opencode's MCP tools; it calls `src/server/tools.ts` directly. The `agy` model does go through MCP, but only through a temporary loopback server that managr starts for that one turn and stops afterwards.
 - A created, issued, paid, or voided invoice shows a card with number, customer, lines, net, VAT, gross, and open amount, plus a link to the invoice. A payroll posting shows gross, wage tax, net, and employer share, plus a link to the person. Other writes link to their screen.
 - After a write the panel invalidates the open view, so a list behind the panel updates at the same moment.
 - A Stop button aborts the request and keeps the steps that already ran.
